@@ -149,11 +149,43 @@ clamped 0..63.
    apply NE relocations (DS loads such as `mov ax, 0x180B` are fixup chains),
    trap `out 0x388/0x389`, and record OPL register writes per tick for every
    sound id.
-2. **Native sequencer** (done, `engine/src/audio/artech_fm_driver.cpp`): a
-   faithful C++ translation with explicit registers over a copy of the data
-   segment. `seqtest` matches all 898 sounds (208,970 register writes) across
-   ADLIB, ADLIB1-4, CADLIB and MADLIB. Caveat: CADLIB sounds 163, 164, 170
-   and 212 use opcodes 0x53-0x70, which index past the jump table into
-   unrelated code in the original; treating them as EOS reproduces the
-   original output for these songs.
-3. **Audio:** feed the register stream to a software OPL2 (Nuked-OPL3 or DOSBox OPL).
+2. **Native sequencer** (done, `engine/src/audio/artech_fm_driver.cpp`):
+   readable C++ over a copy of the data segment (song data uses absolute
+   addresses into it), byte-exact with the original.
+3. **Differential tests** (done, `tools/oplfuzz.py`): the game's songs only
+   use 37 of the 57 opcodes, so synthetic songs covering all of them are
+   injected into unused memory (F000+) and run through the original under
+   Unicorn. `seqtest --cases` replays them natively. `tools/statediff.py`
+   plus `seqtest --trace` pinpoint the first tick and variable where the two
+   diverge.
+4. **Audio** (done, `fmplay`): feed the register stream to a software OPL2 (Nuked-OPL3 or DOSBox OPL).
+
+## Original bugs reproduced by the port
+
+These change the output, so the port keeps them (all verified against the
+original under emulation):
+
+- **DOPITCHDELTA stack bug:** when an octave step of a pitch slide leaves an
+  F-number of 0, the routine pops one word too many. Its own return address
+  becomes the new F-number (low 10 bits, e.g. `0x0C8` in ADLIB, `0x0D2` in
+  CADLIB) and its RET exits the whole tick, skipping the second effect and
+  all lower channels.
+- **WRITEPATCH operator offset:** with velocity scaling on, the level
+  routines overwrite CL (the operator offset) with their shift count, so the
+  carrier level and envelope registers go to the wrong operator.
+- **Gate check:** after a gate key-off, the early-key-off comparison uses the
+  B0 value just written instead of the remaining tick count.
+- **Velocity bytes:** a note carries a velocity byte whenever either
+  velocity shift *or the last velocity* is non-zero (word tests at +32/+33).
+- **silenceVoice** keys the voice on again (B0 = 0x20) after silencing it.
+- **DODRUM** writes register BD twice after a single latch.
+- **GFLUSH** never clears the queue (its loop index doesn't advance).
+- **SENDSND** stores words at byte indexes (entries overlap).
+
+Per-DLL differences handled by detecting addresses in each DLL's code: the
+sound/patch/motor tables, the GE_FLG counter (absent in CADLIB/MADLIB), and
+the effect-routine code addresses that channels store in their data.
+
+Not reproduced: reading past offset FFFF of the data segment (the original
+faults on real hardware), and opcodes 53-70, which jump into unrelated code
+(treated as EOS; the four CADLIB songs that use them still match).

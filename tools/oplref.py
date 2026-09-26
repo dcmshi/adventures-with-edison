@@ -56,9 +56,12 @@ def detect_layout(ne):
     if code[op26:op26 + 2] != b"\x88\x26":
         raise ValueError("unexpected GTEMPO handler")
     tempo = u16(code[op26 + 2:op26 + 4])
+    # STUFFPATCH: mov cl,[YAMOFF] / sub bx,bx / mov bl,ah / shl bx,1 / mov si,[bx+PATCH]
+    patch = u16(re.search(rb"\x8a\x0e\xf1\x01\x2b\xdb\x8a\xdc\xd1\xe3\x8b\xb7(..)", code, re.S).group(1))
     init = next(n for n in ne.names.values() if n.startswith("INIT_ADLIB"))
     return {"sound_tables": tables, "current_table": current, "chan_table": chan,
-            "global_tempo": tempo, "jump_table": jt, "suffix": init[len("INIT_ADLIB"):]}
+            "global_tempo": tempo, "jump_table": jt, "patch_table": patch,
+            "suffix": init[len("INIT_ADLIB"):]}
 
 
 class DriverHarness:

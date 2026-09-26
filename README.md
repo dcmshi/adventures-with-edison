@@ -50,6 +50,7 @@ OPL register stream with reference logs recorded from the original driver:
 ```sh
 python -m venv .venv && .venv/Scripts/pip install -r requirements.txt
 .venv/Scripts/python tools/oplref.py ADLIB.DLL ADLIB1.DLL ADLIB2.DLL ADLIB3.DLL ADLIB4.DLL CADLIB.DLL MADLIB.DLL
+.venv/Scripts/python tools/oplfuzz.py            # synthetic songs covering every opcode
 ctest --test-dir build --output-on-failure
 ```
 
@@ -62,7 +63,7 @@ ctest --test-dir build --output-on-failure
 - [x] Reference OPL log harness (run original driver under emulation)
 - [x] Native C++ sequencer: all 898 sounds match the original driver write-for-write
 - [x] Software OPL + audio output: `fmplay` (Nuked-OPL3, SDL3)
-- [ ] Readable refactor of the sequencer (kept byte-exact by seqtest)
+- [x] Readable refactor of the sequencer; differential tests cover all 57 opcodes (1,685 cases match)
 - [ ] Decode the game's real Rock and Bach tempo (fmplay uses 128 for now)
 - [ ] Document `.SRF` / `.HS` formats
 - [ ] Decompile game logic (Ghidra, 16-bit NE)
