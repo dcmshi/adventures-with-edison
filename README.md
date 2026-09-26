@@ -17,14 +17,16 @@ A clean-room, native reimplementation of the engine behind *Corel's Adventures w
 
 - `original/`: your ISO and extracted CD contents (git-ignored)
 - `extracted/`: assets unpacked by our tools (git-ignored)
-- `tools/`: asset extraction and format-analysis scripts
+- `tools/`: asset extraction and format-analysis scripts (`pip install -r requirements.txt`)
 - `engine/`: the native reimplementation
 - `docs/`: file-format and engine notes
 
 ## Status
 
 - [x] Unpack PKWARE DCL archives (`*.D01`, `GRAFX.DAT`)
-- [ ] Document graphics / animation formats
+- [x] Identify fonts, palettes, text resources
+- [ ] Document animation / layout formats (groups 03, 50, 60, .VID, .SRF)
+- [ ] Decode FM music sequencer (ADLIB*.DLL) and build reference OPL log harness
 - [ ] Document `.SRF` / `.HS` formats
 - [ ] Decompile game logic (Ghidra, 16-bit NE)
 - [ ] Engine skeleton (SDL) + software OPL for FM music
