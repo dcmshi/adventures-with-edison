@@ -21,14 +21,35 @@ A clean-room, native reimplementation of the engine behind *Corel's Adventures w
 - `engine/`: the native reimplementation
 - `docs/`: file-format and engine notes
 
+## Building
+
+Requires CMake 3.20+ and a C++17 compiler (GCC, Clang or MSVC).
+
+```sh
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+```
+
+### Sequencer test
+
+`seqtest` replays every sound through the native FM driver and compares the
+OPL register stream with reference logs recorded from the original driver:
+
+```sh
+python -m venv .venv && .venv/Scripts/pip install -r requirements.txt
+.venv/Scripts/python tools/oplref.py ADLIB.DLL ADLIB1.DLL ADLIB2.DLL ADLIB3.DLL ADLIB4.DLL CADLIB.DLL MADLIB.DLL
+ctest --test-dir build --output-on-failure
+```
+
 ## Status
 
 - [x] Unpack PKWARE DCL archives (`*.D01`, `GRAFX.DAT`)
 - [x] Identify fonts, palettes, text resources
 - [ ] Document animation / layout formats (groups 03, 50, 60, .VID, .SRF)
 - [x] Decode FM music sequencer command set (docs/SEQUENCER.md)
-- [ ] Reference OPL log harness (run original driver under emulation)
-- [ ] Native sequencer matching reference logs
+- [x] Reference OPL log harness (run original driver under emulation)
+- [x] Native C++ sequencer: all 898 sounds match the original driver write-for-write
+- [ ] Software OPL + audio output (Nuked-OPL3, SDL)
 - [ ] Document `.SRF` / `.HS` formats
 - [ ] Decompile game logic (Ghidra, 16-bit NE)
 - [ ] Engine skeleton (SDL) + software OPL for FM music

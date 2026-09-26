@@ -149,6 +149,11 @@ clamped 0..63.
    apply NE relocations (DS loads such as `mov ax, 0x180B` are fixup chains),
    trap `out 0x388/0x389`, and record OPL register writes per tick for every
    sound id.
-2. **Native sequencer:** implement the above; diff its register log against
-   the reference until identical.
+2. **Native sequencer** (done, `engine/src/audio/artech_fm_driver.cpp`): a
+   faithful C++ translation with explicit registers over a copy of the data
+   segment. `seqtest` matches all 898 sounds (208,970 register writes) across
+   ADLIB, ADLIB1-4, CADLIB and MADLIB. Caveat: CADLIB sounds 163, 164, 170
+   and 212 use opcodes 0x53-0x70, which index past the jump table into
+   unrelated code in the original; treating them as EOS reproduces the
+   original output for these songs.
 3. **Audio:** feed the register stream to a software OPL2 (Nuked-OPL3 or DOSBox OPL).
