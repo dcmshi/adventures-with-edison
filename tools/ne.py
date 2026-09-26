@@ -92,6 +92,41 @@ class NEFile:
         s = self.segments[index - 1]
         return self.data[s["offset"]:s["offset"] + s["size"]]
 
+    def relocations(self, index):
+        """Relocations of a segment as dicts with the patch sites resolved.
+
+        addr_type: 2 = segment selector, 3 = far pointer, 5 = offset
+        kind:      "internal" (target = (segment, offset)) or
+                   "import"   (target = (module name, ordinal))
+        sites:     offsets in the segment to patch (chains already walked)
+        """
+        s = self.segments[index - 1]
+        if not s["reloc"]:
+            return []
+        seg = self.segment_bytes(index)
+        pos = s["offset"] + s["size"]
+        (count,) = struct.unpack_from("<H", self.data, pos)
+        out = []
+        for i in range(count):
+            addr_type, rtype, site, a, b = struct.unpack_from("<BBHHH", self.data, pos + 2 + i * 8)
+            kind = rtype & 3
+            if kind == 0:
+                target = ("internal", (a, b) if a != 0xFF else self.entries[b])
+            elif kind == 1:
+                target = ("import", (self.imports[a - 1], b))
+            else:
+                raise NotImplementedError(f"relocation kind {kind}")
+            sites = [site]
+            if not rtype & 4:  # non-additive: sites form a linked chain
+                while True:
+                    (nxt,) = struct.unpack_from("<H", seg, sites[-1])
+                    if nxt == 0xFFFF:
+                        break
+                    sites.append(nxt)
+            out.append({"addr_type": addr_type, "kind": target[0], "target": target[1],
+                        "additive": bool(rtype & 4), "sites": sites})
+        return out
+
     def export(self, name):
         for ordinal, n in self.names.items():
             if n.upper() == name.upper() and ordinal in self.entries:
