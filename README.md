@@ -23,11 +23,23 @@ A clean-room, native reimplementation of the engine behind *Corel's Adventures w
 
 ## Building
 
-Requires CMake 3.20+ and a C++17 compiler (GCC, Clang or MSVC).
+Requires CMake 3.20+, a C++17 compiler (GCC, Clang or MSVC) and git; SDL3 and
+Nuked-OPL3 are downloaded and built automatically at configure time.
 
 ```sh
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build
+```
+
+### Music player
+
+`fmplay` plays the game's FM music and sound effects straight from its DLLs,
+at the game's timer rate (13 ms per tick):
+
+```sh
+build/engine/fmplay original/cd/DSK3/ADLIB.DLL                  # list sounds by name
+build/engine/fmplay original/cd/DSK3/ADLIB.DLL SUNROCK1 SUNROCK2 SUNROCK3 SUNROCK4                     SUNROCK5 SUNROCK6 SUNROCK7 SUNROCK8          # a Rock and Bach band
+build/engine/fmplay original/cd/DSK3/MADLIB.DLL DROPTILE --wav droptile.wav
 ```
 
 ### Sequencer test
@@ -49,7 +61,15 @@ ctest --test-dir build --output-on-failure
 - [x] Decode FM music sequencer command set (docs/SEQUENCER.md)
 - [x] Reference OPL log harness (run original driver under emulation)
 - [x] Native C++ sequencer: all 898 sounds match the original driver write-for-write
-- [ ] Software OPL + audio output (Nuked-OPL3, SDL)
+- [x] Software OPL + audio output: `fmplay` (Nuked-OPL3, SDL3)
+- [ ] Readable refactor of the sequencer (kept byte-exact by seqtest)
+- [ ] Decode the game's real Rock and Bach tempo (fmplay uses 128 for now)
 - [ ] Document `.SRF` / `.HS` formats
 - [ ] Decompile game logic (Ghidra, 16-bit NE)
 - [ ] Engine skeleton (SDL) + software OPL for FM music
+
+## Licences
+
+Third-party code fetched at build time: SDL3 (zlib licence) and Nuked-OPL3
+(LGPL-2.1; distributing binaries requires allowing users to relink against a
+modified Nuked-OPL3).

@@ -17,6 +17,9 @@ public:
     // Raw file bytes of a segment (1-based index, as NE numbers them).
     std::vector<uint8_t> segment(int index) const;
 
+    // The whole file (e.g. for the CodeView debug info appended to it).
+    const std::vector<uint8_t>& bytes() const { return data_; }
+
 private:
     struct Segment {
         uint32_t offset;

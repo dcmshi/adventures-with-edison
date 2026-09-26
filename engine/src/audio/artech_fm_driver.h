@@ -52,6 +52,12 @@ public:
     bool idle() const;
     SoundList listSounds() const;
 
+    // Data-segment address of a sound's header in the current sound table
+    // (the address its debug-symbol name is attached to).
+    uint16_t soundAddress(uint16_t id) const {
+        return m16(static_cast<uint16_t>(m16(SOUNDTABLEPTR) + id * 2));
+    }
+
     const Layout& layout() const { return layout_; }
     uint8_t peek(uint16_t addr) const { return mem_[addr]; }
     int unknownOpcodes() const { return unknownOpcodes_; }
