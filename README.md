@@ -26,7 +26,9 @@ A clean-room, native reimplementation of the engine behind *Corel's Adventures w
 - [x] Unpack PKWARE DCL archives (`*.D01`, `GRAFX.DAT`)
 - [x] Identify fonts, palettes, text resources
 - [ ] Document animation / layout formats (groups 03, 50, 60, .VID, .SRF)
-- [ ] Decode FM music sequencer (ADLIB*.DLL) and build reference OPL log harness
+- [x] Decode FM music sequencer command set (docs/SEQUENCER.md)
+- [ ] Reference OPL log harness (run original driver under emulation)
+- [ ] Native sequencer matching reference logs
 - [ ] Document `.SRF` / `.HS` formats
 - [ ] Decompile game logic (Ghidra, 16-bit NE)
 - [ ] Engine skeleton (SDL) + software OPL for FM music
