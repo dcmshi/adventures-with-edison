@@ -1,0 +1,10 @@
+# Copyrighted original game data - never commit
+original/
+extracted/
+*.iso
+
+# Build / tooling
+build/
+__pycache__/
+*.pyc
+.venv/
