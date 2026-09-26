@@ -18,6 +18,13 @@ from capstone import CS_ARCH_X86, CS_MODE_16, Cs
 
 from ne import NEFile
 
+try:
+    from cvsyms import load_symbols
+except ImportError:  # pragma: no cover
+    load_symbols = None
+
+_MEMREF = re.compile(r"\[(?:[a-z]{2} \+ )?0x([0-9a-f]+)\]")
+
 ROOT = Path(__file__).resolve().parent.parent
 _TARGET = re.compile(r"^0x([0-9a-f]+)$")
 _FLOW_END = {"ret", "retf", "iret", "jmp", "ljmp"}
@@ -71,8 +78,24 @@ def main():
     names = {off: ne.names.get(o, f"ord{o}") for o, (s, off) in ne.entries.items() if s == args.seg}
     entries = list(names) + [int(e, 16) for e in args.entry]
     tables = [(int(b, 16), int(c, 16)) for b, c in (t.split(":") for t in args.table)]
+    symbols = {}
+    try:
+        symbols = load_symbols(path)
+    except (ValueError, TypeError):
+        pass  # no CodeView debug info in this file
+    code_syms = {off: n for (seg, off), n in symbols.items() if seg == args.seg}
+    data_syms = {off: n for (seg, off), n in symbols.items() if seg != args.seg}
+    entries += list(code_syms)
     insns, labels = disassemble(code, entries, tables)
     labels.update(names)
+    labels.update(code_syms)
+
+    def annotate(i):
+        refs = [data_syms.get(int(m.group(1), 16)) for m in _MEMREF.finditer(i.op_str)]
+        if i.mnemonic == "mov" and i.op_str.startswith(("si, 0x", "bx, 0x", "di, 0x")):
+            refs.append(data_syms.get(int(i.op_str.split("0x")[1], 16)))
+        refs = [r for r in refs if r]
+        return f"  ; {', '.join(refs)}" if refs else ""
 
     out = ROOT / "extracted" / "disasm" / f"{path.stem.lower()}_seg{args.seg}.asm"
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -83,7 +106,7 @@ def main():
                 f.write(f"\n{labels[pc]}:\n")
             if pc in insns:
                 i = insns[pc]
-                f.write(f"{pc:04x}: {i.bytes.hex():<14} {i.mnemonic} {i.op_str}\n")
+                f.write(f"{pc:04x}: {i.bytes.hex():<14} {i.mnemonic} {i.op_str}{annotate(i)}\n")
                 pc += i.size
             else:
                 end = pc + 1

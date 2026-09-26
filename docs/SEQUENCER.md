@@ -5,6 +5,17 @@ MADLIB and ADLIB1-4 contain the same driver; only data segment 2 (songs,
 patches, tables) differs. Names are our own interpretation; the reference
 harness (see plan at the end) will confirm behaviour.
 
+**Debug symbols:** the sound DLLs shipped with CodeView (NB09) debug info,
+so `tools/cvsyms.py` recovers the original names of routines, labels,
+variables, songs and patches (source modules: `sound.obj`, `fx.obj`,
+`motor.obj`, `patch.obj`, `mtable.obj`, `adlib.obj`). `tools/disasm.py` uses
+them automatically, and `tools/oplref.py` names every sound id. Our opcode
+names below were chosen before the symbols were found; the original label
+names are listed beside them. Key variables: `CURCHANNEL` 1E3, `DO_SOUND`
+1E4, `DRUMMASK` 1E5, `GLOBALTEMPO` 1E7, `SEED` 1ED, `SOUNDTABLEPTR` 20A,
+`BUFFHEAD`/`BUFFTAIL`/`BUFF` 225/227/229, `SCHNLPTR` 4D7, `OPOFFSETS` 4EB,
+`FREQTABLE` 4F4. The game EXEs had their debug info stripped.
+
 All addresses of data (`[0x…]`) are offsets into the DLL's data segment 2,
 which song data also uses for absolute jump/call targets.
 
@@ -51,65 +62,65 @@ enabled, one more byte = velocity follows and the operator levels are rewritten.
 marked *1-byte* have no parameter (the reader steps back one byte). Extra
 bytes follow the command word where listed.
 
-| Op | Name | Params | Effect |
-|---|---|---|---|
-| 00 | SETLOOP | n | loop counter = n |
-| 01 | LOOP | lo, hi | if `--counter` jump to `hi:lo`, else continue |
-| 02 | START | id | start another sound id |
-| 03 | EARLYOFF | n | key-off when `n` ticks remain (default 1) |
-| 04 | JUMP | lo, hi | jump to absolute address |
-| 05 | CALL | *1-byte*, u16 addr | push return, jump (per-channel stack) |
-| 06 | RET | *1-byte* | pop return |
-| 07 | OCTAVE | n | octave transpose (units of 0x10) |
-| 08 | END | | stop channel, key-off. Also the handler for all undefined opcodes |
-| 09 | REST | n | wait n ticks, key-off |
-| 0A | WRITEREG | reg, val | raw OPL register write |
-| 0B | TIE | note, dur | change pitch without re-keying (legato) |
-| 0C | TRANSPOSE | n | semitone transpose |
-| 0D | REGLFO | rate, len, reg, u16 table | cycle a register through a table |
-| 0E | STOPCH | ch | stop channel `ch` |
-| 10 | PATCH | n | load instrument `n` from `[0x6C1]` (11 bytes of operator regs) |
-| 11 | SLIDE | speed, s16be delta | pitch slide |
-| 12 | SLIDEOFF | *1-byte* | |
-| 13 | DETUNE | n | F-number offset |
-| 15 | VIBRATO | rate, depth, halfperiod, delay | |
-| 1A | PRIORITY | n | |
-| 1C | BARSET | n | global bar counter (sync between channels) |
-| 1D | BARWAIT | mask | wait for global counter bits |
-| 1E | VOL | n | channel attenuation A |
-| 20 | HOLD | dur | wait without key-off |
-| 21 | RETRIG | dur | re-key current pitch |
-| 24 | GATE | n (0-7) | key-off after n/8 of the duration |
-| 26 | GTEMPO | n | global tempo |
-| 27 | REGLFOOFF | *1-byte* | |
-| 29 | TEMPO | n | channel tempo |
-| 2B | VOLB | n | channel attenuation B |
-| 2C | CHVOL | ch, v | set channel `ch` attenuation C |
-| 2D | CHVOLADD | ch, d | add to channel `ch` attenuation C |
-| 2E | AMDEPTH | b | reg BD bit 7 |
-| 2F | VIBDEPTH | b | reg BD bit 6 |
-| 30 | VOLADD | n | attenuation A += n |
-| 33 | KILL | ch | stop and silence channel `ch` |
-| 35 | RANDPITCH | mask | random F-number offset |
-| 36 | VIBOFF | *1-byte* | |
-| 39 | BEND | n | pitch bend via per-semitone tables `[0x0004 + 2*semi]` |
-| 3A | SYNCTEMPO | *1-byte* | tempo = global tempo |
-| 3B | NOP | *1-byte* | |
-| 3C | HUMANIZE | mask | duration += random & mask |
-| 3D | TEMPOADD | s8 | clamped to 1..255 |
-| 3F | MOTOR | mode, table | |
-| 40 | MOTOROFF | *1-byte* | |
-| 41 | RHYTHM | p6, p7, p8, 6 bytes | load drum patches for ch 6-8, set B6/A6/B7/A7/B8/A8, enable rhythm mode |
-| 42 | DRUMS | mask | key drums in reg BD |
-| 43 | RHYTHMOFF | *1-byte* | |
-| 44 | DRUMVOL | mask, v | set drum attenuation |
-| 45 | DRUMVOLADD | mask, v | accumulate drum attenuation |
-| 46 | DRUMVOLBASE | mask, v | set base drum attenuation |
-| 48 | TEMPOLINK | b | follow global tempo every tick |
-| 49 | VELSCALE | mod, car | enable velocity bytes after notes |
-| 50 | EVENT | n | push game event `n` |
-| 51 | EVENTCH | *1-byte* | push `0xA0 | channel` |
-| 52 | EVENTDRUM | *1-byte* | push `0x80 | drums` |
+| Op | Our name | Original name | Params | Effect |
+|---|---|---|---|---|
+| 00 | SETLOOP | SETLOOP | n | loop counter = n |
+| 01 | LOOP | TESTLOOP | lo, hi | if `--counter` jump to `hi:lo`, else continue |
+| 02 | START | STARTVOICE | id | start another sound id |
+| 03 | EARLYOFF | SETGATETHRESHOLD | n | key-off when `n` ticks remain (default 1) |
+| 04 | JUMP | BRANCH | lo, hi | jump to absolute address |
+| 05 | CALL | CALLSTRING | *1-byte*, u16 addr | push return, jump (per-channel stack) |
+| 06 | RET | STRINGRETURN | *1-byte* | pop return |
+| 07 | OCTAVE | OCTAVEOFFSET | n | octave transpose (units of 0x10) |
+| 08 | END | EOS | | stop channel, key-off. Also the handler for all undefined opcodes |
+| 09 | REST | REST | n | wait n ticks, key-off |
+| 0A | WRITEREG | SETOPLREG | reg, val | raw OPL register write |
+| 0B | TIE | NEWNOTE | note, dur | change pitch without re-keying (legato) |
+| 0C | TRANSPOSE | NOTEOFFSET | n | semitone transpose |
+| 0D | REGLFO | TABLEMODOP | rate, len, reg, u16 table | cycle a register through a table |
+| 0E | STOPCH | STOPPARSE | ch | stop channel `ch` |
+| 10 | PATCH | STUFFPATCH | n | load instrument `n` from `[0x6C1]` (11 bytes of operator regs) |
+| 11 | SLIDE | PITCHDELTA | speed, s16be delta | pitch slide |
+| 12 | SLIDEOFF | CLEARPITCHDELTA | *1-byte* | |
+| 13 | DETUNE | FRACPITCH | n | F-number offset |
+| 15 | VIBRATO | VIBRATO | rate, depth, halfperiod, delay | |
+| 1A | PRIORITY | SETPRIORITY | n | |
+| 1C | BARSET | INITSYNC | n | global bar counter (sync between channels) |
+| 1D | BARWAIT | WAITSYNC | mask | wait for global counter bits |
+| 1E | VOL | SETACCENTATTN | n | channel attenuation A |
+| 20 | HOLD | STAY | dur | wait without key-off |
+| 21 | RETRIG | RETRIGGER | dur | re-key current pitch |
+| 24 | GATE | NOTEPERCENT | n (0-7) | key-off after n/8 of the duration |
+| 26 | GTEMPO | SETMUSICTEMPO | n | global tempo |
+| 27 | REGLFOOFF | KILLVECTOR2 | *1-byte* | |
+| 29 | TEMPO | SETTEMPO | n | channel tempo |
+| 2B | VOLB | SETCHANNELATTN | n | channel attenuation B |
+| 2C | CHVOL | SETSYSATTN | ch, v | set channel `ch` attenuation C |
+| 2D | CHVOLADD | SETSYSATTNDELTA | ch, d | add to channel `ch` attenuation C |
+| 2E | AMDEPTH | SETAMDEPTH | b | reg BD bit 7 |
+| 2F | VIBDEPTH | SETVIBDEPTH | b | reg BD bit 6 |
+| 30 | VOLADD | SETSIGNEDATTN | n | attenuation A += n |
+| 33 | KILL | KILLCHANNEL | ch | stop and silence channel `ch` |
+| 35 | RANDPITCH | RANDOMPITCH | mask | random F-number offset |
+| 36 | VIBOFF | KILLVECTOR1 | *1-byte* | |
+| 39 | BEND | SETPITCHBEND | n | pitch bend via per-semitone tables `[0x0004 + 2*semi]` |
+| 3A | SYNCTEMPO | GETMUSICTEMPO | *1-byte* | tempo = global tempo |
+| 3B | NOP | SNOP | *1-byte* | |
+| 3C | HUMANIZE | RANDOMDURATION | mask | duration += random & mask |
+| 3D | TEMPOADD | TEMPODELTA | s8 | clamped to 1..255 |
+| 3F | MOTOR | MOTORON | mode, table | |
+| 40 | MOTOROFF | MOTOROFF | *1-byte* | |
+| 41 | RHYTHM | DRUMSETUP | p6, p7, p8, 6 bytes | load drum patches for ch 6-8, set B6/A6/B7/A7/B8/A8, enable rhythm mode |
+| 42 | DRUMS | DODRUM | mask | key drums in reg BD |
+| 43 | RHYTHMOFF | DRUMOFF | *1-byte* | |
+| 44 | DRUMVOL | DRUMATTN | mask, v | set drum attenuation |
+| 45 | DRUMVOLADD | DRUMFADE | mask, v | accumulate drum attenuation |
+| 46 | DRUMVOLBASE | DRUMMASTERATTN | mask, v | set base drum attenuation |
+| 48 | TEMPOLINK | SETAUTOTEMPO | b | follow global tempo every tick |
+| 49 | VELSCALE | SETVELOCITY | mod, car | enable velocity bytes after notes |
+| 50 | EVENT | (unnamed) | n | push game event `n` |
+| 51 | EVENTCH | (unnamed) | *1-byte* | push `0xA0 | channel` |
+| 52 | EVENTDRUM | (unnamed) | *1-byte* | push `0x80 | drums` |
 
 ## Channel state (`di`, table of pointers at `[0x4D7]`)
 
@@ -134,7 +145,7 @@ clamped 0..63.
 
 ## Plan
 
-1. **Reference harness:** run the original driver under a CPU emulator,
+1. **Reference harness** (done, `tools/oplref.py`): run the original driver under a CPU emulator,
    apply NE relocations (DS loads such as `mov ax, 0x180B` are fixup chains),
    trap `out 0x388/0x389`, and record OPL register writes per tick for every
    sound id.

@@ -21,6 +21,7 @@ from unicorn.x86_const import (UC_X86_INS_IN, UC_X86_INS_OUT, UC_X86_REG_AX, UC_
                                UC_X86_REG_CS, UC_X86_REG_DS, UC_X86_REG_ES, UC_X86_REG_IP,
                                UC_X86_REG_SP, UC_X86_REG_SS)
 
+from cvsyms import load_symbols
 from ne import NEFile
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -206,6 +207,10 @@ class DriverHarness:
 def record(dll, ids=None, max_ticks=6000, tempo=0x80):
     h = DriverHarness(dll)
     h.call_export("INIT_ADLIB")
+    try:
+        names = load_symbols(dll)  # the DLLs shipped with CodeView debug info
+    except ValueError:
+        names = {}
     outdir = OUT / Path(dll).stem.lower()
     outdir.mkdir(parents=True, exist_ok=True)
     summary = []
@@ -223,10 +228,12 @@ def record(dll, ids=None, max_ticks=6000, tempo=0x80):
             if h.idle():
                 break
         ended = "ends" if h.idle() else "loops/long"
-        chan = h.byte(h.word(h.word(h.layout["current_table"]) + 2 * sid))
+        ptr = h.word(h.word(h.layout["current_table"]) + 2 * sid)
+        chan = h.byte(ptr)
+        name = names.get((2, ptr), "")
         (outdir / f"{sid:03d}.txt").write_text(
             "".join(f"{t} {r:02x} {v:02x}\n" for t, r, v in h.log))
-        summary.append(f"{sid:3d} ch{chan:<2} ticks {h.tick:5d} writes {len(h.log):6d} {ended}")
+        summary.append(f"{sid:3d} {name:<14} ch{chan:<2} ticks {h.tick:5d} writes {len(h.log):6d} {ended}")
     if skipped:
         summary.append(f"skipped (not channel sounds): {' '.join(map(str, skipped))}")
     (outdir / "index.txt").write_text("\n".join(summary) + "\n")
