@@ -2,10 +2,13 @@
 
 #include "rockbach/rockbach.h"
 
+#include <array>
 #include <cstdio>
 #include <fstream>
 #include <iterator>
+#include <random>
 
+#include "audio/artech_fm_driver.h"
 #include "formats/ne_file.h"
 
 namespace edison {
@@ -106,7 +109,9 @@ void RockBach::sound(uint16_t id) {
 
 void RockBach::setDriver(int driver) {
     // f02_006e: the driver (and its 72 Hz timer) is swapped.
-    static const char* const kDlls[5] = {"ADLIB.DLL", "ADLIB1.DLL", "ADLIB2.DLL", "ADLIB3.DLL", "ADLIB4.DLL"};
+    // Not in name order: the switch in f02_006e calls ADLIB, ADLIB1, ADLIB3,
+    // ADLIB4 and ADLIB2 for drivers 0-4.
+    static const char* const kDlls[5] = {"ADLIB.DLL", "ADLIB1.DLL", "ADLIB3.DLL", "ADLIB4.DLL", "ADLIB2.DLL"};
     driver_ = driver;
     if (!options_.music) return;
     ctx_.platform.setFmDriver(driver >= 0 && driver < 5 ? options_.cdDir + "/" + kDlls[driver] : std::string());
@@ -144,16 +149,129 @@ void RockBach::corelPresents() {
 }
 
 void RockBach::logo() {
-    // f05_04d8 (the band playing under the Rock and Bach Studio logo) isn't
-    // ported yet: the logo alone, until a key or click.
+    // f05_04d8: the Rock and Bach Studio logo while a song plays; a
+    // spotlight sweeps the stage and a band member (a new one each time the
+    // song reaches its next slot) plays below. Colours 1-5F pulse. It ends
+    // with the song (after 15 slots) or a key or click.
+    static const int kSong[16][2] = {{9, 0}, {9, 11}, {3, 0}, {2, 4}, {2, 6}, {2, 8}, {5, 12}, {5, 15},
+                                     {5, 0}, {9, 11}, {9, 12}, {6, 0}, {4, 0}, {4, 4}, {10, 0}, {9, 0}};
+    static const int kMembers[16] = {0, 0x13, 0xF, 0x21, 0x16, 0x18, 0x10, 0xF, 9, 1, 0x14, 0x11, 0x1F, 3, 0x13, 0x23};
+    std::array<int, 127 * 3> pulse;  // f05_002c's steps: -1 or 1 a component
+    pulse.fill(-1);
+    musicReset();
+    setSong(kSong);
+    tempo_ = 0xF0;
+    spot_ = Spot{};
     blackout();
     backdrop(0x1001);
     show(2);
     select(1);
     clearInput();
-    ctx_.countdown[0] = 50;
-    while (ctx_.countdown[0] > 0 && !anyInput()) ctx_.pump();
+    bool hit = false;  // [8CE7]: a member is playing
+    member_ = kMembers[0];
+    bool pulseDue = false, frameDue = false;  // [8CE9], [8CE8]
+    ctx_.timer.setPeriodic(8, 9, [&frameDue] { frameDue = true; });  // g05_0016
+    ctx_.timer.setPeriodic(7, 14, [&pulseDue] { pulseDue = true; });  // g05_0000
+    musicPlay();
+    ctx_.platform.withFm([](ArtechFmDriver& d) { d.poke(d.getVar(), 0); });
+    int slot = 0;
+    bool waiting = true;
+    ctx_.screens.copyAll(2, 3);
+    std::mt19937 rng{std::random_device{}()};
+    for (bool done = false; !done;) {
+        if (anyInput()) break;
+        ctx_.pump();
+        if (pulseDue) {
+            // f05_002c: every component of colours 1-7F one step up or
+            // down, turning at 0 and 255; 1-5F reach the display.
+            pulseDue = false;
+            std::vector<Rgb> shown(0x5F);
+            for (int k = 0; k < 127; ++k) {
+                Rgb c = ctx_.screens[1].palette[1 + k];
+                uint8_t* comp[3] = {&c.r, &c.g, &c.b};
+                for (int j = 0; j < 3; ++j) {
+                    int v = *comp[j] + pulse[k * 3 + j];
+                    if (v >= 0xFF) v = 0xFF, pulse[k * 3 + j] = -1;
+                    if (v <= 0) v = 0, pulse[k * 3 + j] = 1;
+                    *comp[j] = static_cast<uint8_t>(v);
+                }
+                if (k < 0x5F) shown[k] = c;
+            }
+            setColours(shown, 1);
+        }
+        if (frameDue) {
+            frameDue = false;
+            logoFrame();
+        }
+        // Now and then (1 in 50000 a pass) the member plays anyway, to the
+        // crowd.
+        const int roll = static_cast<int>(((rng() & 0x7FFF) * 2 + (rng() & 1)) % 50000);
+        uint8_t event = 0;
+        ctx_.platform.withFm([&event](ArtechFmDriver& d) {
+            event = d.peek(d.getVar());
+            if (event) d.poke(d.getVar(), 0);
+        });
+        if (event) {
+            if (++slot > 15) {
+                slot = 15;
+                done = true;
+            } else {
+                waiting = false;
+            }
+        }
+        if (!waiting) {
+            member_ = kMembers[slot];
+            waiting = true;
+            hit = true;
+            memberPlaying_[member_] = true;
+            sound(0x6000);  // crowd
+        }
+        if (roll == 0 && !hit) {
+            hit = true;
+            memberPlaying_[member_] = true;
+            sound(0x6000);
+        }
+        if (!memberPlaying_[member_]) hit = false;
+    }
+    memberPlaying_.fill(false);
+    memberFrame_.fill(0);
+    musicStop();
+    ctx_.timer.setPeriodic(8, 0, nullptr);
+    ctx_.timer.setPeriodic(7, 0, nullptr);
     clearInput();
+}
+
+void RockBach::logoFrame() {
+    // f05_03d4: the stage (100, 100, 401 x 301) redrawn from screen 3 on
+    // screen 2: the spotlight's beam (bitmap 212F in the polygon from
+    // (418, 100) down to the moving spot at y 350), the spot (2130), the
+    // member (f05_02c2); then onto the display.
+    constexpr int kX = 0x64, kY = 0x64, kW = 0x191, kH = 0x12D;
+    select(2);
+    copyArea(3, 2, kX, kY, kW, kH);
+    fillPolygonWith({{0x1A2, 0x64}, {spot_.left, 0x15E}, {spot_.left + 100, 0x15E}, {0x1A3, 0x64}}, 0x212F);
+    drawLogo(spot_.left, 0x147, 0x2130);
+    spot_.left += spot_.speed;
+    if (spot_.left <= 200) spot_.speed = -spot_.speed, spot_.left = 200;
+    if (spot_.left + 100 >= 400) spot_.speed = -spot_.speed, spot_.left = 300;
+    // f05_02c2: the member's next frame (frames 1-5 of 2070 + 5m, from its
+    // list at DS:194; FE ends it), or idling on frames 1-2.
+    int frame = memberFrame_[member_] + 1;
+    const uint8_t* list = &data_[0x194 + member_ * 16];
+    if (memberPlaying_[member_]) {
+        if (static_cast<int8_t>(list[frame]) == -2) {
+            memberPlaying_[member_] = false;
+            frame = 0;
+        }
+    } else if (frame >= 2) {
+        frame = 0;
+    }
+    memberFrame_[member_] = frame;
+    const uint16_t id = static_cast<uint16_t>(0x206F + list[frame] + member_ * 5);
+    const Bitmap& b = ctx_.bitmap(id);
+    drawLogo(0x140 - b.width / 2, 0x160 - b.height, id);
+    select(1);
+    copyArea(2, 1, kX, kY, kW, kH);
 }
 
 // --- the hallway ----------------------------------------------------------------

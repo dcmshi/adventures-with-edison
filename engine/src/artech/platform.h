@@ -1,12 +1,15 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <vector>
 
 #include "artech/screens.h"
 
 namespace edison {
+
+class ArtechFmDriver;
 
 // What the game code needs from the host (window, input, sound, clock).
 // The launcher is written like the original: straight-line code that polls
@@ -41,6 +44,10 @@ public:
     virtual bool wavPlaying() { return false; }
     virtual void setFmDriver(const std::string& dllPath) = 0;
     virtual void sendFm(uint16_t sound) = 0;
+    // Runs fn on the FM driver in use (holding the audio lock), for games
+    // that read and write its memory and call its other entries; nothing
+    // happens without one.
+    virtual void withFm(const std::function<void(ArtechFmDriver&)>& fn) { (void)fn; }
 };
 
 }  // namespace edison

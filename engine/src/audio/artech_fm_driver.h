@@ -55,6 +55,16 @@ public:
     void setMotor(uint16_t value);
     uint8_t nextEvent();  // GEVENT: 0 when the game-event queue is empty
     void flushEvents();   // GFLUSH
+    // Rock and Bach's entries (ADLIB.DLL, ADLIB1-4.DLL).
+    uint16_t getAddr(int which) const;              // GETADDR: 1/2 the sound table, 3 patches, 4 motor tables
+    uint16_t getVar() const { return 0x52E; }       // GETVAR: the byte song data sets (the same in every build)
+    uint8_t channelStatus(uint8_t channel);         // SSTATUS: the channel's ticks left (+05)
+    void installPatch(uint8_t channel, uint8_t patch);  // INSTALL_PATCH (171C): WRITEPATCH on the channel
+    void directDrumOut(uint8_t drums);              // DIRECTDRUMOUT (1749): key drums on in reg BD
+    void playInstrument(uint8_t channel);           // PLAYINS (1787): key the channel off and on
+    // The data-segment word, as the games read it through GETADDR's pointer.
+    uint16_t peekWord(uint16_t addr) const { return word(addr); }
+    void pokeWord(uint16_t addr, uint16_t value) { setWord(addr, value); }
 
     void setGlobalTempo(uint8_t tempo) { mem_[GLOBALTEMPO] = tempo; }
     bool idle() const;

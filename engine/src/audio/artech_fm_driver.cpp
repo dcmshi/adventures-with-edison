@@ -152,6 +152,40 @@ void ArtechFmDriver::flushEvents() {  // 0B3B
     byte(GQ_W) = 0;
 }
 
+uint16_t ArtechFmDriver::getAddr(int which) const {  // 0B5F (0 is the data segment itself)
+    switch (which) {
+    case 1: case 2: return word(SOUNDTABLEPTR);
+    case 3: return layout_.patchTable;
+    case 4: return layout_.motorTables;
+    default: return 0;
+    }
+}
+
+uint8_t ArtechFmDriver::channelStatus(uint8_t channel) {  // 180A
+    return this->channel(channel).ticks();
+}
+
+void ArtechFmDriver::installPatch(uint8_t channel, uint8_t patch) {  // 171C
+    Channel c = this->channel(channel);
+    writePatch(c, word(static_cast<uint16_t>(layout_.patchTable + patch * 2)),
+               byte(static_cast<uint16_t>(OPOFFSETS + channel)));
+}
+
+void ArtechFmDriver::directDrumOut(uint8_t drums) {  // 1749
+    // Keyed-off first (without the depth bits), then on.
+    writeReg(0xBD, u8((~(drums & 0x1F) & byte(DRUMMASK)) | 0x20));
+    byte(DRUMMASK) = u8(byte(DRUMMASK) | drums);
+    writeReg(0xBD, u8(byte(DRUMMASK) | byte(SHADOWBD) | 0x20));
+}
+
+void ArtechFmDriver::playInstrument(uint8_t channel) {  // 1787
+    Channel c = this->channel(channel);
+    c.blockKey() = u8(c.blockKey() & 0xDF);
+    writeReg(u8(0xB0 + channel), c.blockKey());
+    c.blockKey() = u8(c.blockKey() | 0x20);
+    writeReg(u8(0xB0 + channel), c.blockKey());
+}
+
 void ArtechFmDriver::update() {  // 1BD2  UPDATE_ADLIB
     if (byte(MOTORFLAG) != 0 && --byte(MOTORDCNT) == 0) {
         // "Motor" effect: toggle channel 0's key bit at MOTORDUR ticks.

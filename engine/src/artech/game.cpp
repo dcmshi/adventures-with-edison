@@ -35,8 +35,23 @@ void ArtechGame::fillPolygon(const std::vector<std::pair<int, int>>& pts, uint8_
     if (edges)
         for (int k = 0; k < n; ++k)
             line(pts[k].first, pts[k].second, pts[(k + 1) % n].first, pts[(k + 1) % n].second, colour);
-    if (n < 3) return;
     Screen& s = ctx_.screens[current_];
+    scanPolygon(pts, [&](int x, int y) { s.pixels[static_cast<size_t>(y) * Screen::kWidth + x] = colour; });
+}
+
+void ArtechGame::fillPolygonWith(const std::vector<std::pair<int, int>>& pts, uint16_t bitmap) {
+    const Bitmap& bmp = ctx_.bitmap(bitmap);
+    if (bmp.width <= 0 || bmp.height <= 0 || current_ == 1) return;
+    Screen& s = ctx_.screens[current_];
+    scanPolygon(pts, [&](int x, int y) {
+        s.pixels[static_cast<size_t>(y) * Screen::kWidth + x] = bmp.at(x % bmp.width, y % bmp.height);
+    });
+}
+
+template <class Plot>
+void ArtechGame::scanPolygon(const std::vector<std::pair<int, int>>& pts, Plot plot) {
+    const int n = static_cast<int>(pts.size());
+    if (n < 3) return;
     int top = Screen::kHeight, bottom = -1;
     for (auto [x, y] : pts) top = std::min(top, y), bottom = std::max(bottom, y);
     for (int y = std::max(top, 0); y <= std::min(bottom, Screen::kHeight - 1); ++y) {
@@ -49,8 +64,7 @@ void ArtechGame::fillPolygon(const std::vector<std::pair<int, int>>& pts, uint8_
         }
         std::sort(xs.begin(), xs.end());
         for (size_t k = 0; k + 1 < xs.size(); k += 2)
-            for (int x = std::max(xs[k], 0); x <= std::min(xs[k + 1], Screen::kWidth - 1); ++x)
-                s.pixels[static_cast<size_t>(y) * Screen::kWidth + x] = colour;
+            for (int x = std::max(xs[k], 0); x <= std::min(xs[k + 1], Screen::kWidth - 1); ++x) plot(x, y);
     }
 }
 

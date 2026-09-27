@@ -285,6 +285,11 @@ public:
         driver_->sendSound(sound);
     }
 
+    void withFm(const std::function<void(edison::ArtechFmDriver&)>& fn) override {
+        std::lock_guard<std::mutex> lock(fmMutex_);
+        if (driver_) fn(*driver_);
+    }
+
 private:
     void capture(const edison::Screen& screen, const edison::Palette& palette) {
         if (automation.captureDir.empty() || milliseconds() < nextCapture_) return;

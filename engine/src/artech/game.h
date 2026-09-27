@@ -44,6 +44,9 @@ protected:
     // A filled polygon on the current screen; `edges` also draws its
     // outline in the same colour (the vertices included).
     void fillPolygon(const std::vector<std::pair<int, int>>& points, uint8_t colour, bool edges = false);
+    // bmfill_poly: the polygon filled with a bitmap, tiled from the screen's
+    // top left. (The display, screen 1, isn't allowed.)
+    void fillPolygonWith(const std::vector<std::pair<int, int>>& points, uint16_t bitmap);
     void line(int x0, int y0, int x1, int y1, uint8_t colour);
     void frame(int x, int y, int w, int h, uint8_t colour);     // a rectangle's outline
     void text(int x, int y, const std::string& s, int colour);  // in font_
@@ -67,6 +70,10 @@ protected:
     const Font* font_ = nullptr;
 
 private:
+    // Calls plot(x, y) for each pixel of the polygon's inside, on screen.
+    template <class Plot>
+    void scanPolygon(const std::vector<std::pair<int, int>>& points, Plot plot);
+
     struct SavedArea {
         int x, y, w, h;
         std::vector<uint8_t> pixels;

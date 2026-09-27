@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -35,9 +36,18 @@ private:
     void sound(uint16_t id);                                    // f27_020e: <CD>\RB\<name>.wav
     void setDriver(int driver);                                 // f02_006e: -1 none, 0-4 ADLIB, ADLIB1-4
 
+    // --- songs in the FM driver (segment 20, music.cpp) ---
+    void musicReset();                                          // f20_0000
+    void musicStop();                                           // f20_0248
+    void musicPlay(int from = 0);                               // f20_0070 / f20_00e8
+    void musicPlaySlot(int slot);                               // g20_016c
+    void setSong(const int tracks[16][2]);                      // f20_0386: {track, style} per slot
+    void setSlot(int track, int slot, int style);               // f20_03fa / f20_0532 / f20_0618
+
     // --- the intro ---
     void corelPresents();                                       // f25_0016
     void logo();                                                // f05_04d8
+    void logoFrame();                                           // f05_03d4 + f05_02c2
 
     // --- the hallway (segment 24) ---
     // Returns the hot spot clicked (the colour of mask 1006 under the
@@ -53,6 +63,17 @@ private:
     std::string cdRoot_;
     std::vector<uint8_t> data_;
     int driver_ = -1;  // [83D0]
+    int keyShift_ = 0, modeShift_ = 0;  // [2164], [2166]
+    uint8_t tempo_ = 0xC0;              // [20B6]
+
+    // The band members on the stage (the logo, the jukebox): 36 of them.
+    int member_ = 0;                                  // [69C4]
+    std::array<bool, 36> memberPlaying_{};            // DS:0074 + 8m
+    std::array<int, 36> memberFrame_{};               // DS:0076 + 8m
+    struct Spot {
+        int left = 0xC8;                              // [4E7A]: the spot's left end (the right is 100 on)
+        int speed = 2;                                // [0780]
+    } spot_;
 };
 
 }  // namespace edison

@@ -30,6 +30,7 @@ add_library(edison_core
     src/mystery/stackup.cpp
     src/mystery/drop.cpp
     src/rockbach/rockbach.cpp
+    src/rockbach/music.cpp
     src/mystery/editor.cpp
     src/mystery/end.cpp
     src/mystery/three.cpp
