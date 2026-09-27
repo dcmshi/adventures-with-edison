@@ -55,8 +55,10 @@ protected:
     void duplicateArea(int src, int dst, int sx, int sy, int w, int h, int dx, int dy);
     int saveArea(int x, int y, int w, int h);                   // a handle
     // Onto the display through screen 3, or onto the current screen when
-    // that isn't the display; the handle is freed.
-    void restoreArea(int handle);
+    // that isn't the display; the handle is freed. `onlyCurrent`: onto the
+    // current screen alone, even the display (f37_1664).
+    void restoreArea(int handle, bool onlyCurrent = false);
+    void freeArea(int handle) { saved_.erase(handle); }         // discarded, not drawn
     // recolour_area: pixels of colour `from` become `to`.
     void recolour(int x, int y, int w, int h, uint8_t from, uint8_t to);
 

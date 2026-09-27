@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <initializer_list>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -49,11 +50,57 @@ private:
     void logo();                                                // f05_04d8
     void logoFrame();                                           // f05_03d4 + f05_02c2
 
-    // --- the hallway (segment 24) ---
+    // --- the widgets (segment 34, widgets.cpp) ---
+    struct Widget {
+        enum : uint16_t {
+            kPressed = 0x2, kNoBevel = 0x4, kSlider = 0x18, kLabel = 0x20, kRadio = 0x40,
+            kFace = 0x80, kBitmap = 0x100, kHidden = 0x200, kToggle = 0x400,
+        };
+        int x0, y0, x1, y1;                   // inclusive
+        uint16_t flags;
+        std::string label = {};               // kLabel
+        int group = 0;                        // kRadio
+        uint8_t faceDown = 0, faceUp = 0;     // kFace
+        uint16_t bitmapDown = 0, bitmapUp = 0;
+        int hotkey = 1;                       // (upper case)
+        uint16_t overlayUp = 0, overlayDown = 0;
+        char mode = 0;                        // 'c' clear bitmaps, 'b' both overlays, else opaque
+        bool toggle = false;                  // kToggle
+    };
+    struct Bevel {
+        uint8_t a, b, c, d;                   // left, top, bottom, right when up
+    };
+    void initWidgets(std::vector<Widget>& list, Bevel bevel);   // f34_0ebc
+    void drawWidget(const Widget& w, bool pressed);             // f34_07b8
+    int pollWidgets();                                          // f34_0fb6: the index pressed, or -1
+    void showWidgets(std::initializer_list<int> which);         // 200 off, drawn
+    void hideWidgets();                                         // 200 on, all
+
+    // --- the hallway (segment 24, hallway.cpp) ---
     // Returns the hot spot clicked (the colour of mask 1006 under the
     // mouse): 1 leave, 2-4 and 6-9 an activity.
     int hallway(bool again);                                    // f24_1d4a
+    void hallwayWidgets();                                      // f24_0000
+    void edison(int from, int to);                              // f24_0666: Edison's frames
+    void bubble(int x, int y, int w, int h, int tail);          // f24_0448
+    int say(int a, int b, int c, int d, bool withName);         // f24_1452: a handle
+    void enterName();                                           // f24_058e
+    bool editLine(std::string& s, int max, int x, int y, int w, uint8_t colour);  // f04_0d52
+    void findPlayer(bool* found);                               // f24_09c0
+    void savePlayer(bool keep);                                 // f24_088a
+    void loadLook();                                            // f24_0e94: ed.yyy
+    void saveLook();                                            // f24_0f10
+    void lookColours(int which);                                // f24_0cd8
+    void lookEditor();                                          // f24_1bba (+ f24_1b00)
+    int askChangeLook();                                        // f24_191e: 0 yes
+    int askQuit();                                              // f24_0f8c: 1 quit
+    void credits();                                             // f24_12e6
     void activity(int which);                                   // f33_0422's switch
+    // f27_01c4; also forgets a click or key f24_0666 has seen.
+    void clearInput() {
+        ArtechGame::clearInput();
+        inputSeen_ = false;
+    }
 
     // --- data from WINMAIN.EXE's data segment (read at run time) ---
     std::string dataString(uint16_t offset) const;
@@ -74,6 +121,22 @@ private:
         int left = 0xC8;                              // [4E7A]: the spot's left end (the right is 100 on)
         int speed = 2;                                // [0780]
     } spot_;
+
+    // Widgets.
+    std::vector<Widget>* widgets_ = nullptr;           // [8D30]
+    Bevel bevel_{};                                    // [655A..6560]
+    int lastKey_ = 0;                                  // a key no widget took
+    // The hallway.
+    std::vector<Widget> hallwayWidgets_;               // DS:69F4
+    std::string name_;                                 // DS:21A0
+    int slot_ = 0;                                     // [9244]: the player in user.yyy
+    int playerFlag_ = 0;                               // the record's +14 byte
+    std::array<uint8_t, 4> look_{};                    // [8D44]: Edison's look, 0-7 a part
+    std::array<std::vector<Rgb>, 4> lookTables_;       // DS:223E, 2286, 22CE, 232E (f24_0c0c)
+    std::array<Rgb, 13> savedLook_{};                  // DS:8CC0: colours E1-ED
+    int edisonArea_ = 0;                               // Edison's saved area on screen 2
+    bool edisonTick_ = false;                          // [8CA0]
+    bool inputSeen_ = false;                           // [83D8] / [3BA7] still set
 };
 
 }  // namespace edison

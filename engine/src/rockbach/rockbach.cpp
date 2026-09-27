@@ -274,28 +274,7 @@ void RockBach::logoFrame() {
     copyArea(2, 1, kX, kY, kW, kH);
 }
 
-// --- the hallway ----------------------------------------------------------------
-
-int RockBach::hallway(bool again) {
-    // f24_1d4a. (Edison's greeting, the player's name and looks the first
-    // time, and the animated sign aren't ported yet.)
-    (void)again;
-    blackout();
-    backdrop(0x1007);
-    show(2);
-    select(1);
-    backdrop(0x1006);  // the hot-spot mask, on screen 2
-    clearInput();
-    for (;;) {
-        ctx_.pump();
-        int x, y;
-        if (!ctx_.platform.takeClick(&x, &y)) continue;
-        if (x < 0 || y < 0 || x >= Screen::kWidth || y >= Screen::kHeight) continue;
-        const int spot = ctx_.screens[2].pixels[static_cast<size_t>(y) * Screen::kWidth + x];  // f37_23ce
-        if (spot >= 1 && spot != 5 && spot != 10) return spot;
-        clearInput();
-    }
-}
+// --- the activities ----------------------------------------------------------
 
 void RockBach::activity(int which) {
     // f33_0422: each activity with its FM driver. None is ported yet.
