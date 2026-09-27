@@ -35,6 +35,7 @@ private:
     // f19_0116: palette entries [first, first + count) of the display.
     void setColours(const std::vector<Rgb>& colours, int first);
     void sound(uint16_t id);                                    // f27_020e: <CD>\RB\<name>.wav
+    std::vector<uint8_t> soundData(uint16_t id);                // f27_039a: the WAV file
     void setDriver(int driver);                                 // f02_006e: -1 none, 0-4 ADLIB, ADLIB1-4
 
     // --- songs in the FM driver (segment 20, music.cpp) ---
@@ -162,6 +163,12 @@ private:
     void pieceStop();                                           // f12_018c
     void pieceTempo(int t);                                     // f12_0270
 
+    // --- the Instrument Room (segment 8: instruments.cpp) ---
+    int instrumentRoom();                                       // f08_0f2e
+    void instrumentWidgets();                                   // f08_002c
+    void showInstrument(int i, const std::vector<std::string>& text, int page, bool viaScreen2);  // f08_0e0e
+    void instrumentText(const std::vector<std::string>& text, int i, int page, bool viaScreen2);  // f08_0802
+
     // --- Harmony Hall (segments 7 and 11: harmony.cpp) ---
     int harmonyHall();                                          // f07_1908
     void harmonyWidgets();                                      // f07_0000
@@ -213,6 +220,10 @@ private:
         uint8_t tempo = 0;                             // [1272]
         int song = 0;                                  // [8710]
     } band_;
+    // The Instrument Room.
+    std::vector<Widget> instrumentWidgets_;
+    std::vector<uint8_t> sample_;                      // [3BB4]: the instrument's WAV
+    int markerStep_ = 0;                               // [6752]
     // Harmony Hall.
     std::vector<Widget> harmonyWidgets_;
     std::array<Slider, 5> harmonySliders_{};           // DS:8BD8 (4 parts), 8C28 the tempo

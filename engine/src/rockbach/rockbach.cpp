@@ -89,21 +89,26 @@ void RockBach::setColours(const std::vector<Rgb>& colours, int first) {
         ctx_.screens[1].palette[first + k] = ctx_.displayPalette[first + k] = colours[k];
 }
 
-void RockBach::sound(uint16_t id) {
-    // f27_020e: the name table at DS:278C (far pointers) by id - 0x6000;
+std::vector<uint8_t> RockBach::soundData(uint16_t id) {
+    // f27_039a: the name table at DS:278C (far pointers) by id - 0x6000;
     // <CD>\RB\<name>.wav, else <name>.wav next to the game (the player's
-    // own sounds). Longer than 64 KB plays nothing.
+    // own sounds).
     const int index = id - 0x6000;
-    if (index < 0 || 0x278C + 4 * index + 1 >= static_cast<int>(data_.size())) return;
+    if (index < 0 || 0x278C + 4 * index + 1 >= static_cast<int>(data_.size())) return {};
     const std::string name = dataString(dataWord(static_cast<uint16_t>(0x278C + 4 * index)));
     std::ifstream in(cdRoot_ + "/RB/" + name + ".wav", std::ios::binary);
     if (!in) in.open(options_.saveDir + "/" + name + ".wav", std::ios::binary);
     if (!in) {
         warnOnce("missing sound " + name + ".wav");
-        return;
+        return {};
     }
-    const std::vector<uint8_t> wav((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-    if (wav.size() > 0x10000) return;
+    return std::vector<uint8_t>((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+}
+
+void RockBach::sound(uint16_t id) {
+    // f27_020e: longer than 64 KB plays nothing.
+    const std::vector<uint8_t> wav = soundData(id);
+    if (wav.empty() || wav.size() > 0x10000) return;
     ctx_.platform.playWav(wav);
 }
 
@@ -300,6 +305,9 @@ void RockBach::activity(int which) {
             harmonyReset();  // f11_0000
             harmonyHall();
             harmonyStop();   // f11_008c
+            break;
+        case 7:
+            instrumentRoom();
             break;
         default:
             logLine("Rock and Bach: activity " + std::to_string(which) + " isn't ported yet; back to the hallway.");

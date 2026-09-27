@@ -227,6 +227,9 @@ public:
     }
 
     bool wavPlaying() override { return wavStream_ && SDL_GetAudioStreamQueued(wavStream_) > 0; }
+    void stopWav() override {
+        if (wavStream_) SDL_ClearAudioStream(wavStream_);
+    }
 
     void playWav(const std::vector<uint8_t>& wav) override {
         if (!device_) return;

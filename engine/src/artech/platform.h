@@ -42,6 +42,7 @@ public:
     virtual void playWav(const std::vector<uint8_t>& wav) = 0;
     // True while a WAV is still playing (the original's [73B6]).
     virtual bool wavPlaying() { return false; }
+    virtual void stopWav() {}
     virtual void setFmDriver(const std::string& dllPath) = 0;
     virtual void sendFm(uint16_t sound) = 0;
     // Runs fn on the FM driver in use (holding the audio lock), for games
