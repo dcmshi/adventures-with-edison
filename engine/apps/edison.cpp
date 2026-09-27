@@ -7,7 +7,7 @@
 //     --level N        (with --game mystery) skip setup and play level N (0-7)
 //     --puzzle K       (with --game mystery) play only puzzle K (0-15), at difficulty --level;
 //                      16 is the bonus maze, 17 the winning end of a game, 18 the losing one,
-//                      19 the winning end after the final quiz
+//                      19 the winning end after the final quiz, 20 the custom level editor
 //     --save DIR       where the games keep high scores and players (default: save)
 //   For testing without a person at the keyboard:
 //     --capture DIR MS    save the display to DIR/NNNNN.bmp every MS milliseconds

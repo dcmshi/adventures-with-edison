@@ -56,6 +56,10 @@ void Mystery::run() {
             // For testing the end of a game: 16 the bonus maze, 17 a won
             // game, 18 a lost one, 19 a won game after the quiz (over a
             // fresh map).
+            if (options_.startPuzzle == 20) {  // the custom level editor
+                customLevelEditor(false);
+                continue;
+            }
             if (options_.startPuzzle == 16) {
                 bonusMaze(std::max(options_.startLevel, 0));
                 continue;

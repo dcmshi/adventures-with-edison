@@ -111,7 +111,25 @@ private:
     void waitSpeech();                                          // until [73B6] (the WAV) is clear
     bool askCustomLevel();                                      // g08_1a4e
     bool askLastLevel();                                        // g08_1b6e
+
+    // --- segment 11: the custom level editor (editor.cpp) ---
     void customLevelEditor(bool edit);                          // f11_19b4
+    void editorView(int mode);                                  // f11_098c
+    void editorLabels();                                        // f11_18b8
+    void editorButton(int x, int y, int w, int h, uint8_t colour);
+    void editorMessage(const std::string& first, const std::string& second = "", int secondY = 0x162);
+    void editorGames();                                         // f11_14aa
+    void editorHold(int game);
+    void editorLevels();                                        // g11_0e50
+    void editorPlace();                                         // g11_104c
+    void editorPanels(int stage);
+    void editorPickMap(int button);                             // g11_07e4
+    void editorBelow(int button);                               // g11_0116
+    void editorCheck();                                         // f11_165a
+    // f09_1dd8's tables: level N's used squares ('1' of 29) and where its
+    // games start in segment 62.
+    static const char* levelSquares(int level);
+    static int levelPuzzles(int level);
 
     // --- segments 9-10: the game (game.cpp, floor.cpp) ---
     // f09_1dd8: returns 0 to play another game at the same level, 1 to
@@ -271,6 +289,17 @@ private:
     std::array<std::vector<Rgb>, 4> edisonColours_;
     Panels panels_;
     int choice_ = 0;            // [09D2]
+    // The custom level editor.
+    bool editing_ = false;      // [B792]: changing the player's custom level
+    int editorMap_ = -1;        // [9316]: the map (level) chosen
+    int editorGame_ = -1;       // [C768]: the game being placed
+    int editorSquare_ = -1;     // [B720]
+    int editorState_ = 0;       // [C652]: 0 map, 1 placing, 2 holding a game, 3 its level, 4 not all filled
+    int editorEvent_ = 0;       // [9390]: 1 map shown, 2 games, 3 Ready, 4 done
+    int heldX_ = 0, heldY_ = 0; // [9448], [944A]
+    int heldUnder_ = 0;         // [C772]
+    std::vector<Panels::Button> editorButtons_;  // DS:1ADC, under the map
+    bool pendingPanels_ = false;
     int menuEvent_ = 0;         // [91A4]: 1 make a custom level, 2 play it, 3 the saved game, 4 edit it
     bool customLevel_ = false;  // [C654]: playing a custom level
     struct HighScore {

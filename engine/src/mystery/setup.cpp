@@ -669,12 +669,6 @@ void Mystery::useCustomLevel() {
     customLevel_ = true;
 }
 
-void Mystery::customLevelEditor(bool edit) {
-    // f11_19b4 (segment 11) isn't ported yet.
-    (void)edit;
-    messageBox({"The custom level editor", "isn't ported yet."});
-}
-
 void Mystery::runOff() {
     // f08_1264: Edison runs off to start the search.
     struct Frame {

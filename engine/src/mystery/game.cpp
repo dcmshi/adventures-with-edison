@@ -56,6 +56,10 @@ struct Hand {
 
 }  // namespace
 
+const char* Mystery::levelSquares(int level) { return kLevels[std::clamp(level, 0, 7)].squares; }
+
+int Mystery::levelPuzzles(int level) { return kLevels[std::clamp(level, 0, 7)].puzzles; }
+
 // --- drawing ------------------------------------------------------------
 
 void Mystery::show(int screen) {
