@@ -679,8 +679,11 @@ int Mystery::play() {
         Panels::Panel scores;  // DS:0E9A: high scores
         scores.x = 0x86, scores.y = 0xBC, scores.w = 0x4E, scores.h = 0x2C;
         scores.buttons = {{0, 0, 0x4E, 0x2C}};
-        scores.onPress = [this](int b) {  // f09_0846 (the scores themselves: not yet)
-            if (b >= 0 && !modal_) drawOpaque(0x86, 0xBC, 0x22C3);
+        scores.onPress = [this](int b) {  // f09_0846
+            if (b < 0 || modal_) return;
+            drawOpaque(0x86, 0xBC, 0x22C3);
+            showHighScores();
+            redrawMap();
         };
         scores.onRelease = [this](int b) {  // f09_0896
             if (b >= 0 && !modal_) drawOpaque(0x86, 0xBC, 0x22C2);
@@ -793,16 +796,29 @@ int Mystery::play() {
     }
 }
 
-void Mystery::endOfGame() {
-    // Segments 22-24 (the end screens, the bonus game and the high
-    // scores) aren't ported yet: a message box stands in.
-    ctx_.timer.setPeriodic(5, 0, nullptr);
-    std::vector<std::string> lines;
-    if (outcome_ == 1)
-        lines = {dataLines(0x13C8)[0], "(The end screens aren't ported yet.)"};
-    else
-        lines = {"Good work, you won!", "(The end screens aren't ported yet.)"};
-    messageBox(lines);
+void Mystery::redrawMap() {
+    // g09_1c92: the map again (after the high scores). Screen 2 gets the
+    // map without Smitty and Edison, for their animations.
+    ctx_.showFullScreen(0x1003, 2);
+    applyColours(2, false);
+    select(2);
+    drawObjects(0);
+    clock(true);
+    const int smitty = saveArea(0, 0x4A, 0xA8, 0x146);
+    drawLogo(0, 0x4A, 0x22AD);
+    drawLogo(0x6C, 0xF0, 0x22AB);
+    const int edison = saveArea(0x1DA, 0xE8, 0xA6, 0xAC);
+    drawLogo(0x1DA, 0xE8, 0x22AE);
+    drawLogo(0x1FC, 0x158, 0x22BB);
+    drawOpaque(0x176, 0x12E, 0x21E4);
+    number(0x13A, 0x32, 0x38, 0x10, score_);
+    drawOpaque(0x86, 0xBC, 0x22C2);
+    select(1);
+    show(2);
+    select(2);
+    restoreArea(smitty);
+    restoreArea(edison);
+    select(1);
 }
 
 }  // namespace edison

@@ -43,10 +43,43 @@ uint16_t Mystery::dataWord(uint16_t offset) const {
 void Mystery::run() {
     // f02_00ba's loop: setup, then games until the player leaves.
     ctx_.startTimer();
+    loadHighScores();  // f24_005a, at the end of setup's first pass
     if (options_.startPuzzle >= 0) {
         player_.name = "Test";
+        player_.level = static_cast<uint8_t>(std::clamp(options_.startLevel, 0, 7));
         square_ = 0;
-        for (;;) puzzle(options_.startPuzzle, std::max(options_.startLevel, 0));
+        for (;;) {
+            if (options_.startPuzzle < 16) {
+                puzzle(options_.startPuzzle, std::max(options_.startLevel, 0));
+                continue;
+            }
+            // For testing the end of a game: 16 the bonus maze, 17 a won
+            // game, 18 a lost one, 19 a won game after the quiz (over a
+            // fresh map).
+            if (options_.startPuzzle == 16) {
+                bonusMaze(std::max(options_.startLevel, 0));
+                continue;
+            }
+            newBoard();
+            backdrop(0x1003);
+            applyColours(2, false);
+            select(2);
+            drawObjects(0);
+            drawLogo(0x1FC, 0x158, 0x22BB);
+            drawOpaque(0x176, 0x12E, 0x21E4);
+            drawLogo(0x1DA, 0xE8, 0x22AE);
+            select(1);
+            show(2);
+            if (options_.startPuzzle == 19) {
+                score_ = 1234;
+                endScreen(true, true);
+                addHighScore();
+                showHighScores();
+                continue;
+            }
+            outcome_ = options_.startPuzzle == 17 ? 2 : 1;
+            endOfGame();
+        }
     }
     int mode = 1;
     if (options_.startLevel >= 0) {

@@ -5,7 +5,10 @@
 //     -A  no FM music (as the original's -A)
 //     --game mystery   start Mystery at the Museums directly
 //     --level N        (with --game mystery) skip setup and play level N (0-7)
-//     --puzzle K       (with --game mystery) play only puzzle K (0-15), at difficulty --level
+//     --puzzle K       (with --game mystery) play only puzzle K (0-15), at difficulty --level;
+//                      16 is the bonus maze, 17 the winning end of a game, 18 the losing one,
+//                      19 the winning end after the final quiz
+//     --save DIR       where the games keep high scores and players (default: save)
 //   For testing without a person at the keyboard:
 //     --capture DIR MS    save the display to DIR/NNNNN.bmp every MS milliseconds
 //     --click T X Y       click at game coordinates X, Y at T milliseconds (repeatable)
@@ -14,8 +17,8 @@
 //     --quit-after MS     close after MS milliseconds
 //
 // The folder defaults to original/cd/DSK3 (needs EDISON.EXE, SHELL.D01 and
-// CADLIB.DLL from the CD). The games themselves aren't ported yet, so
-// picking one returns to the menu.
+// CADLIB.DLL from the CD). Mystery at the Museums is ported; picking one of
+// the other games returns to the menu.
 
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
@@ -210,6 +213,17 @@ public:
 
     bool escapeHeld() override { return SDL_GetKeyboardState(nullptr)[SDL_SCANCODE_ESCAPE]; }
 
+    bool keyHeld(int key) override {
+        const bool* state = SDL_GetKeyboardState(nullptr);
+        switch (key) {
+        case kLeft: return state[SDL_SCANCODE_LEFT];
+        case kRight: return state[SDL_SCANCODE_RIGHT];
+        case kUp: return state[SDL_SCANCODE_UP];
+        case kDown: return state[SDL_SCANCODE_DOWN];
+        default: return false;
+        }
+    }
+
     bool wavPlaying() override { return wavStream_ && SDL_GetAudioStreamQueued(wavStream_) > 0; }
 
     void playWav(const std::vector<uint8_t>& wav) override {
@@ -330,6 +344,7 @@ int main(int argc, char** argv) {
     std::string startGame;
     int startLevel = -1;
     int startPuzzle = -1;
+    std::string saveDir = "save";
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
         if (a == "--capture" && i + 2 < argc) {
@@ -357,6 +372,8 @@ int main(int argc, char** argv) {
             startPuzzle = std::atoi(argv[++i]);
         } else if (a == "--level" && i + 1 < argc) {
             startLevel = std::atoi(argv[++i]);
+        } else if (a == "--save" && i + 1 < argc) {
+            saveDir = argv[++i];
         } else if (a == "--game" && i + 1 < argc) {
             startGame = argv[++i];
         } else if (a == "-O" || a == "-o") options.skipOpening = true;
@@ -377,6 +394,7 @@ int main(int argc, char** argv) {
         mo.music = options.music;
         mo.startLevel = startLevel;
         mo.startPuzzle = startPuzzle;
+        mo.saveDir = saveDir;
         startPuzzle = -1;
         startLevel = -1;  // only the first time
         auto game = std::make_unique<edison::Mystery>(*platform);

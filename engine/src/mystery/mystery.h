@@ -20,6 +20,7 @@ public:
         bool music = true;  // not -A
         int startLevel = -1;  // for testing: skip setup and play this level
         int startPuzzle = -1; // for testing: play only this puzzle (at difficulty startLevel)
+        std::string saveDir = "save";  // MYSTERY.HS and the players' files
     };
 
     explicit Mystery(Platform& platform) : ctx_(platform) {}
@@ -113,6 +114,7 @@ private:
     void museumList();                                          // f09_0f8a
     void smittyShow();                                          // f09_002e
     void mapView();                                             // f09_01ee
+    void redrawMap();                                           // g09_1c92
     bool askQuit();                                             // f09_0592
     void quitPressed();                                         // f09_0680
     // f05_0266; with a text colour it also draws the button ("HELP").
@@ -186,7 +188,24 @@ private:
     void pictureGizmo();                                        // g12_00d6
     void pictureShow();                                         // g12_0168
     void addPicturePanels(uint16_t help);                       // DS:223A, 21E6, 220A and help
-    void endOfGame();                                           // segments 22-24 (placeholder)
+
+    // --- segments 22-24: the end of a game (end.cpp) ---
+    void endOfGame();                                           // f09_1dd8 after the map loop
+    void allFoundDance();                                       // f23_10aa
+    void endScreen(bool happy, bool redraw);                    // f23_140a
+    void happyEnding();                                         // f23_0000
+    void sadEnding();                                           // f23_0a6a
+    std::string highScorePath() const;
+    void loadHighScores();                                      // f24_005a
+    void saveHighScores() const;                                // f24_0000
+    bool addHighScore();                                        // f24_03f6
+    void showHighScores();                                      // f24_0112
+    void bonusMaze(int level);                                  // f22_0ec8
+    void mazeLook(int dx, int dy);                              // f22_0172
+    void mazeReveal();                                          // f22_04b0
+    void mazePace();
+    void mazeWander();                                          // f22_0518
+    void mazeStep(int dx, int dy);                              // f22_0a62
 
     // --- data from MALL.EXE's data segment (read at run time) ---
     std::string dataString(uint16_t offset) const;
@@ -215,6 +234,12 @@ private:
     std::array<std::vector<Rgb>, 4> edisonColours_;
     Panels panels_;
     bool highScoresRequested_ = false;
+    bool customLevel_ = false;  // [C654]: playing a custom level
+    struct HighScore {
+        std::string name;  // up to 8 characters
+        int32_t score = 0;
+    };
+    std::array<std::array<HighScore, 10>, 9> highScores_{};  // DS:BC24: levels 0-7, then custom
     int nextHandle_ = 1;
 
     // --- the game in progress ---
@@ -287,6 +312,30 @@ private:
         int pickedCount = 0;        // [C65A]
     } pic_;
     static constexpr int kBlank = 0x1000;
+
+    // --- the bonus maze (DS:C284, 8A00, 89DE, 8AA0-8ABA) ---
+    struct Maze {
+        std::array<std::array<uint8_t, 24>, 15> cells{};
+        std::array<std::array<bool, 24>, 15> visible{}, shown{};  // [8A00], [8A50]
+        struct Wanderer {
+            int x = 0, y = 0, px = 0, py = 0;
+            int dir = -1;          // 0 up, 1 left, 2 down, 3 right
+            bool alarmed = false;  // saw Edison: turns back
+            int step = 0;          // quarters of a cell
+        };
+        std::array<Wanderer, 3> wanderers{};
+        int x = 1, y = 12;         // [8AAC], [8AAE]
+        int level = 0;             // [8AB6]
+        int timeLeft = 0;
+        int exitX = 0, exitY = 0;  // [B796], [B798]
+        uint16_t sprite = 0x2144;  // [8AA6]: Edison's last frame, at [8AA8], [8AAA]
+        int spriteX = 0, spriteY = 0;
+        bool done = false;         // [8AA4]
+        bool moved = false;        // [8AA5]
+        uint64_t lastStep = 0;
+        bool seen(int x, int y) const;
+        void see(int x, int y);
+    } maze_;
 };
 
 }  // namespace edison

@@ -120,7 +120,9 @@ void Mystery::restoreArea(int handle) {
     auto it = saved_.find(handle);
     if (it == saved_.end()) return;
     const SavedArea& a = it->second;
-    for (int s : {3, 1}) {  // restored through screen 3, as the original does
+    // f06_14fc: onto the display through screen 3, or onto the current
+    // screen when that isn't the display.
+    for (int s : current_ == 1 ? std::vector<int>{3, 1} : std::vector<int>{current_}) {
         Screen& scr = ctx_.screens[s];
         for (int row = 0; row < a.h; ++row)
             std::copy_n(a.pixels.begin() + static_cast<size_t>(row) * a.w, a.w,
