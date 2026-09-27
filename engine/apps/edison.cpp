@@ -243,6 +243,7 @@ public:
         SDL_ClearAudioStream(wavStream_);
         SDL_SetAudioStreamFormat(wavStream_, &spec, nullptr);
         SDL_PutAudioStreamData(wavStream_, data, static_cast<int>(length));
+        SDL_FlushAudioStream(wavStream_);  // so the resampler's tail drains and wavPlaying() ends
         SDL_free(data);
     }
 

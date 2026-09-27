@@ -1,5 +1,10 @@
 // MALL.EXE segment 8: setting up a game (player, Edison's looks, level).
 
+#include <algorithm>
+#include <cstdio>
+#include <cstring>
+#include <filesystem>
+#include <fstream>
 #include <iterator>
 
 #include "mystery/mystery.h"
@@ -390,47 +395,284 @@ void Mystery::customizer() {
     clearInput();
 }
 
-void Mystery::pickLevel() {
-    // f08_1d2a: "Please pick a level", eight level buttons (a 4 x 2 grid
-    // drawn by sprite 2083) and a high-scores button (2085).
-    const int bubble = speechBox(2, 0xAC, dataLines(0xB22), 3, true);
+void Mystery::levelPanel(int mode, int x, int y) {
+    // g08_16c2 lays out panel DS:0A24 for the mode; g08_18be answers a
+    // press, lighting the button up (colour C0 to FF) for 0.2 s.
+    choice_ = 0;
     panels_.clear();
-    int result = 0;
-    Panels::Panel panel;  // laid out by f08_16c2 (mode 2)
-    panel.x = 0x14;
-    panel.y = 200;
-    panel.w = 0xB0;
-    panel.h = 0x44;
-    for (int i = 0; i < 8; ++i) panel.buttons.push_back({(i % 4) * 0x2C + 2, i < 4 ? 2 : 0x12, 0x28, 0xE});
-    panel.buttons.push_back({2, 0x34, 0xAC, 0xC});
-    panel.onPress = [&](int b) {  // f08_18be
+    Panels::Panel panel;
+    panel.x = x, panel.y = y, panel.w = 0xB0;
+    if (mode == 2) {
+        panel.h = 0x44;
+        for (int i = 0; i < 8; ++i) panel.buttons.push_back({(i % 4) * 0x2C + 2, i < 4 ? 2 : 0x12, 0x28, 0xE});
+        panel.buttons.push_back({2, 0x34, 0xAC, 0xC});
+    } else {
+        panel.h = mode == 0 ? 0x2C : 0x1E;
+        for (int i = 0; i < (mode == 0 ? 3 : 2); ++i) panel.buttons.push_back({2, i * 0xE + 2, 0xAC, 0xC});
+    }
+    panel.onPress = [this, mode, x, y](int b) {
         if (b < 0) return;
-        if (b == 8) {
-            result = 2;
-            recolour(0x14 + 2, 200 + 0x34, 0xAC, 0xE, 0xC0, 0xFF);
+        if (mode != 2) {
+            recolour(x + 2, y + b * 0xE + 2, 0xAC, 0xC, 0xC0, 0xFF);
+            choice_ = b + 1;
+        } else if (b == 8) {
+            choice_ = 2;
+            recolour(x + 2, y + 0x34, 0xAC, 0xE, 0xC0, 0xFF);
         } else {
-            result = 1;
+            choice_ = 1;
             player_.level = static_cast<uint8_t>(b);
+            customLevel_ = false;
             recolour((b % 4) * 0x2C + 0x16, b < 4 ? 0xCA : 0xDA, 0x28, 0xE, 0xC0, 0xFF);
         }
+        waitCountdown(2);
     };
     panels_.add(panel);
-    drawLogo(0x14, 200, 0x2083);
-    drawLogo(0x14, 0xFC, 0x2085);
-    static const uint16_t kSay[2] = {0x404A, 0x4037};
-    for (uint16_t line : kSay) {
+}
+
+int Mystery::waitChoice() {
+    while (choice_ == 0) {
+        panels_.poll(ctx_.platform);
+        ctx_.pump();
+    }
+    panels_.clear();
+    return choice_;
+}
+
+void Mystery::waitSpeech() {
+    // [73B6]: until the WAV has played.
+    while (ctx_.platform.wavPlaying()) ctx_.pump();
+}
+
+void Mystery::pickLevel() {
+    // f08_1d2a: "Please pick a level", eight level buttons (a 4 x 2 grid
+    // drawn by sprite 2083) and "make a custom level" (2085).
+    const int bubble = speechBox(2, 0xAC, dataLines(0xB22), 3, true);
+    levelPanel(2, 0x14, 200);
+    drawOpaque(0x14, 200, 0x2083);
+    drawOpaque(0x14, 0xFC, 0x2085);
+    for (uint16_t line : {0x404A, 0x4037}) {
         sound(line);
         if (talk(6)) break;
         waitCountdown(5);
     }
-    while (result == 0) {
-        panels_.poll(ctx_.platform);
-        ctx_.pump();
-    }
-    waitCountdown(2);  // let the highlight show
+    const int choice = waitChoice();
     restoreArea(bubble);
+    if (choice == 2) menuEvent_ = 1;
+}
+
+bool Mystery::askCustomLevel() {
+    // g08_1a4e: "You have a custom level." Play it, change it, or not.
+    const int bubble = speechBox(2, 0xAC, dataLines(0xA60), 3, true);
+    levelPanel(0, 0x14, 0xDC);
+    drawOpaque(0x14, 0xDC, 0x2086);
+    for (uint16_t line : {0x4038, 0x404D, 0x403B, 0x4039}) {
+        sound(line);
+        if (talk(6)) break;
+        waitCountdown(4);
+    }
+    const int choice = waitChoice();
+    restoreArea(bubble);
+    if (choice == 1) menuEvent_ = 2;
+    if (choice == 2) menuEvent_ = 4;
+    return choice == 1 || choice == 2;
+}
+
+bool Mystery::askLastLevel() {
+    // g08_1b6e: "Your last game was at level N. Would you like to" play
+    // it again or pick another? (Levels show as 6-13.)
+    const int bubble = speechBox(2, 0xAC, dataLines(0xAAE), 3, true);
+    text(font_->width(dataString(0xAC7)) + 2, font_->height() / 2 + 0xAC, std::to_string(player_.level + 6), 0);
+    levelPanel(1, 0x14, 0xDC);
+    drawOpaque(0x14, 0xDC, 0x2084);
+    sound(0x4044);
+    talk(6);
+    sound(static_cast<uint16_t>(0x4058 + player_.level));
+    talk(3);
+    waitSpeech();
+    sound(0x4055);
+    talk(3);
+    waitSpeech();
+    sound(0x404E);
+    talk(3);
+    waitSpeech();
+    sound(0x4039);
+    talk(3);
+    const int choice = waitChoice();
+    restoreArea(bubble);
+    return choice == 1;
+}
+
+bool Mystery::askSavedGame() {
+    // g08_1600: "You have a saved game. You want to play that game?"
+    const int fh = font_->height();
+    const int y = Screen::kHeight / 2;
+    const int bubble = speechBox(4, y, dataLines(0x9BA), 0, true);
     panels_.clear();
-    highScoresRequested_ = result == 2;
+    sound(0x4054);
+    talk(10);
+    const bool yes = yesNo(4 + fh, y + fh * 2, 0xA0, 0x1E) == 0;
+    if (yes) menuEvent_ = 3;
+    restoreArea(bubble);
+    return yes;
+}
+
+bool Mystery::playAgain() {
+    // g08_21b6: after a game, "Do you want to play again?"; no says bye.
+    const int fh = font_->height();
+    const int y = Screen::kHeight / 2;
+    const int bubble = speechBox(4, y, dataLines(0xB5A), 3, true);
+    sound(0x404C);
+    talk(5);
+    panels_.clear();
+    const bool yes = yesNo(4 + fh, y + fh + fh / 2, 0xA0, 0x1E) == 0;
+    restoreArea(bubble);
+    if (!yes) {
+        sound(0x4033);
+        talk(3);
+    }
+    return yes;
+}
+
+// --- the player's files ---------------------------------------------------
+
+std::string Mystery::playerPath() const {
+    // g08_0154: the first 8 letters of the name, then .INF.
+    return options_.saveDir + "/" + player_.name.substr(0, 8) + dataString(0x70E);
+}
+
+bool Mystery::loadPlayer() {
+    // g08_01ee / g08_00d8: the record DS:B465-B595 (0x131 bytes). A new
+    // player gets no custom level and no saved game.
+    std::ifstream in(playerPath(), std::ios::binary);
+    uint8_t r[0x131];
+    if (!in || !in.read(reinterpret_cast<char*>(r), sizeof r)) {
+        for (int s = 0; s < 29; ++s) {
+            player_.customSquares[s] = Square{0xFF, 0xFF, 0xFF, 0};
+            player_.savedSquares[s] = Square{0xFF, 0xFF, 0xFF, 0};
+        }
+        for (Object& o : player_.savedObjects) o = Object{0xFF, 0xFF, 0xFF};
+        player_.savedLevel = player_.customLevel = 0xFF;
+        player_.savedTimeLeft = 0;
+        player_.savedScore = 0;
+        return false;
+    }
+    auto word = [&](int at) { return static_cast<uint16_t>(r[at] | r[at + 1] << 8); };
+    player_.name.assign(reinterpret_cast<const char*>(r), strnlen(reinterpret_cast<const char*>(r), 9));
+    player_.level = r[9];
+    for (int g = 0; g < 4; ++g) player_.colours[g] = r[0xA + g] & 3;
+    for (int s = 0; s < 29; ++s) {
+        player_.customSquares[s] = Square{r[0xE + 4 * s], r[0xF + 4 * s], r[0x10 + 4 * s], r[0x11 + 4 * s]};
+        player_.savedSquares[s] = Square{r[0x83 + 4 * s], r[0x84 + 4 * s], r[0x85 + 4 * s], r[0x86 + 4 * s]};
+    }
+    player_.customLevel = r[0x82];
+    for (int k = 0; k < 16; ++k)
+        player_.savedObjects[k] = Object{r[0xF7 + 3 * k], r[0xF8 + 3 * k], r[0xF9 + 3 * k]};
+    player_.savedLevel = r[0x127];
+    player_.savedScore = static_cast<int32_t>(word(0x128) | static_cast<uint32_t>(word(0x12A)) << 16);
+    player_.savedTimeLeft = static_cast<int16_t>(word(0x12C));
+    player_.savedTimeTotal = static_cast<int16_t>(word(0x12E));
+    player_.savedCustom = r[0x130];
+    return true;
+}
+
+void Mystery::savePlayer() const {
+    // f08_0000.
+    uint8_t r[0x131] = {};
+    auto word = [&](int at, int v) {
+        r[at] = static_cast<uint8_t>(v);
+        r[at + 1] = static_cast<uint8_t>(v >> 8);
+    };
+    std::memcpy(r, player_.name.data(), std::min<size_t>(player_.name.size(), 8));
+    r[9] = player_.level;
+    for (int g = 0; g < 4; ++g) r[0xA + g] = player_.colours[g];
+    for (int s = 0; s < 29; ++s) {
+        const Square& c = player_.customSquares[s];
+        const Square& v = player_.savedSquares[s];
+        const uint8_t cb[4] = {c.puzzle, c.level, c.object, c.state}, vb[4] = {v.puzzle, v.level, v.object, v.state};
+        std::memcpy(r + 0xE + 4 * s, cb, 4);
+        std::memcpy(r + 0x83 + 4 * s, vb, 4);
+    }
+    r[0x82] = player_.customLevel;
+    for (int k = 0; k < 16; ++k) {
+        const Object& o = player_.savedObjects[k];
+        r[0xF7 + 3 * k] = o.museum, r[0xF8 + 3 * k] = o.square, r[0xF9 + 3 * k] = o.found;
+    }
+    r[0x127] = player_.savedLevel;
+    word(0x128, player_.savedScore & 0xFFFF);
+    word(0x12A, (player_.savedScore >> 16) & 0xFFFF);
+    word(0x12C, player_.savedTimeLeft);
+    word(0x12E, player_.savedTimeTotal);
+    r[0x130] = player_.savedCustom;
+    std::error_code ec;
+    std::filesystem::create_directories(options_.saveDir, ec);
+    std::ofstream out(playerPath(), std::ios::binary);
+    out.write(reinterpret_cast<const char*>(r), sizeof r);
+    if (!out) warnOnce("could not open file for write: " + playerPath());
+}
+
+void Mystery::loadLook() {
+    // f08_11ea: MEDISON.COL, Edison's last look (4 bytes); made if missing.
+    std::ifstream in(options_.saveDir + "/" + dataString(0x926), std::ios::binary);
+    uint8_t c[4];
+    if (!in || !in.read(reinterpret_cast<char*>(c), 4)) {
+        saveLook();
+        return;
+    }
+    for (int g = 0; g < 4; ++g) player_.colours[g] = c[g] & 3;
+}
+
+void Mystery::saveLook() const {
+    // f08_1102.
+    std::error_code ec;
+    std::filesystem::create_directories(options_.saveDir, ec);
+    std::ofstream out(options_.saveDir + "/" + dataString(0x8EF), std::ios::binary);
+    out.write(reinterpret_cast<const char*>(player_.colours), 4);
+}
+
+void Mystery::saveGame() {
+    // f08_1f6e: the game in progress into the record, which is written.
+    player_.savedLevel = player_.level;
+    player_.savedSquares = squares_;
+    player_.savedObjects = objects_;
+    player_.savedScore = static_cast<int32_t>(score_);
+    player_.savedTimeLeft = static_cast<int16_t>(timeLeft_);
+    player_.savedTimeTotal = static_cast<int16_t>(timeTotal_);
+    player_.savedCustom = customLevel_ ? 1 : 0;
+    savePlayer();
+}
+
+void Mystery::loadSavedGame() {
+    // f08_2092: back into the game ([B76B] = 1 skips the new board).
+    player_.level = player_.savedLevel;
+    squares_ = player_.savedSquares;
+    objects_ = player_.savedObjects;
+    score_ = player_.savedScore;
+    timeLeft_ = player_.savedTimeLeft;
+    timeTotal_ = player_.savedTimeTotal;
+    customLevel_ = player_.savedCustom != 0;
+    savedGame_ = true;
+    objectCount_ = 0;
+    for (const Object& o : objects_)
+        if (o.museum != 0xFF) ++objectCount_;
+}
+
+void Mystery::storeCustomLevel() {
+    // f08_1e2a: the edited board becomes the player's custom level.
+    player_.customLevel = player_.level;
+    player_.customSquares = squares_;
+}
+
+void Mystery::useCustomLevel() {
+    // f08_1eca.
+    player_.level = player_.customLevel;
+    squares_ = player_.customSquares;
+    customLevel_ = true;
+}
+
+void Mystery::customLevelEditor(bool edit) {
+    // f11_19b4 (segment 11) isn't ported yet.
+    (void)edit;
+    messageBox({"The custom level editor", "isn't ported yet."});
 }
 
 void Mystery::runOff() {
@@ -458,27 +700,44 @@ void Mystery::runOff() {
 // --- the setup state machine (f08_232c) ----------------------------------
 
 int Mystery::setup(int mode) {
+    // mode 1: the first time (the title, then a new player); 0 after a
+    // game ("Do you want to play again?"); 0x0F after "play again" from the
+    // map's quit button. Returns 1 when the player leaves.
     if (mode == 1) title();
+    loadLook();
+    customLevel_ = false;
+    savedGame_ = false;
+    bool returning = mode != 1;  // [B786]
+    if (mode == 1) std::fill(std::begin(player_.colours), std::end(player_.colours), 0);
     setupScreen();
-    const bool returning = mode != 1;
-    // After a game: 0x0F goes straight to the level pick. (Mode 0, another
-    // game, starts with f08_21b6's return-visit scene in the original; not
-    // ported yet, so it goes to the level pick too.)
-    int step = mode == 1 ? 0 : 11;
-    for (;;) {
+    menuEvent_ = 0;
+    int step = 0;
+    while (step != -1) {
         switch (step) {
         case 0:
             scene(0);
-            step = 1;
+            if (mode == 0) {
+                if (!playAgain()) {
+                    fill(0, 0, Screen::kWidth, Screen::kHeight, 0);
+                    return 1;
+                }
+                step = 3;
+            } else {
+                step = mode == 0x0F ? 3 : 1;
+            }
             break;
         case 1:
             nameEntry();
             step = 2;
             break;
         case 2:
-            // Loading a returning player's .INF isn't ported yet: every
-            // player is new, which skips the "change my looks?" question.
-            step = 4;
+            // A returning player's record, with Edison's look.
+            if (loadPlayer()) {
+                returning = true;
+                step = 3;
+            } else {
+                step = 4;
+            }
             break;
         case 3:
             step = askChangeLooks() ? 4 : 8;
@@ -499,14 +758,21 @@ int Mystery::setup(int mode) {
             scene(3);
             step = returning ? 8 : 11;
             break;
-        case 8: case 9: case 10:
-            // Saved game, custom level and last-level prompts: not ported yet.
-            step = 11;
+        case 8:
+            if (player_.savedLevel == 0xFF || !askSavedGame()) step = 9;
+            break;
+        case 9:
+            if (player_.customLevel == 0xFF)
+                step = 10;
+            else if (!askCustomLevel())
+                step = 11;
+            break;
+        case 10:
+            step = askLastLevel() ? 12 : 11;
             break;
         case 11:
             pickLevel();
-            // (the high-score list isn't ported yet: ask again)
-            step = highScoresRequested_ ? 11 : 12;
+            step = 12;
             break;
         case 12:
             letsDoIt();
@@ -514,11 +780,39 @@ int Mystery::setup(int mode) {
             break;
         default:
             runOff();
-            select(1);
-            fill(0, 0, Screen::kWidth, Screen::kHeight, 0);
-            return 0;
+            step = -1;
+            break;
         }
+        if (menuEvent_ == 1 || menuEvent_ == 4) {
+            // Make (1) or change (4) the custom level, then the courtyard
+            // again and its questions from the custom level on.
+            if (menuEvent_ == 4) useCustomLevel();
+            customLevelEditor(menuEvent_ == 4);
+            setupScreen();
+            scene(4);
+            ctx_.countdown[0] = 0xA;
+            bool down = false;
+            while (ctx_.countdown[0] != 0 && !down) {
+                ctx_.pump();
+                int mx, my;
+                ctx_.platform.mouse(&mx, &my, &down);
+            }
+            step = 9;
+        } else if (menuEvent_ == 2) {
+            useCustomLevel();
+            step = 12;
+        } else if (menuEvent_ == 3) {
+            loadSavedGame();
+            step = 12;
+        }
+        menuEvent_ = 0;
     }
+    savePlayer();
+    saveLook();
+    loadHighScores();
+    select(1);
+    fill(0, 0, Screen::kWidth, Screen::kHeight, 0);
+    return 0;
 }
 
 }  // namespace edison

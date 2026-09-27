@@ -91,6 +91,27 @@ private:
     void pickLevel();                                           // f08_1d2a
     void runOff();                                              // f08_1264
     int setup(int mode);                                        // f08_232c
+    std::string playerPath() const;                             // g08_0154: <name>.INF
+    bool loadPlayer();                                          // g08_01ee (false: a new player)
+    void savePlayer() const;                                    // f08_0000
+    void loadLook();                                            // f08_11ea: MEDISON.COL
+    void saveLook() const;                                      // f08_1102
+    void saveGame();                                            // f08_1f6e
+    void loadSavedGame();                                       // f08_2092
+    void storeCustomLevel();                                    // f08_1e2a
+    void useCustomLevel();                                      // f08_1eca
+    bool playAgain();                                           // g08_21b6
+    bool askSavedGame();                                        // g08_1600
+    // g08_16c2 + g08_18be: the level panel (DS:0A24). Mode 0 is the custom
+    // level's three choices, 1 the last level's two, 2 the eight levels and
+    // "make a custom level". The choice ([09D2]) is 1-3 (modes 0-1), or 1 a
+    // level and 2 a custom level (mode 2).
+    void levelPanel(int mode, int x, int y);
+    int waitChoice();                                           // until [09D2] is set
+    void waitSpeech();                                          // until [73B6] (the WAV) is clear
+    bool askCustomLevel();                                      // g08_1a4e
+    bool askLastLevel();                                        // g08_1b6e
+    void customLevelEditor(bool edit);                          // f11_19b4
 
     // --- segments 9-10: the game (game.cpp, floor.cpp) ---
     // f09_1dd8: returns 0 to play another game at the same level, 1 to
@@ -225,15 +246,32 @@ private:
         std::vector<uint8_t> pixels;
     };
     std::map<int, SavedArea> saved_;
-    // The player record (DS:B465): name and Edison's colour choices.
+    struct Square {                 // DS:931C
+        uint8_t puzzle = 0xFF, level = 0xFF, object = 0xFF;
+        uint8_t state = 0;          // 0 unused, 1 open, 2 solved, 3 failed
+    };
+    struct Object {                 // DS:C500
+        uint8_t museum = 0xFF, square = 0xFF, found = 0;
+    };
+    // The player record (DS:B465-B595, saved as <name>.INF): name,
+    // Edison's colours, the last level, a custom level and a saved game.
     struct Player {
-        std::string name;
+        std::string name;                   // B465, up to 8 letters
         uint8_t colours[4] = {0, 0, 0, 0};  // hair, shirt, trousers, shoes (B46F-B472)
         uint8_t level = 0;                  // B46E
+        std::array<Square, 29> customSquares{};  // B473
+        uint8_t customLevel = 0xFF;              // B4E7: the custom level's level, FF none
+        std::array<Square, 29> savedSquares{};   // B4E8
+        std::array<Object, 16> savedObjects{};   // B55C
+        uint8_t savedLevel = 0xFF;               // B58C: FF no saved game
+        int32_t savedScore = 0;                  // B58D
+        int16_t savedTimeLeft = 0, savedTimeTotal = 0;  // B591, B593
+        uint8_t savedCustom = 0;                 // B595
     } player_;
     std::array<std::vector<Rgb>, 4> edisonColours_;
     Panels panels_;
-    bool highScoresRequested_ = false;
+    int choice_ = 0;            // [09D2]
+    int menuEvent_ = 0;         // [91A4]: 1 make a custom level, 2 play it, 3 the saved game, 4 edit it
     bool customLevel_ = false;  // [C654]: playing a custom level
     struct HighScore {
         std::string name;  // up to 8 characters
@@ -245,14 +283,7 @@ private:
     // --- the game in progress ---
     std::vector<uint8_t> sine_;     // segment 51: a quarter sine wave, 2048 words
     std::vector<uint8_t> puzzles_;  // segment 62: each level's puzzles
-    struct Square {                 // DS:931C
-        uint8_t puzzle = 0xFF, level = 0xFF, object = 0xFF;
-        uint8_t state = 0;          // 0 unused, 1 open, 2 solved, 3 failed
-    };
     std::array<Square, 29> squares_{};
-    struct Object {                 // DS:C500
-        uint8_t museum = 0xFF, square = 0xFF, found = 0;
-    };
     std::array<Object, 16> objects_{};
     int objectCount_ = 0;           // [B770]
     int timeLeft_ = 0;              // [9314], seconds

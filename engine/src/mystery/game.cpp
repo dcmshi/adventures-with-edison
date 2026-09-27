@@ -569,6 +569,11 @@ void Mystery::newBoard() {
     size_t next = level.puzzles;
     for (int s = 0; s < 29; ++s) {
         Square& sq = squares_[s];
+        if (customLevel_) {
+            // A custom level keeps the squares it was given (f08_1eca).
+            sq.object = 0xFF;
+            continue;
+        }
         if (level.squares[s] == '1' && next + 1 < puzzles_.size()) {
             sq.puzzle = puzzles_[next];
             sq.level = puzzles_[next + 1];
@@ -780,6 +785,8 @@ int Mystery::play() {
             }
         }
         if (!go_ || outcome_ != 0) {
+            // Leaving mid-game saves it ("I'll save this game.").
+            if (result == 1 && outcome_ == 0) saveGame();
             ctx_.timer.setPeriodic(kSecondSlot, 0, nullptr);
             panels_.clear();
             clearInput();
