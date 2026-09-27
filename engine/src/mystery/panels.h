@@ -28,7 +28,8 @@ public:
     int add(Panel panel);      // f07_0150; returns its slot
     Panel& operator[](int slot) { return panels_[slot]; }
     // One poll (f07_01fe): dispatches a new click, then release or held.
-    void poll(Platform& platform);
+    // Returns true if there was a click (at *x, *y) that hit no panel.
+    bool poll(Platform& platform, int* x = nullptr, int* y = nullptr);
 
 private:
     int hitPanel(int x, int y) const;

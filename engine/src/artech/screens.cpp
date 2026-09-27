@@ -16,7 +16,7 @@ void Screens::copyArea(int src, int dst, int x, int y, int w, int h) {
     }
 }
 
-void Screens::drawSprite(int dst, const Bitmap& bmp, int x, int y) {
+void Screens::drawSprite(int dst, const Bitmap& bmp, int x, int y, bool opaque) {
     auto& to = screens_[dst].pixels;
     for (int row = 0; row < bmp.height; ++row) {
         const int sy = y + row;
@@ -25,7 +25,7 @@ void Screens::drawSprite(int dst, const Bitmap& bmp, int x, int y) {
             const int sx = x + col;
             if (sx < 0 || sx >= Screen::kWidth) continue;
             const uint8_t c = bmp.at(col, row);
-            if (c != 0) to[static_cast<size_t>(sy) * Screen::kWidth + sx] = c;
+            if (c != 0 || opaque) to[static_cast<size_t>(sy) * Screen::kWidth + sx] = c;
         }
     }
 }

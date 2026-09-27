@@ -18,6 +18,8 @@ add_library(edison_core
     src/mystery/ui.cpp
     src/mystery/setup.cpp
     src/mystery/panels.cpp
+    src/mystery/game.cpp
+    src/mystery/floor.cpp
 )
 target_include_directories(edison_core PUBLIC src)
 target_link_libraries(edison_core PUBLIC nuked_opl3)

@@ -1,5 +1,7 @@
 #include "mystery/mystery.h"
 
+#include <algorithm>
+
 #include "formats/ne_file.h"
 
 namespace edison {
@@ -14,6 +16,12 @@ bool Mystery::load(const Options& options, std::string* error) {
     data_ = exe.segment(exe.segmentCount());  // DGROUP, the last segment
     if (data_.size() < 0x2000 || dataString(0x10) != "Mystery at the Museums") {
         if (error) *error = "MALL.EXE: unexpected data segment";
+        return false;
+    }
+    sine_ = exe.segment(51);
+    puzzles_ = exe.segment(62);
+    if (sine_.size() < 0x1000 || puzzles_.size() < 0x198) {
+        if (error) *error = "MALL.EXE: unexpected segments 51/62";
         return false;
     }
     if (options.music) ctx_.platform.setFmDriver(options.cdDir + "/MADLIB.DLL");
@@ -33,10 +41,20 @@ uint16_t Mystery::dataWord(uint16_t offset) const {
 }
 
 void Mystery::run() {
+    // f02_00ba's loop: setup, then games until the player leaves.
     ctx_.startTimer();
-    setup(1);
-    // The game itself (f09_1dd8) comes next; for now, back to the launcher.
-    waitCountdown(10);
+    int mode = 1;
+    if (options_.startLevel >= 0) {
+        player_.name = "Test";
+        player_.level = static_cast<uint8_t>(std::min(options_.startLevel, 7));
+        mode = -1;
+    }
+    for (;;) {
+        if (mode >= 0 && setup(mode) == 1) break;
+        const int r = play();
+        if (r == 1) break;
+        mode = r == 2 ? 0x0F : 0;
+    }
     ctx_.blackout();
     ctx_.pump();
 }

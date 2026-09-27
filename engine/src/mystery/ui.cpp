@@ -9,17 +9,6 @@
 
 namespace edison {
 
-template <class Draw>
-void Mystery::drawVia3(int x, int y, int w, int h, Draw draw) {
-    if (current_ == 1) {
-        copyArea(1, 3, x, y, w, h);
-        draw(3);
-        copyArea(3, 1, x, y, w, h);
-    } else {
-        draw(current_);
-    }
-}
-
 void Mystery::drawLogo(int x, int y, uint16_t id) {
     const Bitmap& bmp = ctx_.bitmap(id);
     x = std::max(0, std::min(x, Screen::kWidth - bmp.width));

@@ -32,23 +32,30 @@ int Panels::hitButton(int panel, int x, int y) const {
     return -1;
 }
 
-void Panels::poll(Platform& platform) {
+bool Panels::poll(Platform& platform, int* outX, int* outY) {
     int x, y;
+    bool missed = false;
     if (platform.takeClick(&x, &y)) {
         if (active_ >= 0 && panels_[active_].onRelease) panels_[active_].onRelease(activeButton_);
         active_ = hitPanel(x, y);
         activeButton_ = hitButton(active_, x, y);
         if (active_ >= 0 && panels_[active_].onPress) panels_[active_].onPress(activeButton_);
+        if (active_ < 0) {
+            missed = true;
+            if (outX) *outX = x;
+            if (outY) *outY = y;
+        }
     }
     bool down;
     platform.mouse(&x, &y, &down);
-    if (active_ < 0 || active_ >= static_cast<int>(panels_.size())) return;
+    if (active_ < 0 || active_ >= static_cast<int>(panels_.size())) return missed;
     if (!down) {
         if (panels_[active_].onRelease) panels_[active_].onRelease(activeButton_);
         active_ = activeButton_ = -1;
     } else if (panels_[active_].whileHeld) {
         panels_[active_].whileHeld(activeButton_);
     }
+    return missed;
 }
 
 }  // namespace edison

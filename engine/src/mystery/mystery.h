@@ -18,6 +18,7 @@ public:
     struct Options {
         std::string cdDir;  // the CD's DSK3 folder (MALL.EXE, MYSTERY.D01, MADLIB.DLL)
         bool music = true;  // not -A
+        int startLevel = -1;  // for testing: skip setup and play this level
     };
 
     explicit Mystery(Platform& platform) : ctx_(platform) {}
@@ -33,7 +34,15 @@ private:
     void select(int screen) { current_ = screen; }
     int current() const { return current_; }
     template <class Draw>
-    void drawVia3(int x, int y, int w, int h, Draw draw);
+    void drawVia3(int x, int y, int w, int h, Draw draw) {
+        if (current_ == 1) {
+            copyArea(1, 3, x, y, w, h);
+            draw(3);
+            copyArea(3, 1, x, y, w, h);
+        } else {
+            draw(current_);
+        }
+    }
 
     void drawLogo(int x, int y, uint16_t id);                   // f06_120c (clamped to the screen)
     void fill(int x, int y, int w, int h, uint8_t colour);      // f06_17c8
@@ -73,6 +82,42 @@ private:
     void runOff();                                              // f08_1264
     int setup(int mode);                                        // f08_232c
 
+    // --- segments 9-10: the game (game.cpp, floor.cpp) ---
+    // f09_1dd8: returns 0 to play another game at the same level, 1 to
+    // leave, 2 to pick a new level.
+    int play();
+    void newBoard();                                            // the new-game part of f09_1dd8
+    void show(int screen);                                      // f04_005c: palette and pixels to the display
+    void backdrop(uint16_t id);                                 // f04_0000(1) + f32_0d48(id, 2)
+    void drawOpaque(int x, int y, uint16_t id);                 // f06_1326 (show_logo, clamped)
+    void line(int x0, int y0, int x1, int y1, uint8_t colour);  // f06_1af8
+    void clock(bool force);                                     // f09_0ab2
+    void clockHand(int cx, int cy, uint16_t hand, int value, uint8_t colour);  // f05_00a0
+    void digitalTime(int x, int y, int w, int h, int seconds);  // f06_0fc0
+    void number(int x, int y, int w, int h, long value);        // f06_1150
+    void drawObjects(int found);                                // f09_08dc
+    bool allFound() const;                                      // f09_0a1e
+    void mapTalk(int side, int frames);                         // f09_0dc4
+    void smittyTalk();                                          // f09_10fe
+    void smittySays(int mode, int result);                      // f09_1212
+    void entrance(bool first, int found);                       // f09_15f8
+    void museumList();                                          // f09_0f8a
+    void smittyShow();                                          // f09_002e
+    void mapView();                                             // f09_01ee
+    bool askQuit();                                             // f09_0592
+    void quitPressed();                                         // f09_0680
+    void helpPanel(int x, int y, int w, int h);                 // f05_0266
+    void help(uint16_t text);                                   // f05_0320
+    void messageBox(const std::vector<std::string>& lines);    // f06_0f34 / f06_09ee (style 0)
+    bool waitOrClick(int tenths);                               // [92B2] = n; wait for 0 or a click
+    int floor();                                                // f10_0708
+    void floorRegions();                                        // f10_008e
+    void floorRooms(bool masks);                                // f10_0328
+    void squareName(int square);                                // f10_0000
+    void director();                                            // f10_0638
+    bool puzzle(int kind, int level);                           // the 16 games (placeholders for now)
+    void endOfGame();                                           // segments 22-24 (placeholder)
+
     // --- data from MALL.EXE's data segment (read at run time) ---
     std::string dataString(uint16_t offset) const;
     uint16_t dataWord(uint16_t offset) const;
@@ -101,6 +146,42 @@ private:
     Panels panels_;
     bool highScoresRequested_ = false;
     int nextHandle_ = 1;
+
+    // --- the game in progress ---
+    std::vector<uint8_t> sine_;     // segment 51: a quarter sine wave, 2048 words
+    std::vector<uint8_t> puzzles_;  // segment 62: each level's puzzles
+    struct Square {                 // DS:931C
+        uint8_t puzzle = 0xFF, level = 0xFF, object = 0xFF;
+        uint8_t state = 0;          // 0 unused, 1 open, 2 solved, 3 failed
+    };
+    std::array<Square, 29> squares_{};
+    struct Object {                 // DS:C500
+        uint8_t museum = 0xFF, square = 0xFF, found = 0;
+    };
+    std::array<Object, 16> objects_{};
+    int objectCount_ = 0;           // [B770]
+    int timeLeft_ = 0;              // [9314], seconds
+    int timeTotal_ = 0;             // [9312]
+    int clockShown_ = -1;           // [0EB4]
+    uint16_t hourStart_ = 0;        // [0CA9], the hour hand's start angle
+    uint16_t hourPeriod_ = 0;       // [0CAD]
+    int outcome_ = 0;               // [C12E]: 1 out of time, 2 all found
+    long score_ = 0;                // [C12A]
+    bool savedGame_ = false;        // [B76B]
+    bool lastOne_ = false;          // [B054]: one object left
+    bool greeted_ = false;          // [0C9E]
+    int square_ = 0;                // [C76C], the square being played
+    int bubble_ = 0;                // [81CE]
+    bool modal_ = false;            // [C23E]
+    int menu_ = 0;                  // [0DC4]: 1 quit, 2 new game
+    bool go_ = false;               // [0E74]
+    bool wantMap_ = false;          // [0CDC]
+    bool wantShow_ = false;         // [0CB8]
+    bool helpPressed_ = false;      // [0096]
+    int listState_ = 0;             // [0EBE]
+    int listTop_ = 0;               // [0EC8]
+    bool floorBack_ = false;        // [18C8]
+    bool floorDirector_ = false;    // [18EC]
 };
 
 }  // namespace edison

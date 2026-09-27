@@ -41,7 +41,8 @@ public:
     void copyArea(int src, int dst, int x, int y, int w, int h);
     void copyAll(int src, int dst) { screens_[dst].pixels = screens_[src].pixels; }
     // show_logo: draws a bitmap with colour 0 transparent, clipped.
-    void drawSprite(int dst, const Bitmap& bmp, int x, int y);
+    // Colour 0 is transparent unless `opaque` (show_logo vs show_Clogo).
+    void drawSprite(int dst, const Bitmap& bmp, int x, int y, bool opaque = false);
 
 private:
     std::array<Screen, kCount> screens_;

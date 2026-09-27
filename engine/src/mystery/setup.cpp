@@ -461,7 +461,10 @@ int Mystery::setup(int mode) {
     if (mode == 1) title();
     setupScreen();
     const bool returning = mode != 1;
-    int step = 0;
+    // After a game: 0x0F goes straight to the level pick. (Mode 0, another
+    // game, starts with f08_21b6's return-visit scene in the original; not
+    // ported yet, so it goes to the level pick too.)
+    int step = mode == 1 ? 0 : 11;
     for (;;) {
         switch (step) {
         case 0:

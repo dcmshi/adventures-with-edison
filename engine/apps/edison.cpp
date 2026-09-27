@@ -4,6 +4,7 @@
 //     -O  skip the opening (as the original's -O)
 //     -A  no FM music (as the original's -A)
 //     --game mystery   start Mystery at the Museums directly
+//     --level N        (with --game mystery) skip setup and play level N (0-7)
 //   For testing without a person at the keyboard:
 //     --capture DIR MS    save the display to DIR/NNNNN.bmp every MS milliseconds
 //     --click T X Y       click at game coordinates X, Y at T milliseconds (repeatable)
@@ -48,6 +49,7 @@ class SdlPlatform : public edison::Platform {
 public:
     Automation automation;
     std::string startGame;
+    int startLevel = -1;
 
     bool open(bool music, std::string* error) {
         music_ = music;
@@ -97,6 +99,7 @@ public:
                 clickX_ = c.x;
                 clickY_ = c.y;
                 c.at = 0;
+                autoMouse_ = true;
             }
         SDL_Event e;
         while (SDL_PollEvent(&e)) {
@@ -114,6 +117,7 @@ public:
                 default: break;
                 }
             }
+            if (e.type == SDL_EVENT_MOUSE_MOTION) autoMouse_ = false;
             if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN && e.button.button == SDL_BUTTON_LEFT) {
                 SDL_ConvertEventToRenderCoordinates(renderer_, &e);
                 clicked_ = true;
@@ -156,6 +160,12 @@ public:
     }
 
     void mouse(int* x, int* y, bool* down) override {
+        if (autoMouse_) {  // an automated click moves the (virtual) mouse there
+            *x = clickX_;
+            *y = clickY_;
+            *down = false;
+            return;
+        }
         float wx, wy;
         const SDL_MouseButtonFlags buttons = SDL_GetMouseState(&wx, &wy);
         float gx = wx, gy = wy;
@@ -278,6 +288,7 @@ private:
     uint64_t nextCapture_ = 0;
     bool clicked_ = false;
     int clickX_ = 0, clickY_ = 0;
+    bool autoMouse_ = false;
 };
 
 }  // namespace
@@ -287,6 +298,7 @@ int main(int argc, char** argv) {
     options.cdDir = "original/cd/DSK3";
     Automation automation;
     std::string startGame;
+    int startLevel = -1;
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
         if (a == "--capture" && i + 2 < argc) {
@@ -301,6 +313,8 @@ int main(int argc, char** argv) {
             automation.typed.push_back({at, argv[++i]});
         } else if (a == "--quit-after" && i + 1 < argc) {
             automation.quitAfter = std::strtoull(argv[++i], nullptr, 10);
+        } else if (a == "--level" && i + 1 < argc) {
+            startLevel = std::atoi(argv[++i]);
         } else if (a == "--game" && i + 1 < argc) {
             startGame = argv[++i];
         } else if (a == "-O" || a == "-o") options.skipOpening = true;
@@ -319,6 +333,8 @@ int main(int argc, char** argv) {
         edison::Mystery::Options mo;
         mo.cdDir = options.cdDir;
         mo.music = options.music;
+        mo.startLevel = startLevel;
+        startLevel = -1;  // only the first time
         auto game = std::make_unique<edison::Mystery>(*platform);
         if (!game->load(mo, &error)) {
             std::fprintf(stderr, "%s\n", error.c_str());
