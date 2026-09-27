@@ -76,7 +76,7 @@ bool Mystery::questionPeriod(int level, bool asPuzzle) {
     std::vector<int> asked;
     {
         std::vector<int> known;
-        for (int t = 0; t < 4; ++t)
+        for (int t = 0; t < 5; ++t)
             for (int c = 0; c < 10; ++c)
                 if (learned_[t][c]) known.push_back(t * 10 + c);
         if (static_cast<int>(known.size()) < count) {

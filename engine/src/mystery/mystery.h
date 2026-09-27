@@ -150,6 +150,21 @@ private:
     bool colourTransformation(int level);                       // g27_1032
     bool stackup(int level);                                    // g25_1f6a
     bool droppingSquares(int level);                            // g18_26da
+    bool planetarium(int level);                                // g28_178e
+
+    // --- segments 47-51: the 3D helpers the last three puzzles share (three.cpp) ---
+    struct Point3 {
+        int16_t x, y, z;  // y is the depth
+    };
+    void sinCos(uint16_t angle, int* sine, int* cosine) const;  // g51_1000 (Q15, a turn is 0x10000)
+    // g50_0000: a rotation from three angles, nine Q15 words.
+    void rotation(uint16_t a, uint16_t b, uint16_t c, int16_t m[9]) const;
+    static void transform(std::vector<Point3>& pts, const int16_t m[9]);  // f48_0000
+    static void translate(std::vector<Point3>& pts, int dx, int dy, int dz);  // g49_0000
+    void setView(int x0, int y0, int x1, int y1);               // f47_0000
+    // f47_04de: a polygon seen in perspective, cut at the eye's plane and
+    // then at the view's rectangle.
+    std::vector<std::pair<int, int>> project(const std::vector<Point3>& pts) const;
     void monitorGadget();                                       // g27_0f16 (shared by 25-27)
     // The part of the picture puzzles' main loops they share; `help` is
     // the help text. Returns the result from puzzleResult.
@@ -233,9 +248,13 @@ private:
     int listTop_ = 0;               // [0EC8]
     bool floorBack_ = false;        // [18C8]
     bool floorDirector_ = false;    // [18EC]
+    struct {
+        int left = 0, top = 0, right = 0, bottom = 0, cx = 0, cy = 0, d = 1;  // DS:764C-765C
+    } view3_;
+    std::vector<std::vector<Point3>> stars_;  // the Planetarium's, set up once (g28_1218)
     // DS:B7CE: facts learned in Concentration (per theme), asked about in
     // the Question and Answer Period.
-    bool learned_[4][10] = {};
+    bool learned_[5][10] = {};  // rows: B38C (1-3 Concentration, 4 the Planetarium)
 
     // --- the picture puzzles ---
     struct Picture {
