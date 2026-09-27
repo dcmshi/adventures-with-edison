@@ -121,6 +121,21 @@ private:
     void bandVolume(int role, int volume);                      // f09_0262
     void bandTempo(int tempo);                                  // f09_0320
     void bandPart(int role, int choice);                        // f09_00bc
+
+    // --- the Drum Clinic (segment 6, and its drum machine, segment 10: drums.cpp) ---
+    int drumClinic();                                           // f06_1e9e
+    void drumClinicWidgets();                                   // f06_0046
+    void drumsReset();                                          // f10_0000
+    void drumsDone();                                           // f10_00e6
+    void drumTick();                                            // g10_0122
+    void drumStart();                                           // f10_01e6
+    void drumStop();                                            // f10_0212
+    void drumPlay(int drum);                                    // f10_0242
+    void drumVariant(int drum, int v);                          // f10_02ae
+    void drumToggle(int drum, int step);                        // f10_02fa
+    void drumPattern(int p);                                    // f10_03c2
+    void drumKit(int kit);                                      // f10_0410
+    void drumTempo(int t);                                      // f10_04b6
     // f27_01c4; also forgets a click or key f24_0666 has seen.
     void clearInput() {
         ArtechGame::clearInput();
@@ -157,6 +172,18 @@ private:
         uint8_t tempo = 0;                             // [1272]
         int song = 0;                                  // [8710]
     } band_;
+    // The Drum Clinic.
+    std::vector<Widget> clinicWidgets_;
+    std::array<Slider, 2> clinicSliders_{};            // DS:8BD8 tempo, 8BEC the step
+    struct DrumMachine {
+        std::array<uint8_t, 0x1000> patterns{};        // DS:73CA: kit x pattern x 64 steps, a bit a drum
+        int kit = 0, pattern = 0;                      // [8E10], [8762]
+        int period = 0xA;                              // [1506]
+        bool loop = false, running = false;            // [1508], [1509]
+        int step = 0, wait = 0;                        // [52A0], [83D6]
+        std::array<uint8_t, 5> variant{}, sound{};     // DS:150A, 1500
+        bool onOwn = false;                            // [150F]: pattern 7, the player's
+    } drums_;
     // Widgets.
     std::vector<Widget>* widgets_ = nullptr;           // [8D30]
     Bevel bevel_{};                                    // [655A..6560]

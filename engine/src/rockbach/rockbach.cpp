@@ -287,6 +287,10 @@ void RockBach::activity(int which) {
             jukebox();
             bandStop();   // f09_0070
             break;
+        case 3:
+            drumClinic();
+            drumsDone();  // f10_00e6
+            break;
         default:
             logLine("Rock and Bach: activity " + std::to_string(which) + " isn't ported yet; back to the hallway.");
             break;

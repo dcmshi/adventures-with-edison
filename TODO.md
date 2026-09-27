@@ -17,7 +17,7 @@ What's left is checking it against the original:
 
 See `docs/ROCKBACH.md` for the map. Ported so far (`edison --game rockbach`):
 the intro, the logo with its band and song, the widgets (segment 34), the
-whole hallway and the jukebox.
+whole hallway, the jukebox and the Drum Clinic.
 
 - [x] The FM driver's other entry points and the song player (segment 20).
 - [x] The logo intro's band (`f05_04d8`).
@@ -25,7 +25,8 @@ whole hallway and the jukebox.
 - [ ] Compare the hallway with the original: a returning player's look only shows once a part is changed, the Yes/No buttons take the hair's colour, and the look is lost after the credits. That is how the code reads, but it should be checked.
 - [x] The widgets' sliders (flags 08/10, `f34_04dc`).
 - [x] The jukebox (`f03_22e8`).
-- [ ] The other activities: Drum Clinic (`f06_1e9e`), Music Library (`f30_1780`), Harmony Hall (`f07_1908`), Instrument Room (`f08_0f2e`), Sound FX (`f29_17e2`) and the Studio (`f35_018a`: bands, songs, videos).
+- [x] The Drum Clinic (`f06_1e9e`). (The original's pointer snapping over the grid isn't ported.)
+- [ ] The other activities: Music Library (`f30_1780`), Harmony Hall (`f07_1908`), Instrument Room (`f08_0f2e`), Sound FX (`f29_17e2`) and the Studio (`f35_018a`: bands, songs, videos).
 - [ ] Decode its real tempo (`fmplay` uses 128 for now).
 
 ## Wild Science Arcade
