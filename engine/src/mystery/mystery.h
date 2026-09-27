@@ -135,6 +135,7 @@ private:
     bool circuitAnalyzer(int level);                            // g16_089c
     bool binaryLights(int level);                               // g17_1256
     bool codes(int level);                                      // g20_1474
+    bool concentration(int level);                              // g15_1142
     // The part of the picture puzzles' main loops they share; `help` is
     // the help text. Returns the result from puzzleResult.
     bool pictureLoop(uint16_t help);
@@ -217,6 +218,9 @@ private:
     int listTop_ = 0;               // [0EC8]
     bool floorBack_ = false;        // [18C8]
     bool floorDirector_ = false;    // [18EC]
+    // DS:B7CE: facts learned in Concentration (per theme), asked about in
+    // the Question and Answer Period.
+    bool learned_[4][10] = {};
 
     // --- the picture puzzles ---
     struct Picture {

@@ -487,6 +487,289 @@ bool Mystery::codes(int level) {
     return won;
 }
 
+// --- 7: Concentration (segment 15) ----------------------------------------
+
+bool Mystery::concentration(int level) {
+    // g15_1142: a wall of up to 6 x 5 doors hiding pictures; open two (or
+    // three) at a time to find ones that match. Each match is worth 100
+    // points and tells a fact about the thing found. Every door has two
+    // switches that change its colour and a button that opens it.
+    level = std::clamp(level, 0, 7);
+    // DS:2920: the layout, how many make a match, the seconds.
+    static const int kLevel[8][3] = {{8, 2, 120}, {7, 3, 120}, {9, 2, 120},  {5, 2, 180},
+                                     {10, 2, 180}, {4, 2, 180}, {3, 3, 240}, {1, 3, 240}};
+    // DS:2884: groups to find (for matches of 2 and 3) and the rows' doors
+    // (6 bits, the left door is bit 5).
+    static const int kLayout[12][7] = {
+        {15, 10, 63, 63, 63, 63, 63}, {12, 8, 63, 63, 63, 63, 0}, {9, 6, 0, 63, 63, 63, 0},
+        {12, 8, 62, 62, 54, 62, 62},  {10, 0, 30, 30, 30, 30, 30}, {8, 0, 30, 30, 30, 30, 0},
+        {6, 4, 0, 30, 30, 30, 0},     {0, 3, 0, 28, 28, 28, 0},    {2, 0, 0, 12, 12, 0, 0},
+        {7, 0, 12, 12, 63, 12, 12},   {9, 6, 63, 33, 33, 33, 63},  {9, 6, 48, 48, 48, 63, 63}};
+    const int* layout = kLayout[kLevel[level][0]];
+    const int match = kLevel[level][1];           // [B394]
+    const int groups = layout[match - 2];         // [B7CC]
+    const int limit = kLevel[level][2];           // [930E]
+    // The theme (DS:2996) goes by the museum the square is in (DS:147E).
+    const uint8_t museum = square_ < 29 ? data_[0x147E + square_] : 0;
+    const int theme = museum == 4 ? 1 : museum == 10 ? 2 : museum == 13 ? 3 : 0;  // [B38C]
+    const uint16_t faces = static_cast<uint16_t>(0x2110 + 10 * theme);             // [B80E]
+
+    int card[5][6];              // DS:C60A: the group (0 once found)
+    int colour[30] = {};         // DS:2A2E (+8 of each door's button): door colour
+    struct Pick { int row, col, cell; };
+    Pick picks[3] = {};          // DS:939C
+    int picked = 0;              // [B758]
+    int state = -1;              // [B812]: 1 all found, 4 / 8 limits, 0x10 left
+    int timeLeft = limit;        // [B78C]
+    int shownTime = -1;          // [29F6]
+    int points = 0;              // [C77A]
+    int shownPoints = -1;        // [2EF0]
+    int misses = 0;              // [B762]
+    int found = 0;               // [C282]
+    bool waiting = false;        // [9310]
+    bool factDue = false;        // [C136]
+    bool matched = false;        // [C27A]
+    bool gizmo = false;          // [2A0A]
+    int gizmoTurn = 0;           // [B76A]
+
+    // The texts (resource 3100 + theme): messages of lines, each message
+    // ending with an empty line. 0-9 name the pictures, 10- tell about them.
+    std::vector<std::vector<std::string>> texts;
+    {
+        std::vector<uint8_t> raw;
+        ctx_.read(static_cast<uint16_t>(0x3100 + theme), raw);
+        std::vector<std::string> lines;
+        std::string line;
+        for (uint8_t c : raw) {
+            if (c) {
+                line += static_cast<char>(c);
+                continue;
+            }
+            if (line.empty()) {
+                texts.push_back(lines);
+                lines.clear();
+            } else {
+                lines.push_back(line);
+                line.clear();
+            }
+        }
+    }
+    auto message = [&](int n) { return n >= 0 && n < static_cast<int>(texts.size()) ? texts[n] : std::vector<std::string>{}; };
+    auto doorX = [](int col) { return col * 0x54 + 0x26; };
+    auto doorY = [](int row) { return row * 0x34 + 0x10; };
+    auto face = [&](int v) { return static_cast<uint16_t>(faces + (v & 0xFF) - 1); };
+    auto show = [&](int row, int col, uint16_t sprite) {  // g15_0200 (its "animation" draws at once)
+        select(2);
+        fill(doorX(col), doorY(row), 0x3C, 0x2A, 0);
+        if (sprite) drawOpaque(doorX(col), doorY(row), sprite);
+        copyArea(2, 1, doorX(col), doorY(row), 0x3C, 0x2A);
+        select(1);
+    };
+    auto sideX = [](int col) { return col * 0x54 + 0x65; };
+    auto sideY = [](int row, int k) { return row * 0x34 + 0xF + k * 0x11; };  // k: 0, 1 switches, 2 button
+
+    for (auto& row : card) std::fill(std::begin(row), std::end(row), -1);
+    for (int r = 0; r < 5; ++r)
+        for (int c = 0; c < 6; ++c)
+            if (!(layout[2 + r] & (1 << (5 - c)))) card[r][c] = 0;
+    for (int g = 1; g <= groups; ++g)
+        for (int k = 0; k < match; ++k) {
+            int i;
+            do i = random(30);
+            while (card[i / 6][i % 6] != -1);
+            card[i / 6][i % 6] = g;
+        }
+
+    clearInput();
+    ctx_.blackout();
+    ctx_.showFullScreen(0x1000, 2);
+    std::vector<uint8_t> raw;
+    if (ctx_.read(static_cast<uint16_t>(0x200 + theme), raw) && raw.size() >= 0x30 + 0xC0)
+        for (int k = 0; k < 64; ++k)
+            ctx_.screens[2].palette[16 + k] = Rgb{raw[0x30 + 3 * k + 2], raw[0x30 + 3 * k + 1], raw[0x30 + 3 * k]};
+    select(2);
+    drawLogo(600, 0x23, 0x2038);
+    drawLogo(0x21E, 100, 0x203B);
+    drawOpaque(0x3A, 0x144, 0x2224);
+    for (int c = 0; c < 6; ++c)
+        for (int r = 0; r < 5; ++r) {
+            colour[r * 6 + c] = random(500) < 250;
+            drawOpaque(c * 0x54 + 0x20, r * 0x34 + 0xC, 0x2032);
+            const bool used = card[r][c] != 0;
+            drawOpaque(sideX(c), sideY(r, 0), used && colour[r * 6 + c] == 0 ? 0x2033 : 0x2034);
+            drawOpaque(sideX(c), sideY(r, 1), used && colour[r * 6 + c] != 0 ? 0x2033 : 0x2034);
+            drawOpaque(sideX(c), sideY(r, 2), 0x2034);
+            drawOpaque(doorX(c), doorY(r), used ? static_cast<uint16_t>(0x2035 + colour[r * 6 + c]) : 0x2037);
+        }
+    auto clock = [&] {  // g15_0388
+        if (timeLeft != shownTime) digitalTime(0x224, 0x2C, 0x28, 0x14, timeLeft);
+        shownTime = timeLeft;
+    };
+    auto score = [&] {  // g15_1088
+        if (points != shownPoints) intBox(0xFD, 0x13B, 0x7E, 0x1F, points);
+        shownPoints = points;
+    };
+    clock();
+    score();
+    const std::string title = dataString(match == 2 ? 0x2F21 : 0x2F31);
+    text((0x1F6 - font_->width(title)) / 2 + 0x42, (0x1A - font_->height()) / 2 + 0x116, title, 0xC0);
+    select(1);
+    Mystery::show(2);
+    computeUiColours();
+
+    panels_.clear();
+    Panels::Panel doors;  // DS:2ED6: 30 doors, 30 + 30 switches, 30 buttons
+    doors.x = 0x20, doors.y = 0xC, doors.w = 0x1F6, doors.h = 0x102;
+    for (int i = 0; i < 120; ++i) {
+        const int cell = i % 30, r = cell / 6, c = cell % 6;
+        if (i < 30)
+            doors.buttons.push_back({c * 0x54 + 6, r * 0x34 + 4, 0x3C, 0x2A});
+        else
+            doors.buttons.push_back({c * 0x54 + 0x45, r * 0x34 + 3 + (i / 30 - 1) * 0x11, 0xC, 0xA});
+    }
+    doors.onPress = [&](int i) {  // g15_062c
+        if (i < 0 || waiting) return;
+        if (i >= 30 && i < 90) {  // a door's colour switches
+            const int cell = i < 60 ? i - 30 : i - 60, r = cell / 6, c = cell % 6, want = i >= 60;
+            if (card[r][c] == 0) return;
+            for (int k = 0; k < picked; ++k)
+                if (picks[k].cell == cell) return;
+            if (colour[cell] == want) return;
+            music(0x16);
+            colour[cell] = want;
+            drawOpaque(sideX(c), sideY(r, want ? 0 : 1), 0x2034);
+            drawOpaque(sideX(c), sideY(r, want ? 1 : 0), 0x2033);
+            show(r, c, static_cast<uint16_t>(0x2035 + want));
+            return;
+        }
+        const bool button = i >= 90;
+        const int cell = button ? i - 90 : i, r = cell / 6, c = cell % 6;
+        if (card[r][c] == 0) return;
+        for (int k = 0; k < picked; ++k)
+            if (picks[k].cell == cell) return;
+        if (button) drawOpaque(sideX(c), sideY(r, 2), 0x2033);
+        picks[picked++] = {r, c, cell};
+        if (state < 0) {
+            state = 0;
+            ctx_.timer.setPeriodic(kSecondSlot, 1, [&] {  // g15_0368
+                if (timeLeft > 0) --timeLeft;
+            });
+        }
+        music(0x12);
+        show(r, c, face(card[r][c]));
+        fill(0x42, 0x116, 500, 0x1A, 0);
+        const int v = card[r][c];
+        const auto lines = message(v < 0x100 ? v - 1 : v < 0x200 ? v - 0xF7 : v - 0x1ED);
+        for (size_t k = 0; k < lines.size() && k < 2; ++k) text(0x44, 0x11A + 0xC * static_cast<int>(k), lines[k], 0xC0);
+        if (picked >= match) {
+            picked = 0;
+            matched = true;
+            for (int k = 0; k + 1 < match; ++k)
+                if ((card[picks[k].row][picks[k].col] & 0xFF) != (card[picks[k + 1].row][picks[k + 1].col] & 0xFF))
+                    matched = false;
+            ctx_.countdown[0] = 12;
+            factDue = true;
+            waiting = true;
+        }
+    };
+    doors.onRelease = [&](int i) {  // g15_05ca
+        if (i >= 90) {
+            const int cell = i - 90;
+            drawOpaque(sideX(cell % 6), sideY(cell / 6, 2), 0x2034);
+        }
+    };
+    panels_.add(doors);
+    Panels::Panel side;  // DS:2A0C: the exit lever and the gadget
+    side.x = 0x216, side.y = 0x23, side.w = 0x6A, side.h = 0xAF;
+    side.buttons = {{0x42, 0, 0x28, 0x4C}, {8, 0x41, 0x30, 0x24}};
+    side.onPress = [&](int b) {  // g15_03da
+        if (b == 0) {
+            drawLogo(600, 0x23, 0x2039);
+            waitCountdown(10);
+            state = 0x10;
+        } else if (b == 1 && !gizmo) {
+            music(0x18);
+            drawLogo(0x21E, 100, 0x203A);
+        }
+    };
+    side.onRelease = [&](int b) {  // g15_0476
+        if (b != 1 || gizmo) return;
+        gizmo = true;
+        if (gizmoTurn == 0) {
+            music(0x14);
+            for (int f = 0; f < 8; ++f) drawOpaque(0x3A, 0x144, static_cast<uint16_t>(0x2225 + f)), waitCountdown(1);
+        } else if (gizmoTurn == 1) {
+            for (int f = 0; f < 0x11; ++f) drawOpaque(0x3A, 0x144, static_cast<uint16_t>(0x222D + f)), waitCountdown(1);
+        } else {
+            music(0x15);
+            for (int f = 0; f < 10; ++f) drawOpaque(0x3A, 0x144, static_cast<uint16_t>(0x223E + f)), waitCountdown(1);
+        }
+        gizmoTurn = (gizmoTurn + 1) % 3;
+        drawLogo(0x21E, 100, 0x203B);
+        gizmo = false;
+    };
+    panels_.add(side);
+    helpPanel(0x220, 0xCC, 0x30, 0x38);
+    clearInput();
+
+    while (state <= 0) {
+        panels_.poll(ctx_.platform);
+        ctx_.pump();
+        if (waiting) {
+            if (ctx_.countdown[0] == 0) {  // g15_0cb0
+                waiting = false;
+                if (!matched) {
+                    ++misses;
+                    for (int k = 0; k < match; ++k)
+                        show(picks[k].row, picks[k].col, static_cast<uint16_t>(0x2035 + colour[picks[k].cell]));
+                    fill(0x42, 0x116, 500, 0x1A, 0);
+                } else {
+                    ++found;
+                    points += 100;
+                    matched = false;
+                    if (found >= groups) state = 1;
+                    for (int k = 0; k < match; ++k) {
+                        const Pick& p = picks[k];
+                        show(p.row, p.col, 0);
+                        card[p.row][p.col] = 0;
+                        drawOpaque(sideX(p.col), sideY(p.row, colour[p.cell] ? 1 : 0), 0x2034);
+                    }
+                }
+            } else if (ctx_.countdown[0] < 6 && factDue) {  // g15_0c04
+                factDue = false;
+                if (matched) {
+                    const int v = card[picks[0].row][picks[0].col] & 0x7F;
+                    fill(0x42, 0x116, 500, 0x1A, 0);
+                    messageBox(message(v + 9));
+                    if (theme != 0 && v >= 1 && v <= 10) learned_[theme][v - 1] = true;  // g19_0064
+                }
+            }
+        }
+        clock();
+        score();
+        if (helpPressed_) {
+            music(0x17);
+            drawOpaque(0x234, 0xEE, 0x203D);
+            help(0x3F00);
+            drawOpaque(0x234, 0xEE, 0x203C);
+        }
+    }
+    ctx_.timer.setPeriodic(kSecondSlot, 0, nullptr);
+    if (state == 0x10) {
+        points = 0;
+    } else {
+        points += timeLeft * 2;
+        score();
+    }
+    panels_.clear();
+    const bool won = state == 1;
+    const int mode = misses < groups / 2 ? 0 : misses < groups ? 1 : 2;
+    puzzleResult(won, points, mode, limit - timeLeft);
+    fill(0, 0, Screen::kWidth, Screen::kHeight, 0);
+    clearInput();
+    return won;
+}
+
 // --- 3: Binary Lights (segment 17) ---------------------------------------
 
 bool Mystery::binaryLights(int level) {

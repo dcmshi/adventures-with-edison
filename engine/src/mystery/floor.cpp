@@ -127,6 +127,7 @@ bool Mystery::puzzle(int kind, int level) {
     switch (kind) {
     case 3: return binaryLights(level);
     case 6: return codes(level);
+    case 7: return concentration(level);
     case 8: return circuitAnalyzer(level);
     case 10: return slidePuzzle(level);
     case 12: return switchPuzzle(level);
