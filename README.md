@@ -34,7 +34,7 @@ cmake --build build
 ### Music player
 
 `fmplay` plays the game's FM music and sound effects straight from its DLLs,
-at the game's timer rate (13 ms per tick):
+at the game's music rate (72 updates per 76 ticks of a 13 ms timer, about 72.9 Hz):
 
 ```sh
 build/engine/fmplay original/cd/DSK3/ADLIB.DLL                  # list sounds by name

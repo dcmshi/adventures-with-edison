@@ -8,11 +8,18 @@
 namespace edison {
 
 // Drives the FM sound driver at the game's timer rate and turns its OPL
-// register writes into audio. The games call UPDATE_ADLIB from a 13 ms
-// multimedia timer (timeSetEvent), i.e. ~76.9 ticks per second.
+// register writes into audio.
+//
+// The games' timer (the *ARTDLL.DLL TIMERCALLBACK) fires every 13 ms and
+// runs periodic callbacks through an accumulator: each adds its rate in Hz
+// and fires when the sum reaches 1000 / 13 = 76 (integer), subtracting 76.
+// UPDATE_ADLIB is registered at 72 Hz, so it runs on 72 of every 76 timer
+// ticks: ~72.9 updates per second, not evenly spaced.
 class FmRenderer {
 public:
-    static constexpr uint32_t kTickMicroseconds = 13000;
+    static constexpr uint32_t kTimerMicroseconds = 13000;
+    static constexpr uint32_t kThreshold = 1000 / 13;  // 76
+    static constexpr uint32_t kMusicRate = 72;
 
     FmRenderer(ArtechFmDriver& driver, uint32_t sampleRate);
 
@@ -25,9 +32,10 @@ public:
 private:
     ArtechFmDriver& driver_;
     OplSynth synth_;
-    uint64_t framesUntilTick_ = 0;
-    uint64_t tickRemainder_ = 0;  // fractional frames, in units of 1/1e6
-    uint64_t ticks_ = 0;
+    uint64_t framesUntilTimer_ = 0;
+    uint64_t timerRemainder_ = 0;  // fractional frames, in units of 1/1e6
+    uint32_t accumulator_ = 0;
+    uint64_t ticks_ = 0;  // driver updates
 };
 
 }  // namespace edison

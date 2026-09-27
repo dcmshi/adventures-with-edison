@@ -42,6 +42,12 @@ channel.priority` the channel is reset (`sub_18EF`), `ptr = header + 2`,
 
 ## Timing
 
+**Update rate.** The games register `UPDATE_ADLIB` with their timer DLL at
+72 Hz. The DLL's 13 ms `timeSetEvent` callback adds 72 to an accumulator
+on every tick and calls the driver whenever the total reaches 76, then
+subtracts 76. The result is 72 updates per 76 timer ticks, about
+72.9 Hz, unevenly spaced. `FmRenderer` reproduces this schedule exactly.
+
 `sub_0BF1` visits channels 9 → 0. For each active channel (`ticks != 0`):
 `acc += tempo`; only on 8-bit carry does a sequencer tick happen:
 `--ticks`; when `ticks == gate` or `ticks == early_off` (and channel != 9)

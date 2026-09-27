@@ -21,7 +21,8 @@ named by their error strings), the multimedia timer and MCI playback
 
 Each `*ARTDLL.DLL` (`ARTDLL`, `CARTDLL`, `MARTDLL`, `SARTDLL`) is a tiny
 timer DLL: `SETUPTIMERDLL`, `TIMERCALLBACK` and `MINROUTINE` wrap
-`timeSetEvent` so the music driver's `UPDATE_ADLIB` runs every 13 ms (see
+`timeSetEvent`: a 13 ms timer runs periodic callbacks by rate through an
+accumulator. `UPDATE_ADLIB` is registered at 72 Hz, about 72.9 updates per second (see
 `docs/SEQUENCER.md`).
 
 ## EDISON.EXE (launcher)
