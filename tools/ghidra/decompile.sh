@@ -22,5 +22,5 @@ for exe in "$@"; do
     name=$(basename "$exe" | sed 's/\.[^.]*$//' | tr 'A-Z' 'a-z')
     headless "$(native "$ROOT/extracted/ghidra/proj")" "$name" -import "$(native "$(cd "$(dirname "$exe")" && pwd)/$(basename "$exe")")" \
         -overwrite -scriptPath "$(native "$ROOT/tools/ghidra")" -preScript EnableParamId.java \
-        -postScript DecompileAll.java "$(native "$ROOT/extracted/ghidra/$name.c")"         "$(native "$ROOT/extracted/ghidra/ordinals")" "$(native "$ROOT/extracted/disasm/$name.entries")" 2>&1 | grep -E "DecompileAll|ERROR" || true
+        -postScript DecompileAll.java "$(native "$ROOT/extracted/ghidra/$name.c")"         "$(native "$ROOT/extracted/ghidra/ordinals")" "$(native "$ROOT/extracted/disasm/$name.entries")"         "$(native "$ROOT/tools/ghidra/volatile.txt")" 2>&1 | grep -E "DecompileAll|ERROR" || true
 done

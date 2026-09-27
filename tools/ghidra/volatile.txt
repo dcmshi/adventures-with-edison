@@ -1,0 +1,18 @@
+# Data-segment variables the timer callbacks or the input handler change
+# behind the code's back. DecompileAll.java marks them volatile so that
+# Ghidra keeps loops like "while (countdown != 0) {}" instead of turning
+# them into "do {} while (true)".
+# program  offset (in the data segment, DGROUP)  bytes  what
+# The data segment's selector in Ghidra: 0x1000 + 8 * (segments - 1).
+mall    92b2  10  the library's five countdowns (10 Hz)
+mall    739a  10  mouse x, y, button held, click edge, flags
+mall    b756   2  any input since last checked
+mall    929c  10  key bitmap
+mall    73b6   2  a WAV is playing
+mall    b71e   1  Smitty's idle timer fired
+mall    9314   2  the game's seconds left
+mall    c12e   2  the game's outcome (set by the 1 Hz timer)
+mall    c138   2  picture puzzles: seconds left
+mall    b45e   2  Circuit Analyzer: seconds left
+mall    8224   6  Binary Lights: seconds left, time changed
+edison  55ee  10  the library's five countdowns (10 Hz)

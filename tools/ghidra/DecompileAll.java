@@ -2,11 +2,13 @@
 // program into one C file.
 //
 // Usage (see tools/ghidra/decompile.sh):
-//   analyzeHeadless <project dir> <name> -import FILE -postScript DecompileAll.java OUT.c [ORDINALS DIR [ENTRIES]]
+//   analyzeHeadless <project dir> <name> -import FILE -postScript DecompileAll.java OUT.c [ORDINALS DIR [ENTRIES [VOLATILE]]]
 // Imports Ghidra knows only by ordinal are renamed first from
 // ORDINALS DIR/<LIB>.txt ("ordinal name" lines, see ordinals.py).
 // Functions Ghidra's analysis missed (only reached through pointers) are
 // created from ENTRIES ("segment offset" lines from tools/nedis.py), if given.
+// Data-segment variables listed in VOLATILE (see volatile.txt) are marked
+// volatile, so busy-waits on timer-driven variables decompile as loops.
 //@category Edison
 
 import java.io.File;
@@ -29,6 +31,7 @@ public class DecompileAll extends GhidraScript {
         String out = getScriptArgs().length > 0 ? getScriptArgs()[0] : "decompiled.c";
         if (getScriptArgs().length > 1) nameOrdinals(new File(getScriptArgs()[1]));
         if (getScriptArgs().length > 2) seedFunctions(new File(getScriptArgs()[2]));
+        if (getScriptArgs().length > 3) markVolatile(new File(getScriptArgs()[3]));
         DecompInterface ifc = new DecompInterface();
         ifc.setOptions(new DecompileOptions());
         ifc.openProgram(currentProgram);
@@ -78,6 +81,38 @@ public class DecompileAll extends GhidraScript {
             }
         }
         println("named " + renamed + " imports by ordinal");
+    }
+
+    // Each listed range of the data segment is split off into its own
+    // memory block, marked volatile.
+    private void markVolatile(File list) throws Exception {
+        if (!list.exists()) return;
+        String program = currentProgram.getName().toLowerCase().replaceAll("[.][^.]*$", "");
+        ghidra.program.model.mem.Memory mem = currentProgram.getMemory();
+        // DGROUP is the last NE segment; the loader puts segment n at
+        // selector 0x1000 + 8 * (n - 1), and the segment count is in the
+        // NE header (offset 0x1C), found through the MZ header at 0x3C.
+        String path = currentProgram.getExecutablePath();
+        if (path.matches("/[A-Za-z]:.*")) path = path.substring(1);  // "/D:/..." on Windows
+        byte[] exe = Files.readAllBytes(new File(path).toPath());
+        int ne = (exe[0x3C] & 0xFF) | (exe[0x3D] & 0xFF) << 8;
+        int segments = (exe[ne + 0x1C] & 0xFF) | (exe[ne + 0x1D] & 0xFF) << 8;
+        int selector = 0x1000 + 8 * (segments - 1);
+        int marked = 0;
+        for (String line : Files.readAllLines(list.toPath())) {
+            String[] p = line.trim().split("\s+");
+            if (p.length < 3 || p[0].startsWith("#") || !p[0].equals(program)) continue;
+            int offset = Integer.parseInt(p[1], 16), length = Integer.parseInt(p[2]);
+            ghidra.program.model.address.Address a = toAddr(String.format("%04x:%04x", selector, offset));
+            ghidra.program.model.address.Address end = a.add(length);
+            ghidra.program.model.mem.MemoryBlock b = mem.getBlock(a);
+            if (b == null) continue;
+            if (!b.getStart().equals(a)) { mem.split(b, a); b = mem.getBlock(a); }
+            if (b.contains(end)) mem.split(b, end);
+            mem.getBlock(a).setVolatile(true);
+            marked++;
+        }
+        println("marked " + marked + " volatile ranges in " + String.format("%04x", selector));
     }
 
     // nedis numbers segments from 1; Ghidra's NE loader puts segment n at
