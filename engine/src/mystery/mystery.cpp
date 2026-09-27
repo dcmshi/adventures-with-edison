@@ -1,6 +1,7 @@
 #include "mystery/mystery.h"
 
 #include <algorithm>
+#include <cstdlib>
 
 #include "formats/ne_file.h"
 
@@ -48,6 +49,9 @@ void Mystery::run() {
         player_.name = "Test";
         player_.level = static_cast<uint8_t>(std::clamp(options_.startLevel, 0, 7));
         square_ = 0;
+        customLevel_ = std::getenv("EDISON_CUSTOM") != nullptr;  // for testing: play as on a custom level
+        startIdleTimer();  // as after the first visit to the map
+        if (const char* idle = std::getenv("EDISON_IDLE")) idleCountdown_ = std::atoi(idle);  // for testing
         for (;;) {
             if (options_.startPuzzle < 16) {
                 puzzle(options_.startPuzzle, std::max(options_.startLevel, 0));

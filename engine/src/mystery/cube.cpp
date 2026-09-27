@@ -293,6 +293,7 @@ bool Mystery::foldedCube(int level) {
                 gadget = false;
                 cubeGadget();
             }
+            idleHint(3);
             if (helpPressed_) {
                 select(1);
                 drawOpaque(0xC, 0x22, 0x207F);

@@ -701,6 +701,7 @@ int Mystery::setup(int mode) {
     loadLook();
     customLevel_ = false;
     savedGame_ = false;
+    idle_ = false;
     bool returning = mode != 1;  // [B786]
     if (mode == 1) std::fill(std::begin(player_.colours), std::end(player_.colours), 0);
     setupScreen();

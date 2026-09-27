@@ -47,6 +47,9 @@ int slotX(int k) { return (k % 4) * 0x36 + 4; }
 int slotY(int k) { return (k / 4) * 0x2C + 6; }
 constexpr int kSlotW = 0x30, kSlotH = 0x24;
 
+// The timer slot of Smitty's idle moments (g05_03de).
+constexpr int kIdleSlot = 7;
+
 // The clock's hands (DS:0CA0, 0CA8): length, start and end angles, period.
 struct Hand {
     int length;
@@ -754,6 +757,10 @@ int Mystery::play() {
         waitOrClick(2);
         if (bubble) restoreArea(bubble);
         helpPanel(0x88, 0x76, 0x54, 0x40);
+        if (first) {
+            idleMap();
+            startIdleTimer();
+        }
         ctx_.timer.setPeriodic(kSecondSlot, 1, [this] {  // f09_0a7a
             if (--timeLeft_ < 0) {
                 timeLeft_ = 0;
@@ -781,6 +788,10 @@ int Mystery::play() {
                 endOfGame();
                 break;
             }
+            if (idle_) {
+                idle_ = false;
+                idleMap();
+            }
             if (wantShow_) smittyShow();
             if (helpPressed_) {
                 drawOpaque(0x98, 0x8C, 0x22BA);
@@ -792,6 +803,7 @@ int Mystery::play() {
             // Leaving mid-game saves it ("I'll save this game.").
             if (result == 1 && outcome_ == 0) saveGame();
             ctx_.timer.setPeriodic(kSecondSlot, 0, nullptr);
+            ctx_.timer.setPeriodic(kIdleSlot, 0, nullptr);
             panels_.clear();
             clearInput();
             return result;
@@ -804,6 +816,93 @@ int Mystery::play() {
             first = false;
             found = floor();
         } while (found != 1 && found != -1);
+    }
+}
+
+// --- Smitty's idle moments ------------------------------------------------
+
+void Mystery::startIdleTimer() {
+    // f09_1dd8 on the first visit to the map: [93B0] = random(300) and
+    // g05_03de each second. (It picks random(180) for the next wait and
+    // then uses 120.)
+    idleCountdown_ = random(300);
+    ctx_.timer.setPeriodic(kIdleSlot, 1, [this] {
+        if (idleCountdown_-- == 0) {
+            idleCountdown_ = 0x78;
+            idle_ = true;
+        }
+    });
+}
+
+void Mystery::idleMap() {
+    // f06_21c6: frames 234E-2350 at (190, 164), the middle one longer.
+    const int previous = current();
+    select(1);
+    const int under = saveArea(0x190, 0x164, 0x28, 0x28);
+    for (int f : {0, 1, 2, 0}) {
+        drawLogo(0x190, 0x164, static_cast<uint16_t>(0x234E + f));
+        waitCountdown(f == 2 ? 4 : 2);
+    }
+    restoreArea(under);
+    select(previous);
+}
+
+void Mystery::idleHint(int kind) {
+    if (kind == 3) {
+        // g30_127c: frames 2292-2294 centred at (80, F4), with a pause.
+        if (!idle_) return;
+        const int previous = current();
+        select(1);
+        const int under = saveArea(0x6C, 0xE0, 0x28, 0x28);
+        for (int f : {0, 1, 2, 0x80, 0}) {
+            if (f != 0x80) drawCentred(0x80, 0xF4, static_cast<uint16_t>(0x2292 + f));
+            waitCountdown(f == 0x80 ? 4 : 2);
+        }
+        restoreArea(under);
+        select(previous);
+        idle_ = false;
+        return;
+    }
+    // The frame lists (DS:1F12, 2914, 3106): 0x80 is a pause, -1 the end.
+    static const int kPicture[] = {0, 1, 2, 0x80, 3, 2, 0x80, 3, 2, 1, 0, -1};
+    static const int kCards[] = {0, 1, 2, 0x80, 0, -1};
+    static const int kCircuit[] = {0, 1, 2, 3, 2, 3, 2, 3, 0, -1};
+    const int* frames = kind == 0 ? kPicture : kind == 1 ? kCards : kCircuit;
+    if (idle_) {
+        idle_ = false;
+        hinting_ = true;
+        hintStep_ = 0;
+        if (kind == 2) {
+            // g16_07e6: what's under the corner, kept at (5A, 0) on 2.
+            hintUnder_ = saveArea(0, 0x8A, 0x5A, 0x6A);
+            duplicateArea(1, 2, 0, 0x8A, 0x5A, 0x6A, 0x5A, 0);
+        }
+        ctx_.countdown[1] = 0;
+    }
+    if (!hinting_ || ctx_.countdown[1] > 0) return;
+    const int previous = current();
+    select(1);
+    if (kind == 0) {  // g12_1bec
+        copyArea(2, 1, 0x23C, 0x15E, 0x3E, 0x32);
+        drawLogo(0x23C, 0x15E, static_cast<uint16_t>(0x228E + frames[hintStep_]));
+    } else if (kind == 1) {  // g15_10c2
+        drawOpaque(0x264, 0x132, static_cast<uint16_t>(0x2287 + frames[hintStep_]));
+    } else {  // g16_0830
+        duplicateArea(2, 1, 0x5A, 0, 0x5A, 0x6A, 0, 0x8A);
+        drawLogo(0, 0x8A, static_cast<uint16_t>(0x228A + frames[hintStep_]));
+    }
+    ++hintStep_;
+    if (frames[hintStep_] == -1) {
+        hinting_ = false;
+        if (kind == 0) copyArea(2, 1, 0x23C, 0x15E, 0x3E, 0x32);
+        if (kind == 1) copyArea(2, 1, 0x264, 0x132, 0x1A, 0x24);
+        if (kind == 2) restoreArea(hintUnder_);
+    }
+    select(previous);
+    ctx_.countdown[1] = 2;
+    if (kind != 2 && frames[hintStep_] == 0x80) {
+        ctx_.countdown[1] = kind == 0 ? 4 : 5;
+        ++hintStep_;
     }
 }
 

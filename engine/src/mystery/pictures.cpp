@@ -134,6 +134,37 @@ void Mystery::loadPicture(int index, const int size[4]) {
     select(1);
 }
 
+void Mystery::pickPicture(const int size[4]) {
+    // g12_1ab0: a random picture (g12_1976 works one out from the square,
+    // then draws a random one anyway); on a custom level the player looks
+    // through the 17 (Space next, Tab back) and picks one (Enter or Esc).
+    // g12_1438 shows the whole picture on a custom level.
+    if (!customLevel_) {
+        loadPicture(random(kPictures), size);
+        return;
+    }
+    int index = 0;
+    loadPicture(index, size);
+    drawSolution();
+    drawOpaque(0xB8, 0x10, 0x2059);
+    text(0xDC, 0x12, dataString(0x23DF), 0xFF);  // SPACE/TAB to view pics
+    text(0xDC, 0x21, dataString(0x23F6), 0xFF);  // ENTER to select pic
+    for (bool chosen = false; !chosen;) {
+        ctx_.pump();
+        for (int key; (key = ctx_.platform.takeKey()) != 0;) {
+            if (key == Platform::kEnter || key == Platform::kEscape) {
+                chosen = true;
+                break;
+            }
+            if (key != ' ' && key != Platform::kTab) continue;
+            index = key == ' ' ? (index + 1) % kPictures : (index + kPictures - 1) % kPictures;
+            loadPicture(index, size);
+            drawSolution();
+        }
+    }
+    drawOpaque(0xB8, 0x10, 0x2058);
+}
+
 void Mystery::drawBoard() {
     // g12_03b2: every cell, a tile cut from the picture or black.
     for (int r = 0; r < pic_.size; ++r)
@@ -465,7 +496,7 @@ bool Mystery::arrowPuzzle(int level) {
     }
     // DS:1F2C, entries 6-8 (every picture uses them for N = 2-4).
     static const int kSize[3][4] = {{172, 100, 137, 128}, {204, 120, 163, 153}, {224, 128, 179, 163}};
-    loadPicture(random(kPictures), kSize[level]);  // g12_1ab0 / g12_1976 (always random)
+    pickPicture(kSize[level]);
     addPicturePanels(0x3F01);
     drawBoard();
     addArrows();
@@ -495,6 +526,7 @@ bool Mystery::pictureLoop(uint16_t helpText) {
             break;
         }
         if (pic_.gizmo) pictureShow();
+        idleHint(0);
         if (helpPressed_) {
             drawOpaque(0x6C, 0x12, 0x205B);
             help(helpText);

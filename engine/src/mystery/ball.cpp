@@ -308,6 +308,7 @@ bool Mystery::ballSculpture(int level) {
                 gadget = false;
                 cubeGadget();
             }
+            idleHint(3);
             if (helpPressed_) {
                 select(1);
                 drawCentred(0x31, 0x37, 0x207F);

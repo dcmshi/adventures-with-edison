@@ -126,14 +126,8 @@ bool Mystery::puzzle(int kind, int level) {
     case 13: return arrowPuzzle(level);
     case 14: return whatComesNext(level);
     case 15: return dig(level);
-    default: break;
+    default: return true;  // no such game (the original's switch does nothing)
     }
-    // The other games aren't ported yet: each counts as solved. Their names
-    // are at DS:1A9C.
-    const std::string name =
-        kind >= 0 && kind < 16 ? dataString(dataWord(static_cast<uint16_t>(0x1A9C + 4 * kind))) : "?";
-    messageBox({name + " (level " + std::to_string(level) + ")", "isn't ported yet, so it counts as solved."});
-    return true;
 }
 
 int Mystery::floor() {

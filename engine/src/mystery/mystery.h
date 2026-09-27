@@ -154,6 +154,16 @@ private:
     void smittyShow();                                          // f09_002e
     void mapView();                                             // f09_01ee
     void redrawMap();                                           // g09_1c92
+    // Smitty's idle moments: a 1 Hz timer (g05_03de) sets [B71E] after
+    // 1-300 s, then every 121 s; the map and some puzzles then play a
+    // little animation.
+    void startIdleTimer();
+    void idleMap();                                             // f06_21c6
+    // The puzzles' animations, one step per call while [C270] is set:
+    // 0 the picture puzzles (g12_1bec), 1 Concentration (g15_10c2), 2 the
+    // Circuit Analyzer (g16_07e6 / g16_0830), 3 the Folded Cube and the
+    // Ball Sculpture (g30_127c, all at once).
+    void idleHint(int kind);
     bool askQuit();                                             // f09_0592
     void quitPressed();                                         // f09_0680
     // f05_0266; with a text colour it also draws the button ("HELP").
@@ -177,6 +187,7 @@ private:
     // g12_1438 / g13_058a: `size` is a row of DS:1F2C or DS:242A (width,
     // height, and the scale, 256 = 1:1).
     void loadPicture(int index, const int size[4]);
+    void pickPicture(const int size[4]);                        // g12_1ab0
     bool slidePuzzle(int level);                                // g14_028a
     bool switchPuzzle(int level);                               // g13_0d44
 
@@ -300,6 +311,11 @@ private:
     int heldUnder_ = 0;         // [C772]
     std::vector<Panels::Button> editorButtons_;  // DS:1ADC, under the map
     bool pendingPanels_ = false;
+    int idleCountdown_ = 0;     // [93B0]
+    bool idle_ = false;         // [B71E]
+    bool hinting_ = false;      // [C270]
+    int hintStep_ = 0;          // [9286]
+    int hintUnder_ = 0;         // [91A0]
     int menuEvent_ = 0;         // [91A4]: 1 make a custom level, 2 play it, 3 the saved game, 4 edit it
     bool customLevel_ = false;  // [C654]: playing a custom level
     struct HighScore {

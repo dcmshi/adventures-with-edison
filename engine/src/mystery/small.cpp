@@ -210,6 +210,7 @@ bool Mystery::circuitAnalyzer(int level) {
             }
             gizmo = false;
         }
+        idleHint(2);
         if (helpPressed_) help(0x3F09);
     }
     ctx_.timer.setPeriodic(kSecondSlot, 0, nullptr);
@@ -734,6 +735,7 @@ bool Mystery::concentration(int level) {
         }
         clock();
         score();
+        idleHint(1);
         if (helpPressed_) {
             music(0x17);
             drawOpaque(0x234, 0xEE, 0x203D);
