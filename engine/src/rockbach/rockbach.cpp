@@ -291,6 +291,11 @@ void RockBach::activity(int which) {
             drumClinic();
             drumsDone();  // f10_00e6
             break;
+        case 4:
+            pieceReset();  // f12_0000
+            library();
+            pieceStop();   // f12_0054
+            break;
         default:
             logLine("Rock and Bach: activity " + std::to_string(which) + " isn't ported yet; back to the hallway.");
             break;

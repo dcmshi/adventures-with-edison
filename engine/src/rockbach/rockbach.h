@@ -136,6 +136,31 @@ private:
     void drumPattern(int p);                                    // f10_03c2
     void drumKit(int kit);                                      // f10_0410
     void drumTempo(int t);                                      // f10_04b6
+
+    // --- the Music Library (segments 30, 21 and 12: library.cpp) ---
+    struct TextBox {
+        int block;                            // which '!' block of the file
+        bool paging;                          // wait for a key or click when full
+        uint16_t bitmap;                      // the background, or 0: a fill
+        uint8_t colour;                       // the fill
+        int x, y, w, h;                       // the box
+        int tx, ty;                           // the text (from tx + 2)
+        uint8_t ink;
+    };
+    int library();                                              // f30_1780
+    void libraryWidgets();                                      // f30_0000
+    void showComposer(int c, bool viaScreen2);                  // f30_0f24
+    void nextInfoPage(int c);                                   // f30_0b98
+    void pieceList(int c, bool viaScreen2);                     // f30_0d46
+    void libraryStopped();                                      // f30_0c7c
+    void choosePiece(int widget, int c, bool viaScreen2);       // f30_169e
+    bool textBox(const std::vector<std::string>& lines, const TextBox& box, bool viaScreen2);  // f21_0000
+    void pieceReset();                                          // f12_0000
+    void pieceChoose(int composer, int n);                      // f12_007a
+    void pieceInstrument(int i);                                // f12_00b6
+    void pieceStart();                                          // f12_0118
+    void pieceStop();                                           // f12_018c
+    void pieceTempo(int t);                                     // f12_0270
     // f27_01c4; also forgets a click or key f24_0666 has seen.
     void clearInput() {
         ArtechGame::clearInput();
@@ -172,6 +197,22 @@ private:
         uint8_t tempo = 0;                             // [1272]
         int song = 0;                                  // [8710]
     } band_;
+    // The Music Library.
+    std::vector<Widget> libraryWidgets_;
+    Slider librarySlider_{};                           // DS:8BD8: the tempo
+    struct LibraryState {
+        std::vector<std::string> info, words, list;    // LIBINFO.HI, SONGINFO.HI, SONG.HI
+        std::array<int, 8> page{};                     // DS:8CEC: each composer's INFO page
+        int infoPage = 0;                              // [8CEA]
+        int piece = -1;                                // [bp-C]
+        bool playing = false;                          // [673E]
+        int marker = 0;                                // the timeline's saved area
+    } library_;
+    struct Piece {
+        uint16_t record = 0x17E0;                      // [18A8]
+        int instrument = 3;                            // [17D5]
+        int tempo = 0;                                 // [17D6]
+    } piece_;
     // The Drum Clinic.
     std::vector<Widget> clinicWidgets_;
     std::array<Slider, 2> clinicSliders_{};            // DS:8BD8 tempo, 8BEC the step

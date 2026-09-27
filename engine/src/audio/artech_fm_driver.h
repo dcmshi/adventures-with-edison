@@ -68,6 +68,8 @@ public:
 
     void setGlobalTempo(uint8_t tempo) { mem_[GLOBALTEMPO] = tempo; }
     bool idle() const;
+    // Sounds sent but not started yet (the next update starts them).
+    bool pending() const { return word(BUFFTAIL) != word(BUFFHEAD); }
     SoundList listSounds() const;
 
     // Data-segment address of a sound's header in the current sound table
