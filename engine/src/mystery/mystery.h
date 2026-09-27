@@ -49,6 +49,9 @@ private:
     // f06_19fa at 1:1: each non-transparent pixel's colour shifted by `add`.
     void drawShifted(int x, int y, uint16_t id, int add);
     void fill(int x, int y, int w, int h, uint8_t colour);      // f06_17c8
+    // A filled polygon on the current screen (f32_2e46's fill).
+    void fillPolygon(const std::vector<std::pair<int, int>>& points, uint8_t colour);
+    void frame(int x, int y, int w, int h, uint8_t colour);     // f06_08c0: a rectangle's outline
     void text(int x, int y, const std::string& s, int colour);  // f06_15b8
     void copyArea(int src, int dst, int x, int y, int w, int h) { ctx_.screens.copyArea(src, dst, x, y, w, h); }
     // duplicate_area: a rectangle to another position (possibly another screen).
@@ -141,6 +144,7 @@ private:
     // f19_16a2: as puzzle 4, or (asPuzzle false) the quiz after a won game.
     bool questionPeriod(int level, bool asPuzzle);
     bool dig(int level);                                        // g21_185c
+    bool whatComesNext(int level);                              // g26_19d8
     // The part of the picture puzzles' main loops they share; `help` is
     // the help text. Returns the result from puzzleResult.
     bool pictureLoop(uint16_t help);

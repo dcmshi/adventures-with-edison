@@ -30,6 +30,35 @@ void Mystery::drawShifted(int x, int y, uint16_t id, int add) {
     });
 }
 
+void Mystery::fillPolygon(const std::vector<std::pair<int, int>>& pts, uint8_t colour) {
+    const int n = static_cast<int>(pts.size());
+    if (n < 3) return;
+    Screen& s = ctx_.screens[current_];
+    int top = Screen::kHeight, bottom = -1;
+    for (auto [x, y] : pts) top = std::min(top, y), bottom = std::max(bottom, y);
+    for (int y = std::max(top, 0); y <= std::min(bottom, Screen::kHeight - 1); ++y) {
+        std::vector<int> xs;
+        for (int k = 0; k < n; ++k) {
+            auto [ax, ay] = pts[k];
+            auto [bx, by] = pts[(k + 1) % n];
+            if (ay == by || y < std::min(ay, by) || y >= std::max(ay, by)) continue;
+            xs.push_back(ax + (y - ay) * (bx - ax) / (by - ay));
+        }
+        std::sort(xs.begin(), xs.end());
+        for (size_t k = 0; k + 1 < xs.size(); k += 2)
+            for (int x = std::max(xs[k], 0); x <= std::min(xs[k + 1], Screen::kWidth - 1); ++x)
+                s.pixels[static_cast<size_t>(y) * Screen::kWidth + x] = colour;
+    }
+}
+
+void Mystery::frame(int x, int y, int w, int h, uint8_t colour) {
+    --w, --h;
+    line(x, y, x + w, y, colour);
+    line(x + w, y, x + w, y + h, colour);
+    line(x, y, x, y + h, colour);
+    line(x, y + h, x + w, y + h, colour);
+}
+
 void Mystery::fill(int x, int y, int w, int h, uint8_t colour) {
     if (x + w >= Screen::kWidth) w = Screen::kWidth - x - 1;
     if (y + h >= Screen::kHeight) h = Screen::kHeight - y - 1;

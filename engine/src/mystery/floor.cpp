@@ -39,7 +39,6 @@ void Mystery::floorRegions() {
     // (202F) or failed (2031) ones marked. Square 0 is never marked (the
     // original tests > 0).
     const uint16_t colours = static_cast<uint16_t>(0x17D0 + std::min<int>(player_.level, 7) * 0x1E);
-    Screen& s = ctx_.screens[current()];
     for (int i = 0; i < 15; ++i) {
         const int colour = dataWord(static_cast<uint16_t>(colours + 2 * i));
         if (!colour) continue;
@@ -49,21 +48,7 @@ void Mystery::floorRegions() {
         for (int k = 0; k < n; ++k)
             pts.emplace_back(static_cast<int16_t>(dataWord(static_cast<uint16_t>(poly + 2 + 4 * k))),
                              static_cast<int16_t>(dataWord(static_cast<uint16_t>(poly + 4 + 4 * k))));
-        int top = Screen::kHeight, bottom = -1;
-        for (auto [x, y] : pts) top = std::min(top, y), bottom = std::max(bottom, y);
-        for (int y = std::max(top, 0); y <= std::min(bottom, Screen::kHeight - 1); ++y) {
-            std::vector<int> xs;
-            for (int k = 0; k < n; ++k) {
-                auto [ax, ay] = pts[k];
-                auto [bx, by] = pts[(k + 1) % n];
-                if (ay == by || y < std::min(ay, by) || y >= std::max(ay, by)) continue;
-                xs.push_back(ax + (y - ay) * (bx - ax) / (by - ay));
-            }
-            std::sort(xs.begin(), xs.end());
-            for (size_t k = 0; k + 1 < xs.size(); k += 2)
-                for (int x = std::max(xs[k], 0); x <= std::min(xs[k + 1], Screen::kWidth - 1); ++x)
-                    s.pixels[static_cast<size_t>(y) * Screen::kWidth + x] = static_cast<uint8_t>(colour);
-        }
+        fillPolygon(pts, static_cast<uint8_t>(colour));
     }
     int previous = -1;
     for (int i = 0; i < 15; ++i) {
@@ -133,6 +118,7 @@ bool Mystery::puzzle(int kind, int level) {
     case 10: return slidePuzzle(level);
     case 12: return switchPuzzle(level);
     case 13: return arrowPuzzle(level);
+    case 14: return whatComesNext(level);
     case 15: return dig(level);
     default: break;
     }
