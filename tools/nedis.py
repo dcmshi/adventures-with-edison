@@ -213,7 +213,7 @@ class Program:
         for site in range(i.address, i.address + i.size):
             if site in self.fixups[seg]:
                 notes.append(self.fixups[seg][site])
-        if not notes:
+        if not notes and not i.mnemonic.startswith(("j", "call", "loop")):
             for m in _IMM.finditer(i.op_str):
                 s = self.string_at(int(m.group(1), 16))
                 if s is not None:
