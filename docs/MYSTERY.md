@@ -90,9 +90,11 @@ Menu events (`[91A4]`) jump between steps: 1/4 = show the high scores, 2 = `f08_
   - the speech bubble (`f06_2494`);
   - UI colour matching (`f06_01f6`);
   - speech WAVs by id (`f06_2da8`).
+- **Title:** `f08_2284`, shown the first time only: bitmap `100E`, music `29`, for 10 s or until a click or key, then sound `4064`.
 - **Setup:** `setup.cpp` has the courtyard backdrop and the scene (`f08_06f8`), including the lip-synced "Cool!" part. Only part 0 runs so far; the name entry comes next.
 - **Findings:**
   - The UI colour matcher reads its target colours (`DS:00BE`) as signed chars. Components above 127 therefore count as negative, and the "white" entries match dark palette colours. The port keeps this.
   - Speech: id - 0x4010 indexes the name table at `DS:0566`. The file is `<CD>\MYSTERY\<name>.wav`.
   - Flags: `-A` turns music off (`[0054]`) and `-T` sets `[7399]`.
+- **Checked against the original under winevdm** (`tools/reference/otvdm.ps1`): the title screen and the courtyard scene have the same frames, colours (pixel-identical) and timing. The original next shows "Hi! I'm Edison. What's your name?" in a speech bubble with a `>` prompt: that's setup step 1.
 - **Testing:** `edison --game mystery` starts the game directly. Leaving it returns to the launcher without the opening.

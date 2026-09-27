@@ -33,6 +33,7 @@ uint16_t Mystery::dataWord(uint16_t offset) const {
 
 void Mystery::run() {
     ctx_.startTimer();
+    title();
     setupScreen();
     scene(0);
     // Not ported further yet: the name entry and the rest of the setup

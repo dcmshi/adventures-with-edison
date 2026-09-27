@@ -34,6 +34,25 @@ constexpr int kLipSync[] = {0, 1, 2, 0, 2, 0, 3, 2, 1, 3};
 
 }  // namespace
 
+void Mystery::title() {
+    // f08_2284 (first time only): the title screen for 10 s or until a
+    // click or key, over music 29, then sound 4064.
+    const int previous = current();
+    select(2);
+    ctx_.screens[2].clear();  // f04_0000: screen 2 cleared and shown
+    ctx_.screens.copyAll(2, 1);
+    ctx_.showFullScreen(0x100E, 2);
+    ctx_.setDisplayPalette(2);
+    ctx_.screens.copyAll(2, 1);
+    music(0x29);
+    ctx_.countdown[0] = 100;
+    clearInput();
+    while (ctx_.countdown[0] != 0 && !anyInput()) ctx_.pump();
+    clearInput();
+    select(previous);
+    sound(0x4064);
+}
+
 void Mystery::setupScreen() {
     // The start of f08_232c: the courtyard backdrop on screen 2, shown.
     select(1);

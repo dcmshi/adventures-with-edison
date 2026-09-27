@@ -168,6 +168,18 @@ void Mystery::music(uint16_t id) {
     if (options_.music) ctx_.platform.sendFm(id);
 }
 
+void Mystery::clearInput() {
+    // f06_2ccc: drop pending clicks and keys.
+    int x, y;
+    while (ctx_.platform.takeClick(&x, &y)) {}
+    while (ctx_.platform.takeKey()) {}
+}
+
+bool Mystery::anyInput() {
+    int x, y;
+    return ctx_.platform.takeClick(&x, &y) || ctx_.platform.takeKey() != 0;
+}
+
 void Mystery::waitCountdown(int tenths) {
     ctx_.countdown[0] = tenths;
     while (ctx_.countdown[0] != 0) ctx_.pump();

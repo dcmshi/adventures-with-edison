@@ -49,8 +49,11 @@ private:
     void sound(uint16_t id);                                    // f06_2da8: \MYSTERY\<name>.wav
     void music(uint16_t id);                                    // f02_0000: MADLIB SENDSND
     void waitCountdown(int tenths);                             // [92B2] = n; wait for 0
+    void clearInput();                                          // f06_2ccc
+    bool anyInput();                                            // a click or key since the last check
 
     // --- segment 8: setup (setup.cpp) ---
+    void title();                                               // f08_2284
     void setupScreen();                                         // start of f08_232c
     void scene(int part);                                       // f08_06f8
 
