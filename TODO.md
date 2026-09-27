@@ -15,7 +15,13 @@ What's left is checking it against the original:
 
 ## Rock and Bach
 
-- [ ] Rock and Bach (`WINMAIN.EXE`).
+See `docs/ROCKBACH.md` for the map. Started: the intro screens and the
+hallway's hot spots run (`edison --game rockbach`).
+
+- [ ] The FM driver's other entry points (`GETADDR`, `GETVAR`, `SSTATUS`, `DIRECTDRUMOUT`, `INSTALL_PATCH`, `PLAYINS`) and the song player (segment 20), which writes riffs into the driver's sound table.
+- [ ] The logo intro's band (`f05_04d8`).
+- [ ] The hallway: Edison's greeting, the player's name and looks (`user.yyy`, `ed.yyy`), the animated sign, the credits and the quit question.
+- [ ] The activities: the jukebox (`f03_22e8`), Drum Clinic (`f06_1e9e`), Music Library (`f30_1780`), Harmony Hall (`f07_1908`), Instrument Room (`f08_0f2e`), Sound FX (`f29_17e2`) and the Studio (`f35_018a`: bands, songs, videos).
 - [ ] Decode its real tempo (`fmplay` uses 128 for now).
 
 ## Wild Science Arcade

@@ -63,6 +63,11 @@ installs driver n. The other wrappers call the driver in use:
 The port's driver (`engine/src/audio/artech_fm_driver`) has `INIT`, `REMOVE`,
 `UPDATE`, `SENDSND`, `GEVENT` and `GFLUSH` so far.
 
-## Port status
+## Port status (`engine/src/rockbach`)
 
-Not started: the map above is the plan.
+- `edison --game rockbach` (or the launcher's Rock and Bach button) runs it; `--level N` goes straight to hallway result N.
+- The drawing helpers are shared with Mystery at the Museums (`ArtechGame`, `engine/src/artech/game.h`): WINMAIN's segment 28 is MALL's segment 6 again.
+- **Intro:** "Corel presents" (`f25_0016`: backdrop `100A` for 10 s or a key or click, colours `70-7F` turning every 1/8 s). The logo (`1001`) is shown for 5 s; its band animation and song (`f05_04d8`) aren't ported yet.
+- **Hallway:** backdrop `1007`; clicks read the mask `1006` on screen 2 (`f37_23ce`). Edison's greeting, the sign, the credits and the quit question aren't ported yet; the door leaves at once.
+- **Activities:** none yet; each switches its FM driver and comes back.
+- **Sounds:** `f27_020e` plays `<CD>\RB\<name>.wav` by id (`DS:278C`, id - `0x6000`), else `<name>.wav` in the game's folder (the player's own); longer than 64 KB plays nothing.
