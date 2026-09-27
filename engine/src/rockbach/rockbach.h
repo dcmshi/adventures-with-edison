@@ -163,6 +163,30 @@ private:
     void pieceStop();                                           // f12_018c
     void pieceTempo(int t);                                     // f12_0270
 
+    // --- the file dialogs (segments 22 and 23: dialogs.cpp) ---
+    void dialogColours();                                       // f27_0054
+    static Widget dialogButton(int x, int y, uint16_t pressed, uint16_t up, int w, int h);
+    void bevelBox(int x, int y, int w, int h, bool pressed);    // f23_0ab8
+    std::vector<std::string> listFiles(const std::string& dir, const std::string& ext);  // f22_0000
+    bool fileList(int x, int y, const std::string& dir, bool cd, const std::string& ext, std::string* out, int kind,
+                  const std::string& title, bool saveBackground);  // f22_1864
+    bool loadDialog(int x, int y, const std::string& ext, std::string* out, int kind, const std::string& title);  // f22_1454
+    bool nameDialog(int x, int y, std::string* name, const std::string& ext, std::string* out);  // f22_099e
+    int messageBox(int x, int y, const std::vector<std::string>& lines, const std::vector<int>& buttons);  // f22_0dd2
+
+    // --- Sound FX (segments 29 and 13: soundfx.cpp) ---
+    int soundFx();                                              // f29_17e2
+    void soundFxWidgets();                                      // f29_0000
+    void sfxTip(int n);                                         // f29_16f4
+    void sfxSliders(int which, bool apply);                     // f29_1322
+    void sfxToggle(int k, std::array<bool, 5>& on);             // f29_152e
+    void sfxWave(int left, int right);                          // f29_0ffe
+    void sfxProcess();                                          // f13_0a90
+    void sfxSet(int type, int value);                           // f13_0964
+    bool sfxLoad(const std::string& path);                      // f13_0eb6
+    std::vector<uint8_t> sfxWav(long from, long to) const;
+    void sfxPlay();                                             // f13_117e
+
     // --- the Instrument Room (segment 8: instruments.cpp) ---
     int instrumentRoom();                                       // f08_0f2e
     void instrumentWidgets();                                   // f08_002c
@@ -220,6 +244,27 @@ private:
         uint8_t tempo = 0;                             // [1272]
         int song = 0;                                  // [8710]
     } band_;
+    // The dialogs.
+    std::array<uint8_t, 16> dialogColour_{};           // [69CE]
+    std::array<int, 2> loadSource_{-1, -1};            // [219E] videos, [219C] sounds: 1 CD, 2 hard drive
+    // Sound FX.
+    std::vector<Widget> soundFxWidgets_;
+    std::array<Slider, 6> sfxSliders_{};               // DS:8BD8
+    struct SoundFxState {
+        std::vector<uint8_t> header;                   // DS:8722
+        int hdr = 0;                                   // [8DCE]
+        std::vector<int8_t> input;                     // [6742]: signed
+        std::vector<uint8_t> a;                        // buffer A: the result, unsigned
+        long len = 0, start = 0, end = 0;              // [8714], [8CBC], [8B76]
+        int fileRate = 0, rate = 0;                    // [69F0], [83CA]
+        bool reverse = false, echo = false, reverb = false, filter = false, loop = false;
+        bool upToDate = false, processing = false;     // 18C6, 18CD
+        int filterFreq = 1000, reverbGain = 50, echoDelay = 300, echoGain = 50;
+        long reverbDelay = 30;
+    } sfx_;
+    std::array<int, 2> sfxHandle_{0, 0x266};           // DS:285A, 2862: the handles' x
+    std::array<int, 2> sfxArea_{};
+    int sfxWaveArea_ = 0, sfxScale_ = 1;
     // The Instrument Room.
     std::vector<Widget> instrumentWidgets_;
     std::vector<uint8_t> sample_;                      // [3BB4]: the instrument's WAV

@@ -309,6 +309,9 @@ void RockBach::activity(int which) {
         case 7:
             instrumentRoom();
             break;
+        case 8:
+            soundFx();
+            break;
         default:
             logLine("Rock and Bach: activity " + std::to_string(which) + " isn't ported yet; back to the hallway.");
             break;

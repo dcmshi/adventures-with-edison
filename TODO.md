@@ -15,21 +15,22 @@ What's left is checking it against the original:
 
 ## Rock and Bach
 
-See `docs/ROCKBACH.md` for the map. Ported so far (`edison --game rockbach`):
-the intro, the logo with its band and song, the widgets (segment 34), the
-whole hallway, the jukebox, the Drum Clinic, the Music Library, Harmony Hall and the Instrument Room.
+See `docs/ROCKBACH.md` for the map. Ported so far (`edison --game rockbach`,
+`--level N` goes straight to hallway result N): the intro and logo, the
+widgets (segment 34), the file dialogs (segments 22-23), the whole hallway
+and seven of the eight activities. Each was checked with automated captures
+against the disassembly, not yet against the original.
 
-- [x] The FM driver's other entry points and the song player (segment 20).
-- [x] The logo intro's band (`f05_04d8`).
-- [x] The hallway: Edison's greeting, the player's name and looks (`user.yyy`, `ed.yyy`), the animated sign, the credits and the quit question.
-- [ ] Compare the hallway with the original: a returning player's look only shows once a part is changed, the Yes/No buttons take the hair's colour, and the look is lost after the credits. That is how the code reads, but it should be checked.
-- [x] The widgets' sliders (flags 08/10, `f34_04dc`).
-- [x] The jukebox (`f03_22e8`).
-- [x] The Drum Clinic (`f06_1e9e`). (The original's pointer snapping over the grid isn't ported.)
-- [x] The Music Library (`f30_1780`).
-- [x] Harmony Hall (`f07_1908`).
-- [x] The Instrument Room (`f08_0f2e`).
-- [ ] The other activities: Sound FX (`f29_17e2`) and the Studio (`f35_018a`: bands, songs, videos).
+- [x] The FM driver's other entry points and the song player (segment 20); the logo intro's band.
+- [x] The hallway: Edison's greeting, the player's name and looks (`user.yyy`, `ed.yyy`), the sign, the credits, the quit question.
+- [x] The widgets (segment 34), sliders included; the file dialogs (segments 22, 23).
+- [x] The jukebox (2), the Drum Clinic (3), the Music Library (4), Harmony Hall (6), the Instrument Room (7), Sound FX (8).
+- [ ] **Next: the Studio** (9, `f35_018a`, `ADLIB2`): `f04_112e`, the band maker `f14_10f4`, the song maker `f15_1f84`, the video makers `f16_217c`, `f17_20f2`, `f26_1edc` and the player `f18_22a4`. It uses the file dialogs (kind 0 for videos).
+- [ ] Compare with the original:
+  - the hallway: a returning player's look only shows once a part is changed, the Yes/No buttons take the hair's colour, the look is lost after the credits (how the code reads);
+  - the Music Library's end-of-piece check waits for the driver to start the sounds (a port adjustment for a timing race);
+  - Sound FX: the handles vanish after LOAD until an effect is changed (how the code reads); the scroll bar's arrows repeat every 0.1 s (the original repeats every poll);
+  - the Drum Clinic's pointer snapping over the grid isn't ported.
 - [ ] Decode its real tempo (`fmplay` uses 128 for now).
 
 ## Wild Science Arcade
