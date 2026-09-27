@@ -136,6 +136,10 @@ public:
                 case SDLK_TAB: keys_.push_back(kTab); break;
                 case SDLK_RETURN: case SDLK_KP_ENTER: keys_.push_back(kEnter); break;
                 case SDLK_ESCAPE: keys_.push_back(kEscape); break;
+                case SDLK_LEFT: keys_.push_back(kLeft); break;
+                case SDLK_RIGHT: keys_.push_back(kRight); break;
+                case SDLK_UP: keys_.push_back(kUp); break;
+                case SDLK_DOWN: keys_.push_back(kDown); break;
                 default: break;
                 }
             }

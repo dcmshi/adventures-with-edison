@@ -30,7 +30,7 @@ public:
     // Next key typed, as Windows would give it: printable ASCII, or
     // kBackspace, kTab, kEnter, kEscape; 0 when there's none.
     virtual int takeKey() = 0;
-    enum Key { kBackspace = 8, kTab = 9, kEnter = 13, kEscape = 27 };
+    enum Key { kBackspace = 8, kTab = 9, kEnter = 13, kEscape = 27, kLeft = 0x100, kRight, kUp, kDown };
 
     // Sound: a RIFF WAV image (replaces the one playing); the FM driver DLL
     // a game uses (CADLIB, MADLIB, ...) and its SENDSND.
