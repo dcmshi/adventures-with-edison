@@ -24,12 +24,6 @@ constexpr int kChoiceX = 0xF5, kChoiceStep = 0x50, kRowY = 0x4B, kRowStep = 0x30
 
 }  // namespace
 
-void Mystery::drawCentred(int x, int y, uint16_t id) {
-    // f06_189a at 1:1.
-    const Bitmap& bmp = ctx_.bitmap(id);
-    drawLogo(x - bmp.width / 2, y - bmp.height / 2, id);
-}
-
 bool Mystery::colourTransformation(int level) {
     // g27_1032.
     const int limit = 0x78;  // [930E]

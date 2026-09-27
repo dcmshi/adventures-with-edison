@@ -10,6 +10,7 @@ add_library(edison_core
     src/artech/screens.cpp
     src/artech/timer.cpp
     src/artech/font.cpp
+    src/artech/game.cpp
     src/artech/context.cpp
     src/artech/anims.cpp
     src/artech/scripts.cpp

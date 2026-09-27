@@ -76,38 +76,6 @@ void Mystery::backdrop(uint16_t id) {
     ctx_.showFullScreen(id, 2);
 }
 
-void Mystery::drawOpaque(int x, int y, uint16_t id) {
-    const Bitmap& bmp = ctx_.bitmap(id);
-    if (x + bmp.width > Screen::kWidth) x = Screen::kWidth - bmp.width - 1;
-    if (y + bmp.height > Screen::kHeight) y = Screen::kHeight - bmp.height - 1;
-    x = std::max(x, 0);
-    y = std::max(y, 0);
-    drawVia3(x, y, bmp.width, bmp.height, [&](int s) { ctx_.screens.drawSprite(s, bmp, x, y, true); });
-}
-
-void Mystery::line(int x0, int y0, int x1, int y1, uint8_t colour) {
-    x1 = std::min(x1, Screen::kWidth - 1);
-    y1 = std::min(y1, Screen::kHeight - 1);
-    x0 = std::max(x0, 0);
-    y0 = std::max(y0, 0);
-    auto plot = [&](int s) {
-        Screen& scr = ctx_.screens[s];
-        const int dx = std::abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
-        const int dy = -std::abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
-        int err = dx + dy, x = x0, y = y0;
-        for (;;) {
-            if (x >= 0 && x < Screen::kWidth && y >= 0 && y < Screen::kHeight)
-                scr.pixels[static_cast<size_t>(y) * Screen::kWidth + x] = colour;
-            if (x == x1 && y == y1) break;
-            const int e2 = 2 * err;
-            if (e2 >= dy) { err += dy; x += sx; }
-            if (e2 <= dx) { err += dx; y += sy; }
-        }
-    };
-    const int x = std::min(x0, x1), y = std::min(y0, y1);
-    drawVia3(x, y, std::abs(x1 - x0) + 1, std::abs(y1 - y0) + 1, plot);
-}
-
 void Mystery::clockHand(int cx, int cy, uint16_t hand, int value, uint8_t colour) {
     // f05_00a0: the angle runs from start to end over the period (a full
     // turn is 0x10000, 0 pointing right, clockwise); f51_103b is sine.
@@ -193,15 +161,6 @@ bool Mystery::allFound() const {
     for (const Object& o : objects_)
         if (o.museum != 0xFF && !o.found) return false;
     return true;
-}
-
-bool Mystery::waitOrClick(int tenths) {
-    ctx_.countdown[0] = tenths;
-    while (ctx_.countdown[0] != 0) {
-        ctx_.pump();
-        if (anyInput()) return true;
-    }
-    return false;
 }
 
 // --- Edison and Smitty ----------------------------------------------------

@@ -27,23 +27,6 @@ constexpr int kShotX = 0xFC, kShotY = 0x70, kShotW = 0x98, kShotH = 0x72;  // ma
 
 }  // namespace
 
-void Mystery::drawScaledCentred(int x, int y, int scaleX, int scaleY, uint16_t id) {
-    // f06_189a: a sprite scaled (256 = 1:1) about its centre, colour 0 clear.
-    const Bitmap& bmp = ctx_.bitmap(id);
-    const int w = std::max(1, bmp.width * scaleX / 256), h = std::max(1, bmp.height * scaleY / 256);
-    const int left = x - w / 2, top = y - h / 2;
-    drawVia3(left, top, w, h, [&](int s) {
-        Screen& scr = ctx_.screens[s];
-        for (int r = 0; r < h; ++r)
-            for (int c = 0; c < w; ++c) {
-                const uint8_t p = bmp.at(c * bmp.width / w, r * bmp.height / h);
-                const int px = left + c, py = top + r;
-                if (p && px >= 0 && py >= 0 && px < Screen::kWidth && py < Screen::kHeight)
-                    scr.pixels[static_cast<size_t>(py) * Screen::kWidth + px] = p;
-            }
-    });
-}
-
 bool Mystery::ballSculpture(int level) {
     // g30_136c. The time comes from the level of the game before ([9282]
     // is read before it's set).

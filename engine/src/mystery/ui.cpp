@@ -9,128 +9,6 @@
 
 namespace edison {
 
-void Mystery::drawLogo(int x, int y, uint16_t id) {
-    const Bitmap& bmp = ctx_.bitmap(id);
-    x = std::max(0, std::min(x, Screen::kWidth - bmp.width));
-    y = std::max(0, std::min(y, Screen::kHeight - bmp.height));
-    drawVia3(x, y, bmp.width, bmp.height, [&](int s) { ctx_.screens.drawSprite(s, bmp, x, y); });
-}
-
-void Mystery::drawShifted(int x, int y, uint16_t id, int add) {
-    const Bitmap& bmp = ctx_.bitmap(id);
-    drawVia3(x, y, bmp.width, bmp.height, [&](int s) {
-        Screen& scr = ctx_.screens[s];
-        for (int r = 0; r < bmp.height; ++r)
-            for (int c = 0; c < bmp.width; ++c) {
-                const uint8_t p = bmp.at(c, r);
-                const int px = x + c, py = y + r;
-                if (p && px >= 0 && py >= 0 && px < Screen::kWidth && py < Screen::kHeight)
-                    scr.pixels[static_cast<size_t>(py) * Screen::kWidth + px] = static_cast<uint8_t>(p + add);
-            }
-    });
-}
-
-void Mystery::fillPolygon(const std::vector<std::pair<int, int>>& pts, uint8_t colour, bool edges) {
-    const int n = static_cast<int>(pts.size());
-    if (edges)
-        for (int k = 0; k < n; ++k)
-            line(pts[k].first, pts[k].second, pts[(k + 1) % n].first, pts[(k + 1) % n].second, colour);
-    if (n < 3) return;
-    Screen& s = ctx_.screens[current_];
-    int top = Screen::kHeight, bottom = -1;
-    for (auto [x, y] : pts) top = std::min(top, y), bottom = std::max(bottom, y);
-    for (int y = std::max(top, 0); y <= std::min(bottom, Screen::kHeight - 1); ++y) {
-        std::vector<int> xs;
-        for (int k = 0; k < n; ++k) {
-            auto [ax, ay] = pts[k];
-            auto [bx, by] = pts[(k + 1) % n];
-            if (ay == by || y < std::min(ay, by) || y >= std::max(ay, by)) continue;
-            xs.push_back(ax + (y - ay) * (bx - ax) / (by - ay));
-        }
-        std::sort(xs.begin(), xs.end());
-        for (size_t k = 0; k + 1 < xs.size(); k += 2)
-            for (int x = std::max(xs[k], 0); x <= std::min(xs[k + 1], Screen::kWidth - 1); ++x)
-                s.pixels[static_cast<size_t>(y) * Screen::kWidth + x] = colour;
-    }
-}
-
-void Mystery::frame(int x, int y, int w, int h, uint8_t colour) {
-    --w, --h;
-    line(x, y, x + w, y, colour);
-    line(x + w, y, x + w, y + h, colour);
-    line(x, y, x, y + h, colour);
-    line(x, y + h, x + w, y + h, colour);
-}
-
-void Mystery::fill(int x, int y, int w, int h, uint8_t colour) {
-    if (x + w >= Screen::kWidth) w = Screen::kWidth - x - 1;
-    if (y + h >= Screen::kHeight) h = Screen::kHeight - y - 1;
-    x = std::max(x, 0);
-    y = std::max(y, 0);
-    drawVia3(x, y, w, h, [&](int s) {
-        Screen& scr = ctx_.screens[s];
-        for (int row = y; row < y + h; ++row)
-            std::fill_n(scr.pixels.begin() + static_cast<size_t>(row) * Screen::kWidth + x, w, colour);
-    });
-}
-
-void Mystery::text(int x, int y, const std::string& s, int colour) {
-    colour = std::clamp(colour, 0, 255);
-    x = std::max(x, 0);
-    y = std::max(y, 0);
-    const int w = font_->width(s);
-    drawVia3(x, y, w, font_->height(), [&](int scr) {
-        font_->draw(ctx_.screens[scr], x, y, s, static_cast<uint8_t>(colour));
-    });
-}
-
-void Mystery::duplicateArea(int src, int dst, int sx, int sy, int w, int h, int dx, int dy) {
-    std::vector<uint8_t> block(static_cast<size_t>(w) * h);
-    const Screen& from = ctx_.screens[src];
-    for (int row = 0; row < h; ++row)
-        for (int col = 0; col < w; ++col) {
-            const int x = sx + col, y = sy + row;
-            if (x >= 0 && x < Screen::kWidth && y >= 0 && y < Screen::kHeight)
-                block[static_cast<size_t>(row) * w + col] = from.pixels[static_cast<size_t>(y) * Screen::kWidth + x];
-        }
-    Screen& to = ctx_.screens[dst];
-    for (int row = 0; row < h; ++row)
-        for (int col = 0; col < w; ++col) {
-            const int x = dx + col, y = dy + row;
-            if (x >= 0 && x < Screen::kWidth && y >= 0 && y < Screen::kHeight)
-                to.pixels[static_cast<size_t>(y) * Screen::kWidth + x] = block[static_cast<size_t>(row) * w + col];
-        }
-}
-
-int Mystery::saveArea(int x, int y, int w, int h) {
-    if (x + w >= Screen::kWidth) w = Screen::kWidth - x - 1;
-    if (y + h >= Screen::kHeight) h = Screen::kHeight - y - 1;
-    x = std::max(x, 0);
-    y = std::max(y, 0);
-    SavedArea area{x, y, w, h, std::vector<uint8_t>(static_cast<size_t>(w) * h)};
-    const Screen& s = ctx_.screens[current_];
-    for (int row = 0; row < h; ++row)
-        std::copy_n(s.pixels.begin() + static_cast<size_t>(y + row) * Screen::kWidth + x, w,
-                    area.pixels.begin() + static_cast<size_t>(row) * w);
-    saved_[nextHandle_] = std::move(area);
-    return nextHandle_++;
-}
-
-void Mystery::restoreArea(int handle) {
-    auto it = saved_.find(handle);
-    if (it == saved_.end()) return;
-    const SavedArea& a = it->second;
-    // f06_14fc: onto the display through screen 3, or onto the current
-    // screen when that isn't the display.
-    for (int s : current_ == 1 ? std::vector<int>{3, 1} : std::vector<int>{current_}) {
-        Screen& scr = ctx_.screens[s];
-        for (int row = 0; row < a.h; ++row)
-            std::copy_n(a.pixels.begin() + static_cast<size_t>(row) * a.w, a.w,
-                        scr.pixels.begin() + static_cast<size_t>(a.y + row) * Screen::kWidth + a.x);
-    }
-    saved_.erase(it);
-}
-
 int Mystery::speechBox(int x, int y, const std::vector<std::string>& lines, int side, bool save) {
     const int fh = font_->height();
     int widest = 0;
@@ -163,21 +41,6 @@ int Mystery::speechBox(int x, int y, const std::vector<std::string>& lines, int 
     for (size_t i = 0; i < lines.size(); ++i)
         text(x + (w - font_->width(lines[i])) / 2, static_cast<int>(i) * fh + y + fh / 2, lines[i], ui_[12]);
     return handle;
-}
-
-void Mystery::recolour(int x, int y, int w, int h, uint8_t from, uint8_t to) {
-    if (x + w >= Screen::kWidth) w = Screen::kWidth - x - 1;
-    if (y + h >= Screen::kHeight) h = Screen::kHeight - y - 1;
-    x = std::max(x, 0);
-    y = std::max(y, 0);
-    drawVia3(x, y, w, h, [&](int s) {
-        Screen& scr = ctx_.screens[s];
-        for (int row = y; row < y + h; ++row)
-            for (int col = x; col < x + w; ++col) {
-                uint8_t& p = scr.pixels[static_cast<size_t>(row) * Screen::kWidth + col];
-                if (p == from) p = to;
-            }
-    });
 }
 
 void Mystery::computeUiColours() {
@@ -219,23 +82,6 @@ void Mystery::sound(uint16_t id) {
 
 void Mystery::music(uint16_t id) {
     if (options_.music) ctx_.platform.sendFm(id);
-}
-
-void Mystery::clearInput() {
-    // f06_2ccc: drop pending clicks and keys.
-    int x, y;
-    while (ctx_.platform.takeClick(&x, &y)) {}
-    while (ctx_.platform.takeKey()) {}
-}
-
-bool Mystery::anyInput() {
-    int x, y;
-    return ctx_.platform.takeClick(&x, &y) || ctx_.platform.takeKey() != 0;
-}
-
-void Mystery::waitCountdown(int tenths) {
-    ctx_.countdown[0] = tenths;
-    while (ctx_.countdown[0] != 0) ctx_.pump();
 }
 
 }  // namespace edison
