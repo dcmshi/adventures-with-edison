@@ -13,7 +13,7 @@ far pointer the relocation table points at, and annotates:
 It also writes a summary: one line per function with the API calls, far
 calls and strings it references, which is the quickest way to find things.
 
-Output: extracted/disasm/<exe>.asm and <exe>.funcs.txt (git-ignored: derived
+Output: extracted/disasm/<exe>.asm, <exe>.funcs.txt and <exe>.entries (git-ignored: derived
 from game code). Wine's spec files are downloaded to extracted/cache/ once.
 
 Usage: python tools/nedis.py FILE [FILE ...]
@@ -262,6 +262,8 @@ class Program:
                             end += 1
                         f.write(f"{seg:02d}:{pc:04x}: db {code[pc:end].hex(' ')}\n")
                         pc = end
+        # Function starts, for seeding Ghidra (tools/ghidra/DecompileAll.java).
+        (OUT / f"{stem}.entries").write_text("".join(f"{s} {o:04x}\n" for s, o in sorted(self.funcs)))
         with (OUT / f"{stem}.funcs.txt").open("w", encoding="utf-8") as f:
             for name, notes in summary:
                 f.write(f"{name}: {'  '.join(notes)}\n")
