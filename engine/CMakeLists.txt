@@ -30,6 +30,7 @@ add_library(edison_core
     src/mystery/drop.cpp
     src/mystery/three.cpp
     src/mystery/planetarium.cpp
+    src/mystery/cube.cpp
 )
 target_include_directories(edison_core PUBLIC src)
 target_link_libraries(edison_core PUBLIC nuked_opl3)

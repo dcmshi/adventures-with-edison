@@ -151,6 +151,8 @@ private:
     bool stackup(int level);                                    // g25_1f6a
     bool droppingSquares(int level);                            // g18_26da
     bool planetarium(int level);                                // g28_178e
+    bool foldedCube(int level);                                 // g29_10c0
+    void cubeGadget();                                          // g30_0ad2 (shared by 29 and 30)
 
     // --- segments 47-51: the 3D helpers the last three puzzles share (three.cpp) ---
     struct Point3 {
