@@ -68,5 +68,7 @@ private:
 
 // Logs a problem once per distinct message (to stderr).
 void warnOnce(const std::string& message);
+// A line to stderr and, when EDISON_LOG names a file, to that file.
+void logLine(const std::string& message);
 
 }  // namespace edison

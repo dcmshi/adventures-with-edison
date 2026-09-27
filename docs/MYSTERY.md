@@ -152,6 +152,7 @@ Menu events (`[91A4]`) jump between steps: 1/4 = show the high scores, 2 = `f08_
 - **Testing aids:**
   - `--drag T X0 Y0 X1 Y1 MS` holds the mouse from one point to another (for The Dig and the arrow buttons of 28-30).
   - `EDISON_SEED` makes The Dig's wall and the bonus maze repeatable.
+  - `EDISON_LOG=<file>` copies warnings and other log lines to a file (the GUI build has no console for stderr).
   - `--puzzle 16` plays the bonus maze (at `--level`), 17 a won game's end, 18 a lost one's, 19 the end after passing the quiz, 20 the custom level editor.
   - `EDISON_CUSTOM` plays a puzzle as on a custom level; `EDISON_IDLE=N` makes the idle moment come after N seconds.
 - **Finding:** `f09_0dc4` saves and restores Edison's whole area of screen 2 around his talk; without that his pointing pose stays behind.

@@ -184,7 +184,7 @@ void RockBach::activity(int which) {
     static const int kDriver[10] = {-1, -1, 0, 1, 3, -1, 2, -1, -1, 4};
     if (which < 0 || which > 9) return;
     setDriver(kDriver[which]);
-    std::printf("Rock and Bach: activity %d isn't ported yet; back to the hallway.\n", which);
+    logLine("Rock and Bach: activity " + std::to_string(which) + " isn't ported yet; back to the hallway.");
     setDriver(-1);
 }
 

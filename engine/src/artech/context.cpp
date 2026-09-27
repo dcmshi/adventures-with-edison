@@ -2,13 +2,27 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
 #include <set>
 
 namespace edison {
 
+void logLine(const std::string& message) {
+    // stderr, and the file named by EDISON_LOG (the GUI build has no console).
+    std::fprintf(stderr, "%s\n", message.c_str());
+    static FILE* file = [] {
+        const char* path = std::getenv("EDISON_LOG");
+        return path && *path ? std::fopen(path, "a") : nullptr;
+    }();
+    if (file) {
+        std::fprintf(file, "%s\n", message.c_str());
+        std::fflush(file);
+    }
+}
+
 void warnOnce(const std::string& message) {
     static std::set<std::string> seen;
-    if (seen.insert(message).second) std::fprintf(stderr, "warning: %s\n", message.c_str());
+    if (seen.insert(message).second) logLine("warning: " + message);
 }
 
 const Bitmap& GameContext::bitmap(uint16_t id) {
