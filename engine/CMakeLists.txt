@@ -29,6 +29,7 @@ add_library(edison_core
     src/mystery/colour.cpp
     src/mystery/stackup.cpp
     src/mystery/drop.cpp
+    src/rockbach/rockbach.cpp
     src/mystery/editor.cpp
     src/mystery/end.cpp
     src/mystery/three.cpp

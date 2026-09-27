@@ -4,6 +4,7 @@
 //     -O  skip the opening (as the original's -O)
 //     -A  no FM music (as the original's -A)
 //     --game mystery   start Mystery at the Museums directly
+//     --game rockbach  start Rock and Bach Studio directly (--level N: straight to hallway spot N)
 //     --level N        (with --game mystery) skip setup and play level N (0-7)
 //     --puzzle K       (with --game mystery) play only puzzle K (0-15), at difficulty --level;
 //                      16 is the bonus maze, 17 the winning end of a game, 18 the losing one,
@@ -36,6 +37,7 @@
 #include "audio/fm_renderer.h"
 #include "launcher/launcher.h"
 #include "mystery/mystery.h"
+#include "rockbach/rockbach.h"
 
 namespace {
 
@@ -255,6 +257,11 @@ public:
         }
         std::lock_guard<std::mutex> lock(fmMutex_);
         renderer16_.reset();
+        if (dllPath.empty()) {  // no driver: silence
+            driver_.reset();
+            fmDll_.clear();
+            return;
+        }
         driver_ = std::make_unique<edison::ArtechFmDriver>();
         std::string error;
         if (!driver_->loadDll(dllPath, &error)) {
@@ -406,7 +413,26 @@ int main(int argc, char** argv) {
         game->run();
         return true;
     };
+    auto runRockBach = [&]() -> bool {
+        edison::RockBach::Options ro;
+        ro.cdDir = options.cdDir;
+        ro.music = options.music;
+        ro.saveDir = saveDir;
+        ro.startActivity = startLevel;
+        startLevel = -1;
+        auto game = std::make_unique<edison::RockBach>(*platform);
+        if (!game->load(ro, &error)) {
+            std::fprintf(stderr, "%s\n", error.c_str());
+            return false;
+        }
+        game->run();
+        return true;
+    };
     try {
+        if (startGame == "rockbach") {
+            if (!runRockBach()) return 1;
+            options.skipOpening = true;
+        }
         if (startGame == "mystery") {
             if (!runMystery()) return 1;
             options.skipOpening = true;  // like "edison.exe -O" after a game
@@ -423,10 +449,10 @@ int main(int argc, char** argv) {
             if (choice == edison::Launcher::kQuit) break;
             if (choice == edison::Launcher::kMystery) {
                 if (!runMystery()) return 1;
+            } else if (choice == edison::Launcher::kRockAndBach) {
+                if (!runRockBach()) return 1;
             } else {
-                static const char* const kNames[] = {"", "Rock and Bach Studio", "Wild Science Arcade",
-                                                     "Mystery at the Museums"};
-                std::printf("%s isn't ported yet; back to the menu.\n", kNames[choice]);
+                std::printf("Wild Science Arcade isn't ported yet; back to the menu.\n");
             }
             options.skipOpening = true;  // like coming back from a game
         }
