@@ -46,6 +46,8 @@ private:
     }
 
     void drawLogo(int x, int y, uint16_t id);                   // f06_120c (clamped to the screen)
+    // f06_19fa at 1:1: each non-transparent pixel's colour shifted by `add`.
+    void drawShifted(int x, int y, uint16_t id, int add);
     void fill(int x, int y, int w, int h, uint8_t colour);      // f06_17c8
     void text(int x, int y, const std::string& s, int colour);  // f06_15b8
     void copyArea(int src, int dst, int x, int y, int w, int h) { ctx_.screens.copyArea(src, dst, x, y, w, h); }
@@ -136,6 +138,8 @@ private:
     bool binaryLights(int level);                               // g17_1256
     bool codes(int level);                                      // g20_1474
     bool concentration(int level);                              // g15_1142
+    // f19_16a2: as puzzle 4, or (asPuzzle false) the quiz after a won game.
+    bool questionPeriod(int level, bool asPuzzle);
     // The part of the picture puzzles' main loops they share; `help` is
     // the help text. Returns the result from puzzleResult.
     bool pictureLoop(uint16_t help);

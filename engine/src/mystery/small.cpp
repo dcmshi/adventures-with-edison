@@ -257,26 +257,13 @@ bool Mystery::codes(int level) {
     font_ = &ctx_.font(0x101);
     auto slotX = [](int i) { return 0x48 + (i % 13) * 0x26; };
     auto slotY = [](int i) { return 0x24 + (i / 13 == 0 ? 0 : (i / 13) * 0x2C + 0x10); };
-    auto shifted = [&](int x, int y, uint16_t id, int add) {  // f06_19fa at 1:1: colours shifted by `add`
-        const Bitmap& bmp = ctx_.bitmap(id);
-        drawVia3(x, y, bmp.width, bmp.height, [&](int s) {
-            Screen& scr = ctx_.screens[s];
-            for (int r = 0; r < bmp.height; ++r)
-                for (int c = 0; c < bmp.width; ++c) {
-                    const uint8_t p = bmp.at(c, r);
-                    const int px = x + c, py = y + r;
-                    if (p && px >= 0 && py >= 0 && px < Screen::kWidth && py < Screen::kHeight)
-                        scr.pixels[static_cast<size_t>(py) * Screen::kWidth + px] = static_cast<uint8_t>(p + add);
-                }
-        });
-    };
     auto symbol = [&](int i, bool highlight, bool letter) {  // g20_07e8 / g20_06ee
         if (i >= static_cast<int>(message.size()) || message[i] == ' ') return;
         select(1);
         const uint16_t id = static_cast<uint16_t>(alphabet + message[i] - 'A');
         const int x = slotX(i), y = slotY(i);
         if (highlight)
-            shifted(x, y, id, 3);
+            drawShifted(x, y, id, 3);
         else
             drawOpaque(x, y, id);
         if (letter) text(x, y + ctx_.bitmap(id).height, std::string(1, message[i]), 0);
@@ -416,7 +403,7 @@ bool Mystery::codes(int level) {
             }
             if (chartPick >= 0 && messagePicked) {
                 chart();
-                shifted(0x48 + (chartPick % 13) * 0x26, chartPick < 13 ? 0xDA : 0x116,
+                drawShifted(0x48 + (chartPick % 13) * 0x26, chartPick < 13 ? 0xDA : 0x116,
                         static_cast<uint16_t>(alphabet + chartPick), 3);
                 if (chartPick == lastPicked) {
                     points += 0x19;
@@ -450,11 +437,11 @@ bool Mystery::codes(int level) {
         }
         if (helpWanted || helpPressed_) {
             helpWanted = helpPressed_ = false;
-            shifted(0x28, 0x156, 0x2176, 0x14);
+            drawShifted(0x28, 0x156, 0x2176, 0x14);
             messageBox(dataLines(decode ? 0x3C40 : 0x3D42));
             drawLogo(0x28, 0x156, 0x2176);
         }
-        if (quit) shifted(0x208, 0x156, 0x2175, 0x14);
+        if (quit) drawShifted(0x208, 0x156, 0x2175, 0x14);
     }
     ctx_.timer.setPeriodic(kSecondSlot, 0, nullptr);
     bool won = false;

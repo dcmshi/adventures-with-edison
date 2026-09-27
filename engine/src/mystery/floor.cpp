@@ -126,6 +126,7 @@ void Mystery::director() {
 bool Mystery::puzzle(int kind, int level) {
     switch (kind) {
     case 3: return binaryLights(level);
+    case 4: return questionPeriod(level, true);
     case 6: return codes(level);
     case 7: return concentration(level);
     case 8: return circuitAnalyzer(level);

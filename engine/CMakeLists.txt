@@ -22,6 +22,7 @@ add_library(edison_core
     src/mystery/floor.cpp
     src/mystery/pictures.cpp
     src/mystery/small.cpp
+    src/mystery/quiz.cpp
 )
 target_include_directories(edison_core PUBLIC src)
 target_link_libraries(edison_core PUBLIC nuked_opl3)

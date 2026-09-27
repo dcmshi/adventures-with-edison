@@ -16,6 +16,20 @@ void Mystery::drawLogo(int x, int y, uint16_t id) {
     drawVia3(x, y, bmp.width, bmp.height, [&](int s) { ctx_.screens.drawSprite(s, bmp, x, y); });
 }
 
+void Mystery::drawShifted(int x, int y, uint16_t id, int add) {
+    const Bitmap& bmp = ctx_.bitmap(id);
+    drawVia3(x, y, bmp.width, bmp.height, [&](int s) {
+        Screen& scr = ctx_.screens[s];
+        for (int r = 0; r < bmp.height; ++r)
+            for (int c = 0; c < bmp.width; ++c) {
+                const uint8_t p = bmp.at(c, r);
+                const int px = x + c, py = y + r;
+                if (p && px >= 0 && py >= 0 && px < Screen::kWidth && py < Screen::kHeight)
+                    scr.pixels[static_cast<size_t>(py) * Screen::kWidth + px] = static_cast<uint8_t>(p + add);
+            }
+    });
+}
+
 void Mystery::fill(int x, int y, int w, int h, uint8_t colour) {
     if (x + w >= Screen::kWidth) w = Screen::kWidth - x - 1;
     if (y + h >= Screen::kHeight) h = Screen::kHeight - y - 1;
