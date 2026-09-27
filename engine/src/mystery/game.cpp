@@ -491,9 +491,12 @@ void Mystery::quitPressed() {
 
 // --- help ---------------------------------------------------------------
 
-void Mystery::helpPanel(int x, int y, int w, int h) {
-    // f05_0266 (without its optional button face): pressing Smitty asks
-    // for help.
+void Mystery::helpPanel(int x, int y, int w, int h, int textColour, int fillColour) {
+    // f05_0266: pressing Smitty (or the button) asks for help.
+    if (textColour >= 0) {
+        fill(x, y, w, h, static_cast<uint8_t>(fillColour));
+        text(x + 4, y + 2, dataString(0xB1), textColour);
+    }
     Panels::Panel panel;  // DS:0098
     panel.x = x, panel.y = y, panel.w = w, panel.h = h;
     panel.buttons = {{0, 0, 0, 0}};

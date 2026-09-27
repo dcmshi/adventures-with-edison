@@ -107,7 +107,8 @@ private:
     void mapView();                                             // f09_01ee
     bool askQuit();                                             // f09_0592
     void quitPressed();                                         // f09_0680
-    void helpPanel(int x, int y, int w, int h);                 // f05_0266
+    // f05_0266; with a text colour it also draws the button ("HELP").
+    void helpPanel(int x, int y, int w, int h, int textColour = -1, int fillColour = 0);
     void help(uint16_t text);                                   // f05_0320
     void messageBox(const std::vector<std::string>& lines);    // f06_0f34 / f06_09ee (style 0)
     bool waitOrClick(int tenths);                               // [92B2] = n; wait for 0 or a click
@@ -129,6 +130,9 @@ private:
     void loadPicture(int index, const int size[4]);
     bool slidePuzzle(int level);                                // g14_028a
     bool switchPuzzle(int level);                               // g13_0d44
+
+    // --- the smaller puzzles (small.cpp) ---
+    bool circuitAnalyzer(int level);                            // g16_089c
     // The part of the picture puzzles' main loops they share; `help` is
     // the help text. Returns the result from puzzleResult.
     bool pictureLoop(uint16_t help);
