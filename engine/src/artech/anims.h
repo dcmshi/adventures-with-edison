@@ -5,11 +5,11 @@
 #include <map>
 #include <vector>
 
-#include "shell/screens.h"
+#include "artech/screens.h"
 
 namespace edison {
 
-struct ShellContext;
+struct GameContext;
 struct ScriptContext;
 
 // Sprite animations (archive group 50), EDISON.EXE segment 8.
@@ -22,7 +22,7 @@ struct ScriptContext;
 // rectangle is copied to the display (screen 1).
 class Anims {
 public:
-    explicit Anims(ShellContext& ctx) : ctx_(ctx) {}
+    explicit Anims(GameContext& ctx) : ctx_(ctx) {}
 
     // STARTANIM (g08_020a). x, y of -1 mean the anim's own position.
     // `waiter` (WAIT) is resumed near the end. delay: ticks before the
@@ -69,7 +69,7 @@ private:
     void step(Instance& a);
     void redraw(const Rect& r);
 
-    ShellContext& ctx_;
+    GameContext& ctx_;
     std::map<uint16_t, Def> defs_;
     std::list<Instance> list_;  // drawing order
     std::vector<Rect> dirty_;

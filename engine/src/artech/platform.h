@@ -1,9 +1,10 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 #include <vector>
 
-#include "shell/screens.h"
+#include "artech/screens.h"
 
 namespace edison {
 
@@ -23,10 +24,18 @@ public:
 
     // Left click latched since the last call (game coordinates 640x400).
     virtual bool takeClick(int* x, int* y) = 0;
+    // Mouse position (game coordinates) and whether the left button is down.
+    virtual void mouse(int* x, int* y, bool* down) = 0;
     virtual bool escapeHeld() = 0;
+    // Next key typed, as Windows would give it: printable ASCII, or
+    // kBackspace, kTab, kEnter, kEscape; 0 when there's none.
+    virtual int takeKey() = 0;
+    enum Key { kBackspace = 8, kTab = 9, kEnter = 13, kEscape = 27 };
 
-    // Sound: a RIFF WAV image (replaces the one playing), FM driver calls.
+    // Sound: a RIFF WAV image (replaces the one playing); the FM driver DLL
+    // a game uses (CADLIB, MADLIB, ...) and its SENDSND.
     virtual void playWav(const std::vector<uint8_t>& wav) = 0;
+    virtual void setFmDriver(const std::string& dllPath) = 0;
     virtual void sendFm(uint16_t sound) = 0;
 };
 

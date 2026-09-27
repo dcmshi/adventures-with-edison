@@ -8,7 +8,7 @@
 
 namespace edison {
 
-struct ShellContext;
+struct GameContext;
 class Anims;
 
 // A compiled script (archive group 03, see tools/scripts.py).
@@ -39,7 +39,7 @@ struct ScriptEvent {
 // The cooperative script scheduler (EDISON.EXE segment 6, handlers in 7).
 class Scripts {
 public:
-    Scripts(ShellContext& ctx, Anims& anims) : ctx_(ctx), anims_(anims) {}
+    Scripts(GameContext& ctx, Anims& anims) : ctx_(ctx), anims_(anims) {}
 
     // StartScript (f06_033e): loads archive entry `archiveId` if needed.
     ScriptContext* start(uint16_t archiveId, uint16_t number);
@@ -52,7 +52,7 @@ private:
     const Script* find(uint16_t archiveId, uint16_t number);
     int32_t execute(ScriptContext& c, const std::vector<uint8_t>& statement);
 
-    ShellContext& ctx_;
+    GameContext& ctx_;
     Anims& anims_;
     std::map<uint32_t, std::unique_ptr<Script>> loaded_;
     std::list<std::unique_ptr<ScriptContext>> running_;  // newest first

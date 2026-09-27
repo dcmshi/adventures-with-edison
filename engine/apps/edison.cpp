@@ -25,7 +25,7 @@
 
 #include "audio/artech_fm_driver.h"
 #include "audio/fm_renderer.h"
-#include "shell/launcher.h"
+#include "launcher/launcher.h"
 
 namespace {
 
@@ -43,7 +43,8 @@ class SdlPlatform : public edison::Platform {
 public:
     Automation automation;
 
-    bool open(const std::string& cdDir, bool music, std::string* error) {
+    bool open(bool music, std::string* error) {
+        music_ = music;
         if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO)) return fail(error, "SDL_Init");
         if (!SDL_CreateWindowAndRenderer("Adventures with Edison", 1280, 800, SDL_WINDOW_RESIZABLE,
                                          &window_, &renderer_))
@@ -51,6 +52,7 @@ public:
         SDL_SetRenderLogicalPresentation(renderer_, edison::Screen::kWidth, edison::Screen::kHeight,
                                          SDL_LOGICAL_PRESENTATION_LETTERBOX);
         SDL_SetRenderVSync(renderer_, 1);
+        SDL_StartTextInput(window_);
         texture_ = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_XRGB8888, SDL_TEXTUREACCESS_STREAMING,
                                      edison::Screen::kWidth, edison::Screen::kHeight);
         if (!texture_) return fail(error, "SDL_CreateTexture");
@@ -60,21 +62,6 @@ public:
         if (!device_) {
             std::fprintf(stderr, "no audio: %s\n", SDL_GetError());
             return true;
-        }
-        const SDL_AudioSpec fmSpec{SDL_AUDIO_S16, 2, kSampleRate};
-        if (music) {
-            driver_ = std::make_unique<edison::ArtechFmDriver>();
-            std::string driverError;
-            if (driver_->loadDll(cdDir + "/CADLIB.DLL", &driverError)) {
-                driver_->init();
-                renderer16_ = std::make_unique<edison::FmRenderer>(*driver_, kSampleRate);
-                fmStream_ = SDL_CreateAudioStream(&fmSpec, nullptr);
-                SDL_SetAudioStreamGetCallback(fmStream_, &SdlPlatform::fmCallback, this);
-                SDL_BindAudioStream(device_, fmStream_);
-            } else {
-                std::fprintf(stderr, "no FM music: %s\n", driverError.c_str());
-                driver_.reset();
-            }
         }
         start_ = SDL_GetTicks();
         return true;
@@ -103,6 +90,19 @@ public:
         SDL_Event e;
         while (SDL_PollEvent(&e)) {
             if (e.type == SDL_EVENT_QUIT) return false;
+            if (e.type == SDL_EVENT_TEXT_INPUT) {
+                for (const char* c = e.text.text; *c; ++c)
+                    if (*c >= 32 && *c < 127) keys_.push_back(*c);
+            }
+            if (e.type == SDL_EVENT_KEY_DOWN) {
+                switch (e.key.key) {
+                case SDLK_BACKSPACE: keys_.push_back(kBackspace); break;
+                case SDLK_TAB: keys_.push_back(kTab); break;
+                case SDLK_RETURN: case SDLK_KP_ENTER: keys_.push_back(kEnter); break;
+                case SDLK_ESCAPE: keys_.push_back(kEscape); break;
+                default: break;
+                }
+            }
             if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN && e.button.button == SDL_BUTTON_LEFT) {
                 SDL_ConvertEventToRenderCoordinates(renderer_, &e);
                 clicked_ = true;
@@ -144,6 +144,23 @@ public:
         return true;
     }
 
+    void mouse(int* x, int* y, bool* down) override {
+        float wx, wy;
+        const SDL_MouseButtonFlags buttons = SDL_GetMouseState(&wx, &wy);
+        float gx = wx, gy = wy;
+        SDL_RenderCoordinatesFromWindow(renderer_, wx, wy, &gx, &gy);
+        *x = static_cast<int>(gx);
+        *y = static_cast<int>(gy);
+        *down = (buttons & SDL_BUTTON_LMASK) != 0;
+    }
+
+    int takeKey() override {
+        if (keys_.empty()) return 0;
+        const int k = keys_.front();
+        keys_.erase(keys_.begin());
+        return k;
+    }
+
     bool escapeHeld() override { return SDL_GetKeyboardState(nullptr)[SDL_SCANCODE_ESCAPE]; }
 
     void playWav(const std::vector<uint8_t>& wav) override {
@@ -164,6 +181,31 @@ public:
         SDL_SetAudioStreamFormat(wavStream_, &spec, nullptr);
         SDL_PutAudioStreamData(wavStream_, data, static_cast<int>(length));
         SDL_free(data);
+    }
+
+    void setFmDriver(const std::string& dllPath) override {
+        if (!music_ || !device_ || dllPath == fmDll_) return;
+        if (fmStream_) {
+            SDL_DestroyAudioStream(fmStream_);  // stops the callback first
+            fmStream_ = nullptr;
+        }
+        std::lock_guard<std::mutex> lock(fmMutex_);
+        renderer16_.reset();
+        driver_ = std::make_unique<edison::ArtechFmDriver>();
+        std::string error;
+        if (!driver_->loadDll(dllPath, &error)) {
+            std::fprintf(stderr, "no FM music: %s\n", error.c_str());
+            driver_.reset();
+            fmDll_.clear();
+            return;
+        }
+        fmDll_ = dllPath;
+        driver_->init();
+        renderer16_ = std::make_unique<edison::FmRenderer>(*driver_, kSampleRate);
+        const SDL_AudioSpec spec{SDL_AUDIO_S16, 2, kSampleRate};
+        fmStream_ = SDL_CreateAudioStream(&spec, nullptr);
+        SDL_SetAudioStreamGetCallback(fmStream_, &SdlPlatform::fmCallback, this);
+        SDL_BindAudioStream(device_, fmStream_);
     }
 
     void sendFm(uint16_t sound) override {
@@ -218,6 +260,9 @@ private:
     std::unique_ptr<edison::FmRenderer> renderer16_;
     std::mutex fmMutex_;
     std::vector<int16_t> fmBuffer_;
+    bool music_ = true;
+    std::string fmDll_;
+    std::vector<int> keys_;
     uint64_t start_ = 0;
     uint64_t nextCapture_ = 0;
     bool clicked_ = false;
@@ -249,7 +294,7 @@ int main(int argc, char** argv) {
     auto platform = std::make_unique<SdlPlatform>();
     platform->automation = automation;
     std::string error;
-    if (!platform->open(options.cdDir, options.music, &error)) {
+    if (!platform->open(options.music, &error)) {
         std::fprintf(stderr, "%s\n", error.c_str());
         return 1;
     }
@@ -269,7 +314,7 @@ int main(int argc, char** argv) {
             std::printf("%s isn't ported yet; back to the menu.\n", kNames[choice]);
             options.skipOpening = true;  // like coming back from a game
         }
-    } catch (const edison::Launcher::Closed&) {
+    } catch (const edison::GameContext::Closed&) {
     }
     return 0;
 }

@@ -7,11 +7,13 @@ add_library(edison_core
     src/formats/dcl.cpp
     src/formats/archive.cpp
     src/formats/bitmap.cpp
-    src/shell/screens.cpp
-    src/shell/shell_context.cpp
-    src/shell/anims.cpp
-    src/shell/scripts.cpp
-    src/shell/launcher.cpp
+    src/artech/screens.cpp
+    src/artech/timer.cpp
+    src/artech/font.cpp
+    src/artech/context.cpp
+    src/artech/anims.cpp
+    src/artech/scripts.cpp
+    src/launcher/launcher.cpp
 )
 target_include_directories(edison_core PUBLIC src)
 target_link_libraries(edison_core PUBLIC nuked_opl3)

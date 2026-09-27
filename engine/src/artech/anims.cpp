@@ -1,10 +1,10 @@
-#include "shell/anims.h"
+#include "artech/anims.h"
 
 #include <cstdio>
 #include <iterator>
 
-#include "shell/scripts.h"
-#include "shell/shell_context.h"
+#include "artech/scripts.h"
+#include "artech/context.h"
 
 namespace edison {
 namespace {
@@ -36,7 +36,7 @@ void Anims::start(uint16_t anim, int x, int y, ScriptContext* waiter, uint8_t de
     if (!def) {
         char buf[48];
         std::snprintf(buf, sizeof buf, "anim %04x missing", anim);
-        shellWarn(buf);
+        warnOnce(buf);
         if (waiter) waiter->flags &= ~ScriptContext::kWaiting;
         return;
     }

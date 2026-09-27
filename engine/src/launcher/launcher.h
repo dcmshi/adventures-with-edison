@@ -6,9 +6,9 @@
 #include <string>
 #include <vector>
 
-#include "shell/anims.h"
-#include "shell/scripts.h"
-#include "shell/shell_context.h"
+#include "artech/anims.h"
+#include "artech/scripts.h"
+#include "artech/context.h"
 
 namespace edison {
 
@@ -30,41 +30,20 @@ public:
     // Runs the opening (unless skipped) and the menu; returns the choice.
     Choice run();
 
-    // Thrown out of pump() when the window is closed.
-    struct Closed {};
-
 private:
-    // The library timer (CARTDLL): a 13 ms tick drives callbacks by rate.
-    struct Periodic {
-        uint32_t rate = 0;  // Hz; 0 = unregistered
-        uint32_t acc = 0;
-        std::function<void()> fn;
-    };
-
-    void pump();
-    void advanceTimer();
-    void setPeriodic(int slot, uint32_t rate, std::function<void()> fn);
-
     void opening();                                        // f05_0034
     Choice menu();                                         // f04_0172
     int pollButton();                                      // f04_0024
     bool runScripts(ScriptEvent& event);
-    void blackout();                                       // f11_0000
-    void showFullScreen(uint16_t bitmap, int screen);      // show_fscreen
-    void setDisplayPalette(int screen);                    // f11_00be
-    void drawLogo(int screen, int x, int y, uint16_t id);  // show_Clogo
     void fm(uint16_t sound);
 
-    ShellContext ctx_;
+    GameContext ctx_;
     Anims anims_;
     Scripts scripts_;
     Options options_;
-    Palette displayPalette_{};
     std::array<int16_t, 4 * 112> introPath_{};  // DS:0150, {x, y, w, h} until x < 0
     int introEntries_ = 0;
 
-    uint64_t timerTicks_ = 0;
-    std::array<Periodic, 4> periodic_{};
     std::array<int, 5> countdown_{};  // DS:55EE, decremented at 10 Hz
     bool introFrameDue_ = false;
 };

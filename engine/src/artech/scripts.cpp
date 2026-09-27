@@ -1,10 +1,10 @@
-#include "shell/scripts.h"
+#include "artech/scripts.h"
 
 #include <cstdio>
 #include <string>
 
-#include "shell/anims.h"
-#include "shell/shell_context.h"
+#include "artech/anims.h"
+#include "artech/context.h"
 
 namespace edison {
 namespace {
@@ -64,7 +64,7 @@ ScriptContext* Scripts::start(uint16_t archiveId, uint16_t number) {
     if (!script) {
         char buf[48];
         std::snprintf(buf, sizeof buf, "script %04x.%u not found", archiveId, number);
-        shellWarn(buf);
+        warnOnce(buf);
         return nullptr;
     }
     auto c = std::make_unique<ScriptContext>();
@@ -120,7 +120,7 @@ int32_t Scripts::execute(ScriptContext& c, const std::vector<uint8_t>& st) {
         return 0;
     }
     default:
-        shellWarn(std::string("script command not implemented: ") +
+        warnOnce(std::string("script command not implemented: ") +
                   (command < kCommandCount ? kCommandNames[command] : "unknown"));
         return 0;
     }
