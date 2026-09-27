@@ -220,4 +220,267 @@ bool Mystery::circuitAnalyzer(int level) {
     return result;
 }
 
+// --- 3: Binary Lights (segment 17) ---------------------------------------
+
+bool Mystery::binaryLights(int level) {
+    // g17_1256: five sums. Eight switches set two 4-bit numbers (the left
+    // switch of each row is 8); the machine shows them, the operation and
+    // the answer, and the answer has to match the target. The clock runs
+    // (5 minutes) but only counts for the bonus.
+    level = std::clamp(level, 0, 3);
+    int rounds = 5;           // [823A]
+    int timeLeft = 300;       // [8224]
+    const int limit = 300;    // [930E]
+    int points = 0;           // [8226]
+    bool quit = false;        // [91A2]
+    bool helpWanted = false;  // [B75A]
+    bool gizmo = false;       // [32E0]
+    bool changed = false;     // [822A]
+    bool timeShown = false;   // [8228]
+    bool on[8] = {};          // DS:31EC's buttons' state
+    int target = 0, a = 0, b = 0, answer = 0;  // [822C], [8230], [8232], [822E]
+    char op = '+';            // [8234]
+    // DS:323C lights, 325C switches, 327C the 0/1 under each; DS:329C /
+    // 32AC the boxes for A, B, the answer and the target.
+    static const int kLight[8][2] = {{159, 82},  {239, 82},  {320, 82},  {399, 82},
+                                     {159, 210}, {239, 210}, {320, 210}, {399, 210}};
+    static const int kSwitch[8][2] = {{158, 40},  {238, 40},  {319, 40},  {398, 40},
+                                      {158, 166}, {238, 166}, {319, 166}, {398, 166}};
+    static const int kBit[8][2] = {{154, 132}, {235, 132}, {316, 132}, {397, 132},
+                                   {154, 260}, {235, 260}, {316, 260}, {397, 260}};
+    static const int kBox[4][4] = {{503, 84, 38, 28}, {502, 137, 38, 28}, {498, 194, 45, 42}, {464, 301, 112, 27}};
+    static const int kSwitchX[4] = {0xB, 0x5C, 0xAB, 0xFB};
+
+    auto box = [&](int k, const std::string& s) {  // g17_052c
+        const int* r = kBox[k];
+        fill(r[0], r[1], r[2], r[3], 0);
+        text(r[0] + r[2] / 2 - font_->width(s) / 2, r[1] + 6, s, 0xFF);
+    };
+    auto machine = [&] {  // g17_05a6 (and g17_0b6e's test)
+        select(1);
+        a = (on[0] ? 8 : 0) + (on[1] ? 4 : 0) + (on[2] ? 2 : 0) + (on[3] ? 1 : 0);
+        b = (on[4] ? 8 : 0) + (on[5] ? 4 : 0) + (on[6] ? 2 : 0) + (on[7] ? 1 : 0);
+        box(0, std::to_string(a));
+        box(1, std::to_string(b));
+        bool valid = false;
+        switch (op) {
+        case '*':
+            answer = a * b, valid = true;
+            drawLogo(0x1D9, 0x75, 0x2103);
+            break;
+        case '+':
+            answer = a + b, valid = true;
+            drawLogo(0x1D9, 0x75, 0x2102);
+            break;
+        case '-':
+            if (b <= a) answer = a - b, valid = true;
+            drawLogo(0x1D9, 0x75, 0x2101);
+            break;
+        default:
+            if (b <= a && b > 0 && a % b == 0) answer = a / b, valid = true;
+            drawLogo(0x1D9, 0x75, 0x2104);
+        }
+        box(2, valid ? std::to_string(answer) : "");
+        box(3, std::to_string(target));
+        return answer == target;
+    };
+    auto newSum = [&] {  // g17_088c
+        target = answer = a = b = 0;
+        auto sum = [&] {
+            do target = random(16) + random(16);
+            while (!target);
+            op = '+';
+        };
+        auto difference = [&] {
+            do target = std::abs(random(16) - random(16));
+            while (!target);
+            op = '-';
+        };
+        if (level == 0) {
+            sum();
+        } else if (level == 1) {
+            if (random(2) == 0) difference();
+            else sum();
+        } else {
+            switch (random(4)) {
+            case 0: sum(); break;
+            case 1: difference(); break;
+            case 2:
+                do {
+                    const int x = random(8) * 2, y = random(8) * 2;
+                    if (y < x) {
+                        if (y > 0) target = x / y;
+                    } else if (x > 0) {
+                        target = y / x;
+                    }
+                } while (!target);
+                op = '/';
+                break;
+            default: {
+                const int base = random(10) < 6 ? 0 : 8;
+                do target = (random(8) + base) * (random(8) + base);
+                while (!target);
+                op = '*';
+            }
+            }
+        }
+    };
+    auto drawSwitch = [&](int k) {  // g17_032e's drawing
+        drawLogo(kLight[k][0], kLight[k][1], on[k] ? 0x20FF : 0x2100);
+        drawLogo(kSwitch[k][0], kSwitch[k][1], on[k] ? 0x20FD : 0x20FE);
+        fill(kBit[k][0], kBit[k][1], 0x24, 0x13, 0);
+        text(kBit[k][0] + 10, kBit[k][1], on[k] ? "1" : "0", 0xFF);
+    };
+
+    clearInput();
+    ctx_.blackout();
+    ctx_.showFullScreen(0x100C, 2);
+    select(2);
+    drawOpaque(0x1B6, 0x158, 0x21F8);
+    select(1);
+    show(2);
+    computeUiColours();
+    duplicateArea(1, 2, 0x94, 0x26, 0x11E, 0x2C, 0x94, 0x28);
+    duplicateArea(1, 2, 0x94, 0xA4, 0x11E, 0x2C, 0x94, 0xA4);
+    // g17_0d60: the buttons.
+    panels_.clear();
+    Panels::Panel exit;  // f06_23d8
+    exit.x = 0x1EE, exit.y = 0x16, exit.w = 0x44, exit.h = 0x1D;
+    exit.buttons = {{0, 0, 0x44, 0x1D}};
+    exit.onPress = [&](int k) {
+        if (k >= 0) quit = true;
+    };
+    panels_.add(exit);
+    Panels::Panel lesson;  // f06_2436
+    lesson.x = 0x20, lesson.y = 0x9E, lesson.w = 0x44, lesson.h = 0x13;
+    lesson.buttons = {{0, 0, 0x44, 0x13}};
+    lesson.onPress = [&](int k) {
+        if (k >= 0) helpWanted = true;
+    };
+    panels_.add(lesson);
+    Panels::Panel switches;  // DS:32BC
+    switches.x = 0x94, switches.y = 0x20, switches.w = 0x120, switches.h = 0xFE;
+    for (int k = 0; k < 8; ++k) switches.buttons.push_back({kSwitchX[k % 4], k < 4 ? 5 : 0x85, 0x1E, 0x71});
+    switches.onPress = [&](int k) {  // g17_032e
+        if (k < 0) return;
+        music(5);
+        changed = true;
+        on[k] = !on[k];
+        drawSwitch(k);
+    };
+    panels_.add(switches);
+    Panels::Panel gadget;  // DS:32E2
+    gadget.x = 0x1B6, gadget.y = 0x158, gadget.w = 0x38, gadget.h = 0x1A;
+    gadget.buttons = {{0, 0, 0x38, 0x1A}};
+    gadget.onPress = [&](int k) {  // g17_0000
+        if (k >= 0) gizmo = true;
+    };
+    panels_.add(gadget);
+    ctx_.timer.setPeriodic(kSecondSlot, 1, [&] {  // g17_0190
+        if (timeLeft > 0) --timeLeft;
+        timeShown = true;
+    });
+    clearInput();
+
+    bool won = false;
+    while (!quit) {
+        intBox(0x2E, 0x132, 0x30, 0x14, rounds);
+        if (--rounds < 0) {
+            // All five: 100 points, and 2 for each second left.
+            machine();
+            points += 100;
+            const int used = limit - timeLeft;
+            while (timeLeft > 0) {
+                --timeLeft;
+                digitalTime(0x2F, 0x2B, 0x30, 0x15, timeLeft);
+                points += 2;
+                intBox(0x2F, 0x101, 0x30, 0x15, points);
+            }
+            digitalTime(0x2F, 0x2B, 0x30, 0x15, limit - used);
+            ctx_.timer.setPeriodic(kSecondSlot, 0, nullptr);
+            panels_.clear();
+            won = puzzleResult(true, points, 0, used);
+            break;
+        }
+        // g17_0bcc: clear the machine and flick the switches about.
+        select(1);
+        duplicateArea(2, 1, 0x94, 0x26, 0x11E, 0x2C, 0x94, 0x28);
+        duplicateArea(2, 1, 0x94, 0xA4, 0x11E, 0x2C, 0x94, 0xA4);
+        for (int k = 0; k < 8; ++k) fill(kBit[k][0], kBit[k][1], 0x24, 0x13, 0);
+        for (int k = 0; k < 4; ++k) fill(kBox[k][0], kBox[k][1], kBox[k][2], kBox[k][3], 0);
+        for (int i = 0; i < 16; ++i) {
+            const int k = random(8);
+            music(4);
+            drawLogo(kSwitch[k][0], kSwitch[k][1], 0x20FD);
+            waitCountdown(1);
+            drawLogo(kSwitch[k][0], kSwitch[k][1], 0x20FE);
+        }
+        for (bool& s : on) s = false;
+        for (int k = 0; k < 8; ++k) drawSwitch(k);  // g17_02ba, g17_01e6
+        newSum();
+        machine();
+        digitalTime(0x2F, 0x2B, 0x30, 0x15, timeLeft);
+        intBox(0x2F, 0x101, 0x30, 0x15, points);
+        bool solved = false;
+        while (!solved && !quit) {
+            panels_.poll(ctx_.platform);
+            ctx_.pump();
+            if (changed) {
+                changed = false;
+                if (machine()) {
+                    // "You got it!" at the top; the lit switches flash.
+                    const std::string msg = dataString(0x34B0);
+                    const int fh = font_->height(), x = (Screen::kWidth - font_->width(msg)) / 2;
+                    const int saved = saveArea(x, fh, font_->width(msg), fh);
+                    text(x, fh, msg, 0);
+                    if (rounds != 0) {
+                        for (int t = 0; t < 3; ++t) {
+                            music(4);
+                            for (int k = 0; k < 8; ++k) {
+                                if (!on[k]) continue;
+                                drawLogo(kSwitch[k][0], kSwitch[k][1], 0x20FE);
+                                waitCountdown(1);
+                                drawLogo(kSwitch[k][0], kSwitch[k][1], 0x20FD);
+                            }
+                            waitCountdown(1);
+                        }
+                    }
+                    waitCountdown(10);
+                    restoreArea(saved);
+                    solved = true;
+                }
+            }
+            if (helpWanted || helpPressed_) {  // g17_01b6: the lesson on binary numbers
+                helpWanted = helpPressed_ = false;
+                messageBox(dataLines(0x3480));
+            }
+            if (gizmo) {  // g17_0062: the Director's screen
+                music(6);
+                select(1);
+                drawOpaque(0x1B6, 0x158, 0x21F9);
+                static const uint8_t kFrames[] = {0, 1, 2, 3, 4, 5, 6, 7, 0x80, 8, 9, 0x80, 8, 7, 0x80, 8, 9, 0x80, 10, 11, 0};
+                for (uint8_t f : kFrames) {
+                    if (f == 0x80) {
+                        waitCountdown(4);
+                    } else {
+                        drawOpaque(0x238, 0, static_cast<uint16_t>(0x21FA + f));
+                        waitCountdown(2);
+                    }
+                }
+                drawOpaque(0x1B6, 0x158, 0x21F8);
+                gizmo = false;
+            }
+            if (timeShown) {
+                digitalTime(0x2F, 0x2B, 0x30, 0x15, timeLeft);
+                timeShown = false;
+            }
+        }
+    }
+    ctx_.timer.setPeriodic(kSecondSlot, 0, nullptr);
+    clearInput();
+    panels_.clear();
+    if (quit && rounds >= 0) won = puzzleResult(false, 0, 0, 0);
+    return won;
+}
+
 }  // namespace edison
