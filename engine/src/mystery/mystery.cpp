@@ -43,6 +43,11 @@ uint16_t Mystery::dataWord(uint16_t offset) const {
 void Mystery::run() {
     // f02_00ba's loop: setup, then games until the player leaves.
     ctx_.startTimer();
+    if (options_.startPuzzle >= 0) {
+        player_.name = "Test";
+        square_ = 0;
+        for (;;) puzzle(options_.startPuzzle, std::max(options_.startLevel, 0));
+    }
     int mode = 1;
     if (options_.startLevel >= 0) {
         player_.name = "Test";

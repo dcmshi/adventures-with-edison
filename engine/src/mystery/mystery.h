@@ -19,6 +19,7 @@ public:
         std::string cdDir;  // the CD's DSK3 folder (MALL.EXE, MYSTERY.D01, MADLIB.DLL)
         bool music = true;  // not -A
         int startLevel = -1;  // for testing: skip setup and play this level
+        int startPuzzle = -1; // for testing: play only this puzzle (at difficulty startLevel)
     };
 
     explicit Mystery(Platform& platform) : ctx_(platform) {}
@@ -115,7 +116,35 @@ private:
     void floorRooms(bool masks);                                // f10_0328
     void squareName(int square);                                // f10_0000
     void director();                                            // f10_0638
-    bool puzzle(int kind, int level);                           // the 16 games (placeholders for now)
+    bool puzzle(int kind, int level);                           // f10_0708's switch over the 16 games
+    // f06_1d76: the end of a game. Edison pops up with the verdict; the
+    // points go to the score. Returns `won`.
+    bool puzzleResult(bool won, int points, int mode, int seconds);
+    void intBox(int x, int y, int w, int h, int value);         // f06_1090
+
+    // --- segments 12-14: the picture puzzles (pictures.cpp) ---
+    bool arrowPuzzle(int level);                                // g12_1c60
+    // g12_1438 / g13_058a: `size` is a row of DS:1F2C or DS:242A (width,
+    // height, and the scale, 256 = 1:1).
+    void loadPicture(int index, const int size[4]);
+    bool slidePuzzle(int level);                                // g14_028a
+    bool switchPuzzle(int level);                               // g13_0d44
+    // The part of the picture puzzles' main loops they share; `help` is
+    // the help text. Returns the result from puzzleResult.
+    bool pictureLoop(uint16_t help);
+    void slideTo(int cell);                                     // g14_0000 (cell = row * 6 + col)
+    void addBoardPanel();                                       // g13_0458 + panel DS:27BE
+    void drawBoard();                                           // g12_03b2
+    void drawSolution();                                        // g12_06b8
+    void redrawLine(int row, int col);                          // g12_04b6
+    void checkPicture();                                        // g12_024a
+    void shove(int arrow);                                      // g12_0846
+    void addArrows();                                           // g12_0f8c + panel DS:2394
+    void puzzleClock();                                         // g12_13ce
+    void countBonus();                                          // g12_12d6
+    void pictureGizmo();                                        // g12_00d6
+    void pictureShow();                                         // g12_0168
+    void addPicturePanels(uint16_t help);                       // DS:223A, 21E6, 220A and help
     void endOfGame();                                           // segments 22-24 (placeholder)
 
     // --- data from MALL.EXE's data segment (read at run time) ---
@@ -182,6 +211,33 @@ private:
     int listTop_ = 0;               // [0EC8]
     bool floorBack_ = false;        // [18C8]
     bool floorDirector_ = false;    // [18EC]
+
+    // --- the picture puzzles ---
+    struct Picture {
+        int divisions = 2;          // [9456]: the picture is N x N tiles
+        int size = 2;               // [B38A]: the board is size x size
+        int tileW = 0, tileH = 0;   // [C450], [B80A]
+        int left = 0, top = 0;      // [B808], [C3F0]
+        int arrowsX = 0, arrowsY = 0, arrowsW = 0, arrowsH = 0;  // DS:2394
+        int arrowDX = 0, arrowDY = 0;  // [944C], [944E]
+        int board[8][8] = {};       // DS:B3DE; kBlank or tile numbers
+        int mode = -1;              // [C650]: 0 whole, 1 arrows, 2 slide
+        int index = 0;              // [C5B4]
+        bool solved = false;        // [C64C]
+        int state = 0;              // [21E4]: 1 given up, 2 solved
+        bool gizmo = false;         // [2208]
+        int timeLeft = 0;           // [C138]
+        int timeLimit = 0;          // [930E]
+        int shownTime = -1;         // [23AE]
+        bool timerIdle = true;      // [B3BB]
+        int moves = 0;              // [C4FE]
+        int points = 0;             // [1F2A]
+        int used = 0;               // [B794]
+        int blank = 0;              // [92BC]: the slide puzzle's blank, row * 6 + col
+        int picked = 0;             // [C64A]: the switch puzzle's first tile, row * 8 + col
+        int pickedCount = 0;        // [C65A]
+    } pic_;
+    static constexpr int kBlank = 0x1000;
 };
 
 }  // namespace edison

@@ -35,6 +35,8 @@ public:
     // Sound: a RIFF WAV image (replaces the one playing); the FM driver DLL
     // a game uses (CADLIB, MADLIB, ...) and its SENDSND.
     virtual void playWav(const std::vector<uint8_t>& wav) = 0;
+    // True while a WAV is still playing (the original's [73B6]).
+    virtual bool wavPlaying() { return false; }
     virtual void setFmDriver(const std::string& dllPath) = 0;
     virtual void sendFm(uint16_t sound) = 0;
 };

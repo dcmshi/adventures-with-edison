@@ -5,6 +5,7 @@
 //     -A  no FM music (as the original's -A)
 //     --game mystery   start Mystery at the Museums directly
 //     --level N        (with --game mystery) skip setup and play level N (0-7)
+//     --puzzle K       (with --game mystery) play only puzzle K (0-15), at difficulty --level
 //   For testing without a person at the keyboard:
 //     --capture DIR MS    save the display to DIR/NNNNN.bmp every MS milliseconds
 //     --click T X Y       click at game coordinates X, Y at T milliseconds (repeatable)
@@ -49,7 +50,6 @@ class SdlPlatform : public edison::Platform {
 public:
     Automation automation;
     std::string startGame;
-    int startLevel = -1;
 
     bool open(bool music, std::string* error) {
         music_ = music;
@@ -184,6 +184,8 @@ public:
 
     bool escapeHeld() override { return SDL_GetKeyboardState(nullptr)[SDL_SCANCODE_ESCAPE]; }
 
+    bool wavPlaying() override { return wavStream_ && SDL_GetAudioStreamQueued(wavStream_) > 0; }
+
     void playWav(const std::vector<uint8_t>& wav) override {
         if (!device_) return;
         SDL_AudioSpec spec;
@@ -299,6 +301,7 @@ int main(int argc, char** argv) {
     Automation automation;
     std::string startGame;
     int startLevel = -1;
+    int startPuzzle = -1;
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
         if (a == "--capture" && i + 2 < argc) {
@@ -313,6 +316,8 @@ int main(int argc, char** argv) {
             automation.typed.push_back({at, argv[++i]});
         } else if (a == "--quit-after" && i + 1 < argc) {
             automation.quitAfter = std::strtoull(argv[++i], nullptr, 10);
+        } else if (a == "--puzzle" && i + 1 < argc) {
+            startPuzzle = std::atoi(argv[++i]);
         } else if (a == "--level" && i + 1 < argc) {
             startLevel = std::atoi(argv[++i]);
         } else if (a == "--game" && i + 1 < argc) {
@@ -334,6 +339,8 @@ int main(int argc, char** argv) {
         mo.cdDir = options.cdDir;
         mo.music = options.music;
         mo.startLevel = startLevel;
+        mo.startPuzzle = startPuzzle;
+        startPuzzle = -1;
         startLevel = -1;  // only the first time
         auto game = std::make_unique<edison::Mystery>(*platform);
         if (!game->load(mo, &error)) {
