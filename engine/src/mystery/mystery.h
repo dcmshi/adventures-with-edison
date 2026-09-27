@@ -49,8 +49,10 @@ private:
     // f06_19fa at 1:1: each non-transparent pixel's colour shifted by `add`.
     void drawShifted(int x, int y, uint16_t id, int add);
     void fill(int x, int y, int w, int h, uint8_t colour);      // f06_17c8
-    // A filled polygon on the current screen (f32_2e46's fill).
-    void fillPolygon(const std::vector<std::pair<int, int>>& points, uint8_t colour);
+    // A filled polygon on the current screen (f32_2e46's fill); `edges`
+    // also draws its outline in the same colour (the vertices included).
+    void fillPolygon(const std::vector<std::pair<int, int>>& points, uint8_t colour, bool edges = false);
+    void drawCentred(int x, int y, uint16_t id);                // f06_189a at 1:1
     void frame(int x, int y, int w, int h, uint8_t colour);     // f06_08c0: a rectangle's outline
     void text(int x, int y, const std::string& s, int colour);  // f06_15b8
     void copyArea(int src, int dst, int x, int y, int w, int h) { ctx_.screens.copyArea(src, dst, x, y, w, h); }
@@ -145,6 +147,7 @@ private:
     bool questionPeriod(int level, bool asPuzzle);
     bool dig(int level);                                        // g21_185c
     bool whatComesNext(int level);                              // g26_19d8
+    bool colourTransformation(int level);                       // g27_1032
     // The part of the picture puzzles' main loops they share; `help` is
     // the help text. Returns the result from puzzleResult.
     bool pictureLoop(uint16_t help);

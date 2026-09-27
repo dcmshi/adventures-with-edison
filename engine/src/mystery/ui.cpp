@@ -30,8 +30,11 @@ void Mystery::drawShifted(int x, int y, uint16_t id, int add) {
     });
 }
 
-void Mystery::fillPolygon(const std::vector<std::pair<int, int>>& pts, uint8_t colour) {
+void Mystery::fillPolygon(const std::vector<std::pair<int, int>>& pts, uint8_t colour, bool edges) {
     const int n = static_cast<int>(pts.size());
+    if (edges)
+        for (int k = 0; k < n; ++k)
+            line(pts[k].first, pts[k].second, pts[(k + 1) % n].first, pts[(k + 1) % n].second, colour);
     if (n < 3) return;
     Screen& s = ctx_.screens[current_];
     int top = Screen::kHeight, bottom = -1;
