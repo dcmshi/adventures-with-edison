@@ -258,14 +258,7 @@ bool Mystery::colourTransformation(int level) {
         if (gadget) {
             gadget = false;
             music(0x19);
-            // g27_0f16: the gadget at the bottom left.
-            static constexpr int kFrames[] = {0, 1, 2, -1, 3, 4, 5, -1, 6, 7, -1, 6, 8, -1, 3, 2, 1, 0};
-            drawLogo(0x12C, 0x162, 0x21D8);
-            for (int f : kFrames) {
-                if (f >= 0) drawOpaque(0x1C, 0x144, static_cast<uint16_t>(0x21CF + f));
-                waitCountdown(f >= 0 ? 1 : 2);
-            }
-            drawOpaque(0x12C, 0x162, 0x21D9);
+            monitorGadget();
         }
         if (picked >= 0) {
             const int i = picked / 4, k = picked % 4;

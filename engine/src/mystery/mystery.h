@@ -148,6 +148,8 @@ private:
     bool dig(int level);                                        // g21_185c
     bool whatComesNext(int level);                              // g26_19d8
     bool colourTransformation(int level);                       // g27_1032
+    bool stackup(int level);                                    // g25_1f6a
+    void monitorGadget();                                       // g27_0f16 (shared by 25-27)
     // The part of the picture puzzles' main loops they share; `help` is
     // the help text. Returns the result from puzzleResult.
     bool pictureLoop(uint16_t help);

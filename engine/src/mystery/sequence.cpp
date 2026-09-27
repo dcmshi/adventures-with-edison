@@ -237,17 +237,6 @@ bool Mystery::whatComesNext(int level) {
             if (!r.solved) return false;
         return true;
     };
-    auto runGadget = [&] {  // g27_0f16
-        static constexpr int kFrames[] = {0, 1, 2, -1, 3, 4, 5, -1, 6, 7, -1, 6, 8, -1, 3, 2, 1, 0};
-        select(1);
-        drawLogo(0x12C, 0x162, 0x21D8);
-        for (int f : kFrames) {
-            if (f >= 0) drawOpaque(0x1C, 0x144, static_cast<uint16_t>(0x21CF + f));
-            waitCountdown(f >= 0 ? 1 : 2);
-        }
-        drawOpaque(0x12C, 0x162, 0x21D9);
-        gadget = false;
-    };
 
     // g26_0cac / g26_0000 / g26_04dc: the panels.
     panels_.clear();
@@ -321,8 +310,9 @@ bool Mystery::whatComesNext(int level) {
             drawLogo(0x26, 0x15F, 0x20A5);
         }
         if (gadget) {
+            gadget = false;
             music(0x19);
-            runGadget();
+            monitorGadget();
         }
         if (picked >= 0) {
             const int row = picked / 4, a = picked % 4;
