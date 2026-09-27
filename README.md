@@ -61,6 +61,10 @@ ctest --test-dir build --output-on-failure
   - Imports from the CD's DLLs are named, and functions found by `nedis.py` are added.
   - Needs [Ghidra](https://github.com/NationalSecurityAgency/ghidra) 12 and a JDK 21. It expects them in `D:/tools`; otherwise set `GHIDRA` and `JAVA_HOME`.
 - `tools/scripts.py`: decompiles the menu scripts (see `docs/GAME.md`).
+- `tools/reference/otvdm.ps1 start|shot|dialogs|stop`: runs the original game under [winevdm](https://github.com/otya128/winevdm) as a visual reference.
+  - Always stop it with `stop`, never by killing `otvdmw`. The game's error boxes can disable an unrelated window (such as your terminal), which stays disabled if the game is killed while the box is open.
+  - `stop` closes dialogs first and then re-enables any disabled windows.
+  - **Symptom:** a window that chimes when clicked and ignores all input is disabled, not frozen. `EnableWindow(hwnd, TRUE)` fixes it.
 
 ## Status
 
