@@ -33,7 +33,7 @@ cmake --build build
 
 ### Launcher
 
-`edison` is the native version of EDISON.EXE: the opening, the main menu and Mystery at the Museums (all sixteen puzzles; the end screens and returning players are still to come), with FM music and sound effects. Rock and Bach and Wild Science Arcade aren't ported yet. Open items are tracked in [TODO.md](TODO.md).
+`edison` is the native version of EDISON.EXE: the opening, the main menu and Mystery at the Museums (the whole game), with FM music and sound effects. Rock and Bach and Wild Science Arcade aren't ported yet. Open items are tracked in [TODO.md](TODO.md).
 
 ```sh
 build/engine/edison original/cd/DSK3        # -O skips the opening, -A turns FM music off
