@@ -88,6 +88,8 @@ class DriverHarness:
     def _relocated(self, index):
         seg = bytearray(self.ne.segment_bytes(index))
         for r in self.ne.relocations(index):
+            if r["kind"] == "osfixup":  # FPU emulation patch: not needed
+                continue
             if r["kind"] == "internal":
                 tseg, toff = r["target"]
                 sel, off = SEG_PARA[tseg], toff

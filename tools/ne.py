@@ -96,8 +96,10 @@ class NEFile:
         """Relocations of a segment as dicts with the patch sites resolved.
 
         addr_type: 2 = segment selector, 3 = far pointer, 5 = offset
-        kind:      "internal" (target = (segment, offset)) or
-                   "import"   (target = (module name, ordinal))
+        kind:      "internal" (target = (segment, offset)),
+                   "import"   (target = (module name, ordinal or imported name)) or
+                   "osfixup"  (target = fixup type: floating-point emulation patches,
+                               which the loader applies only without an FPU)
         sites:     offsets in the segment to patch (chains already walked)
         """
         s = self.segments[index - 1]
@@ -114,10 +116,13 @@ class NEFile:
                 target = ("internal", (a, b) if a != 0xFF else self.entries[b])
             elif kind == 1:
                 target = ("import", (self.imports[a - 1], b))
+            elif kind == 2:
+                p = self.ne + self.imp_off + b
+                target = ("import", (self.imports[a - 1], self.data[p + 1:p + 1 + self.data[p]].decode("latin-1")))
             else:
-                raise NotImplementedError(f"relocation kind {kind}")
+                target = ("osfixup", a)
             sites = [site]
-            if not rtype & 4:  # non-additive: sites form a linked chain
+            if not rtype & 4 and kind != 3:  # non-additive: sites form a linked chain
                 while True:
                     (nxt,) = struct.unpack_from("<H", seg, sites[-1])
                     if nxt == 0xFFFF:
