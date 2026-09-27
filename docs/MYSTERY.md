@@ -74,20 +74,28 @@ Menu events (`[91A4]`) jump between steps: 1/4 = show the high scores, 2 = `f08_
 - `f23_*`: the end of a game: "Time taken", "Happy faces of Edison, Smitty, and …", win and lose messages.
 - `f24_*`: high scores (`MYSTERY.HS`).
 
-## Puzzles (to be confirmed one by one)
+## Puzzles
 
-| Puzzle | Segment(s) | Evidence |
-|---|---|---|
-| Slide Puzzle / Arrow Puzzle / picture puzzles | 12–14 | "SPACE/TAB to view pics", "LOGO SIZE NOT DIVISIBLE BY # OF SQUARES" |
-| Concentration | 15 | "TRATION: message number is too big", "MATCH 2/3" |
-| Dropping Squares | 18 | `column.c`, "fill in the missing squares of the fabric puzzles" |
-| Question and Answer Period | 19 | "JEOPARDY: answers are not correct." |
-| Codes | 20, 30 | "decode the secret message using famous coding systems", unscramble |
-| Binary Lights | ? | "Computers use a binary number system…" |
-| Stackup | 25 | `stackup.c` |
-| Color Transformation | 26 | `colour.c` |
-| The Dig | 22? | "Time:", "Score:"; the `#`/`O`/`I` 25-column mazes in the data segment |
-| Folded Cube, Liberty Planetarium, 3D Ball Sculpture, Circuit Analyzer, Switch Puzzle, What Comes Next | ? | names at DS:198C… |
+`f10_0708` dispatches on the square's puzzle number (0-15) with the square's difficulty (0-7); names are at `DS:1A9C`. Several segments share helpers (the picture puzzles in 12-14, `stackup.c`/`colour.c` polygon code in 25-26).
+
+| # | Puzzle | Entry | Segment size | Evidence |
+|---|---|---|---|---|
+| 0 | Folded Cube | `g29_10c0` | 0x14E6 | uses `g30_*` helpers |
+| 1 | Liberty Planetarium | `g28_178e` | 0x1831 | |
+| 2 | 3D Ball Sculpture | `g30_136c` | 0x188A | |
+| 3 | Binary Lights | `g17_1256` | 0x12CB | "You got it!" |
+| 4 | Question and Answer Period | `f19_16a2(level, 1)` | 0x1828 | "JEOPARDY: answers are not correct."; also the final quiz after a win (`f19_16a2(level, 0)`) |
+| 5 | Dropping Squares | `g18_26da` | 0x273B | `column.c` |
+| 6 | Codes | `g20_1474` | 0x1521 | |
+| 7 | Concentration | `g15_1142` | 0x1A4B | "MATCH 2", "MATCH 3" |
+| 8 | Circuit Analyzer | `g16_089c` | 0x0EE8 | |
+| 9 | Stackup | `g25_1f6a` | 0x1FE4 | `stackup.c` |
+| 10 | Slide Puzzle (With 1 Blank) | `g14_028a` | 0x06CA | picture-puzzle code |
+| 11 | Color Transformation | `g27_1032` | 0x1A7C | |
+| 12 | Switch Puzzle | `g13_0d44` | 0x10CC | "SPACE/TAB to view pics" |
+| 13 | Arrow Puzzle (With Many Blanks) | `g12_1c60` | 0x2041 | picture-puzzle code |
+| 14 | What Comes Next | `g26_19d8` | 0x1A5C | `colour.c` |
+| 15 | The Dig | `g21_185c` | 0x1E17 | |
 
 ## Port plan
 
