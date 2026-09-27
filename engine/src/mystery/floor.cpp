@@ -112,6 +112,7 @@ bool Mystery::puzzle(int kind, int level) {
     switch (kind) {
     case 0: return foldedCube(level);
     case 1: return planetarium(level);
+    case 2: return ballSculpture(level);
     case 3: return binaryLights(level);
     case 4: return questionPeriod(level, true);
     case 5: return droppingSquares(level);

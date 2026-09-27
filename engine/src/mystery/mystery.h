@@ -53,6 +53,7 @@ private:
     // also draws its outline in the same colour (the vertices included).
     void fillPolygon(const std::vector<std::pair<int, int>>& points, uint8_t colour, bool edges = false);
     void drawCentred(int x, int y, uint16_t id);                // f06_189a at 1:1
+    void drawScaledCentred(int x, int y, int scaleX, int scaleY, uint16_t id);  // f06_189a
     void frame(int x, int y, int w, int h, uint8_t colour);     // f06_08c0: a rectangle's outline
     void text(int x, int y, const std::string& s, int colour);  // f06_15b8
     void copyArea(int src, int dst, int x, int y, int w, int h) { ctx_.screens.copyArea(src, dst, x, y, w, h); }
@@ -152,6 +153,7 @@ private:
     bool droppingSquares(int level);                            // g18_26da
     bool planetarium(int level);                                // g28_178e
     bool foldedCube(int level);                                 // g29_10c0
+    bool ballSculpture(int level);                              // g30_136c
     void cubeGadget();                                          // g30_0ad2 (shared by 29 and 30)
 
     // --- segments 47-51: the 3D helpers the last three puzzles share (three.cpp) ---
@@ -253,6 +255,7 @@ private:
     struct {
         int left = 0, top = 0, right = 0, bottom = 0, cx = 0, cy = 0, d = 1;  // DS:764C-765C
     } view3_;
+    int ballLevel_ = 0;  // [9282]: the Ball Sculpture's last level
     std::vector<std::vector<Point3>> stars_;  // the Planetarium's, set up once (g28_1218)
     // DS:B7CE: facts learned in Concentration (per theme), asked about in
     // the Question and Answer Period.
