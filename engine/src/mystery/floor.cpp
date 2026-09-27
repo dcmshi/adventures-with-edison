@@ -133,6 +133,7 @@ bool Mystery::puzzle(int kind, int level) {
     case 10: return slidePuzzle(level);
     case 12: return switchPuzzle(level);
     case 13: return arrowPuzzle(level);
+    case 15: return dig(level);
     default: break;
     }
     // The other games aren't ported yet: each counts as solved. Their names

@@ -140,6 +140,7 @@ private:
     bool concentration(int level);                              // g15_1142
     // f19_16a2: as puzzle 4, or (asPuzzle false) the quiz after a won game.
     bool questionPeriod(int level, bool asPuzzle);
+    bool dig(int level);                                        // g21_185c
     // The part of the picture puzzles' main loops they share; `help` is
     // the help text. Returns the result from puzzleResult.
     bool pictureLoop(uint16_t help);

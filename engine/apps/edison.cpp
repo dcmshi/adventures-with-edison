@@ -9,6 +9,7 @@
 //   For testing without a person at the keyboard:
 //     --capture DIR MS    save the display to DIR/NNNNN.bmp every MS milliseconds
 //     --click T X Y       click at game coordinates X, Y at T milliseconds (repeatable)
+//     --drag T X0 Y0 X1 Y1 MS   press at X0, Y0 at T, move to X1, Y1 over MS, release
 //     --type T TEXT       type TEXT at T milliseconds ('|' is Enter; repeatable)
 //     --quit-after MS     close after MS milliseconds
 //
@@ -19,6 +20,7 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -41,6 +43,9 @@ struct Automation {
     uint64_t captureEvery = 0;
     struct Click { uint64_t at; int x, y; };
     std::vector<Click> clicks;
+    // Press at (x0, y0), move to (x1, y1) over `ms`, release.
+    struct Drag { uint64_t at; int x0, y0, x1, y1; uint64_t ms; bool started = false, done = false; };
+    std::vector<Drag> drags;
     struct Typed { uint64_t at; std::string text; };  // '|' types Enter
     std::vector<Typed> typed;
     uint64_t quitAfter = 0;
@@ -100,7 +105,24 @@ public:
                 clickY_ = c.y;
                 c.at = 0;
                 autoMouse_ = true;
+                dragging_ = false;
             }
+        for (auto& d : automation.drags) {
+            if (d.done || now < d.at) continue;
+            if (!d.started) {
+                d.started = true;
+                clicked_ = true;
+                clickX_ = d.x0;
+                clickY_ = d.y0;
+            }
+            autoMouse_ = true;
+            const uint64_t t = std::min<uint64_t>(now - d.at, d.ms);
+            autoX_ = d.x0 + static_cast<int>((d.x1 - d.x0) * static_cast<int64_t>(t) / std::max<int64_t>(d.ms, 1));
+            autoY_ = d.y0 + static_cast<int>((d.y1 - d.y0) * static_cast<int64_t>(t) / std::max<int64_t>(d.ms, 1));
+            autoDown_ = now - d.at < d.ms;
+            if (!autoDown_) d.done = true;
+            dragging_ = true;
+        }
         SDL_Event e;
         while (SDL_PollEvent(&e)) {
             if (e.type == SDL_EVENT_QUIT) return false;
@@ -161,9 +183,9 @@ public:
 
     void mouse(int* x, int* y, bool* down) override {
         if (autoMouse_) {  // an automated click moves the (virtual) mouse there
-            *x = clickX_;
-            *y = clickY_;
-            *down = false;
+            *x = dragging_ ? autoX_ : clickX_;
+            *y = dragging_ ? autoY_ : clickY_;
+            *down = dragging_ && autoDown_;
             return;
         }
         float wx, wy;
@@ -291,6 +313,8 @@ private:
     bool clicked_ = false;
     int clickX_ = 0, clickY_ = 0;
     bool autoMouse_ = false;
+    bool dragging_ = false, autoDown_ = false;  // an automated drag
+    int autoX_ = 0, autoY_ = 0;
 };
 
 }  // namespace
@@ -311,6 +335,15 @@ int main(int argc, char** argv) {
             const uint64_t at = std::strtoull(argv[++i], nullptr, 10);
             const int x = std::atoi(argv[++i]);
             automation.clicks.push_back({at, x, std::atoi(argv[++i])});
+        } else if (a == "--drag" && i + 6 < argc) {
+            Automation::Drag d{};
+            d.at = std::strtoull(argv[++i], nullptr, 10);
+            d.x0 = std::atoi(argv[++i]);
+            d.y0 = std::atoi(argv[++i]);
+            d.x1 = std::atoi(argv[++i]);
+            d.y1 = std::atoi(argv[++i]);
+            d.ms = std::strtoull(argv[++i], nullptr, 10);
+            automation.drags.push_back(d);
         } else if (a == "--type" && i + 2 < argc) {
             const uint64_t at = std::strtoull(argv[++i], nullptr, 10);
             automation.typed.push_back({at, argv[++i]});
