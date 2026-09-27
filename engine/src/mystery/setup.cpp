@@ -118,4 +118,85 @@ void Mystery::scene(int part) {
     select(1);
 }
 
+void Mystery::talk(int frames) {
+    // g08_0cf8: Edison (sprite 2315) with his mouth moving for `frames`
+    // steps of 0.2 s (2317/2318), then closed (2316). A click stops it.
+    select(2);
+    for (int i = 0; i <= frames; ++i) {
+        drawLogo(0x82, 0x11E, 0x2315);
+        drawLogo(0x8E, 0x11E, static_cast<uint16_t>(i < frames ? 0x2317 + (i & 1) : 0x2316));
+        copyArea(2, 1, 0x8E, 0x11E, 0x34, 0x26);
+        duplicateArea(2, 2, 0, 0, kSceneW, kSceneH, 0, kSceneTop);
+        ctx_.countdown[0] = 2;
+        bool clicked = false;
+        while (ctx_.countdown[0] != 0) {
+            ctx_.pump();
+            int x, y;
+            if (ctx_.platform.takeClick(&x, &y)) {
+                clicked = true;
+                drawLogo(0x82, 0x11E, 0x2315);
+                drawLogo(0x8E, 0x11E, 0x2316);
+                copyArea(2, 1, 0x8E, 0x11E, 0x34, 0x26);
+            }
+        }
+        if (clicked) break;
+    }
+    select(1);
+}
+
+void Mystery::nameEntry() {
+    // g08_0380: "Hi! I'm Edison. What's your name?" in a speech bubble, with
+    // a typing field under it.
+    const int fh = font_->height();
+    std::vector<std::string> lines = {dataString(0x759), dataString(0x77C)};
+    for (uint16_t blank : {0x789, 0x78D, 0x791, 0x795}) lines.push_back(dataString(blank));
+    const int boxY = Screen::kHeight / 3;
+    const int bubble = speechBox(4, boxY, lines, 0, true);
+    sound(0x403A);
+    talk(5);
+
+    const std::string prompt = dataString(0x7AA);  // ">"
+    const std::string cursor = dataString(0x7AE);  // "_"
+    const int x0 = 4 + fh, y0 = fh * 3 + boxY;
+    const int fieldW = font_->width(dataString(0x799));  // as wide as "Is this right?  "
+    fill(x0, y0, fieldW, fh * 2, 0xFF);
+    text(x0, y0, prompt, 0);
+
+    std::string name;
+    bool cursorOn = true;
+    clearInput();
+    for (;;) {
+        // Blink the cursor until a key comes.
+        int key = 0;
+        int cx = 0;
+        while (key == 0) {
+            cx = x0 + font_->width(prompt) + font_->width(name);
+            text(cx, y0, cursor, cursorOn ? 0x32 : 0xFF);
+            cursorOn = !cursorOn;
+            ctx_.countdown[0] = 2;
+            while (ctx_.countdown[0] != 0 && key == 0) {
+                ctx_.pump();
+                key = ctx_.platform.takeKey();
+            }
+        }
+        text(cx, y0, cursor, 0xFF);
+        if (key == Platform::kEnter || key == Platform::kEscape) break;
+        bool erase = false;
+        if (key == Platform::kBackspace && !name.empty()) {
+            name.pop_back();
+            erase = true;
+        }
+        const bool alnum = (key >= '0' && key <= '9') || (key >= 'A' && key <= 'Z') || (key >= 'a' && key <= 'z');
+        if (name.size() < 8 && alnum)
+            name += static_cast<char>(name.empty() && key >= 'a' && key <= 'z' ? key - 32 : key);
+        if (erase) fill(x0, y0, fieldW, fh * 2, 0xFF);
+        text(x0, y0, dataString(0x7B2), 0);
+        text(x0 + font_->width(dataString(0x7B4)), y0, name, 0);
+    }
+    player_.name = name.empty() ? dataString(0x7B6) : name;  // "Player"
+    select(1);
+    restoreArea(bubble);
+    clearInput();
+}
+
 }  // namespace edison

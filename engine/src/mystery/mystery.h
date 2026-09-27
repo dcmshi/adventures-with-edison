@@ -56,6 +56,8 @@ private:
     void title();                                               // f08_2284
     void setupScreen();                                         // start of f08_232c
     void scene(int part);                                       // f08_06f8
+    void talk(int frames);                                      // g08_0cf8
+    void nameEntry();                                           // g08_0380
 
     // --- data from MALL.EXE's data segment (read at run time) ---
     std::string dataString(uint16_t offset) const;
@@ -75,6 +77,11 @@ private:
         std::vector<uint8_t> pixels;
     };
     std::map<int, SavedArea> saved_;
+    // The player record (DS:B465): name and Edison's colour choices.
+    struct Player {
+        std::string name;
+        uint8_t colours[4] = {0, 0, 0, 0};  // hair, shirt, trousers, shoes? (B46F-B472)
+    } player_;
     int nextHandle_ = 1;
 };
 

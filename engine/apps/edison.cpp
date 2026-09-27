@@ -7,6 +7,7 @@
 //   For testing without a person at the keyboard:
 //     --capture DIR MS    save the display to DIR/NNNNN.bmp every MS milliseconds
 //     --click T X Y       click at game coordinates X, Y at T milliseconds (repeatable)
+//     --type T TEXT       type TEXT at T milliseconds ('|' is Enter; repeatable)
 //     --quit-after MS     close after MS milliseconds
 //
 // The folder defaults to original/cd/DSK3 (needs EDISON.EXE, SHELL.D01 and
@@ -38,6 +39,8 @@ struct Automation {
     uint64_t captureEvery = 0;
     struct Click { uint64_t at; int x, y; };
     std::vector<Click> clicks;
+    struct Typed { uint64_t at; std::string text; };  // '|' types Enter
+    std::vector<Typed> typed;
     uint64_t quitAfter = 0;
 };
 
@@ -83,6 +86,11 @@ public:
     bool pumpEvents() override {
         const uint64_t now = milliseconds();
         if (automation.quitAfter && now >= automation.quitAfter) return false;
+        for (auto& t : automation.typed)
+            if (t.at && now >= t.at) {
+                for (char c : t.text) keys_.push_back(c == '|' ? static_cast<int>(kEnter) : c);
+                t.at = 0;
+            }
         for (auto& c : automation.clicks)
             if (c.at && now >= c.at) {
                 clicked_ = true;
@@ -288,6 +296,9 @@ int main(int argc, char** argv) {
             const uint64_t at = std::strtoull(argv[++i], nullptr, 10);
             const int x = std::atoi(argv[++i]);
             automation.clicks.push_back({at, x, std::atoi(argv[++i])});
+        } else if (a == "--type" && i + 2 < argc) {
+            const uint64_t at = std::strtoull(argv[++i], nullptr, 10);
+            automation.typed.push_back({at, argv[++i]});
         } else if (a == "--quit-after" && i + 1 < argc) {
             automation.quitAfter = std::strtoull(argv[++i], nullptr, 10);
         } else if (a == "--game" && i + 1 < argc) {

@@ -36,8 +36,9 @@ void Mystery::run() {
     title();
     setupScreen();
     scene(0);
-    // Not ported further yet: the name entry and the rest of the setup
-    // come next. Hold the last frame briefly, then return.
+    nameEntry();
+    // Not ported further yet: the rest of the setup comes next. Hold the
+    // last frame briefly, then return.
     waitCountdown(20);
     ctx_.blackout();
     ctx_.pump();
