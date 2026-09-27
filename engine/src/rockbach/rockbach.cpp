@@ -277,11 +277,20 @@ void RockBach::logoFrame() {
 // --- the activities ----------------------------------------------------------
 
 void RockBach::activity(int which) {
-    // f33_0422: each activity with its FM driver. None is ported yet.
+    // f33_0422: each activity with its FM driver.
     static const int kDriver[10] = {-1, -1, 0, 1, 3, -1, 2, -1, -1, 4};
     if (which < 0 || which > 9) return;
     setDriver(kDriver[which]);
-    logLine("Rock and Bach: activity " + std::to_string(which) + " isn't ported yet; back to the hallway.");
+    switch (which) {
+        case 2:
+            bandReset();  // f09_0000
+            jukebox();
+            bandStop();   // f09_0070
+            break;
+        default:
+            logLine("Rock and Bach: activity " + std::to_string(which) + " isn't ported yet; back to the hallway.");
+            break;
+    }
     setDriver(-1);
 }
 

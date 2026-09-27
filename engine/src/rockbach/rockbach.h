@@ -51,6 +51,14 @@ private:
     void logoFrame();                                           // f05_03d4 + f05_02c2
 
     // --- the widgets (segment 34, widgets.cpp) ---
+    // A slider's record (flags 08 horizontal, 10 vertical).
+    struct Slider {
+        int min = 0, value = 0, max = 0;
+        int w = 0, h = 0;                     // the knob
+        int a = 0, c = 0;                     // the track's offsets (across, along)
+        int len = 0;                          // the track's length
+        int kx = 0, ky = 0;                   // the knob's position
+    };
     struct Widget {
         enum : uint16_t {
             kPressed = 0x2, kNoBevel = 0x4, kSlider = 0x18, kLabel = 0x20, kRadio = 0x40,
@@ -59,6 +67,7 @@ private:
         int x0, y0, x1, y1;                   // inclusive
         uint16_t flags;
         std::string label = {};               // kLabel
+        Slider* slider = nullptr;             // kSlider
         int group = 0;                        // kRadio
         uint8_t faceDown = 0, faceUp = 0;     // kFace
         uint16_t bitmapDown = 0, bitmapUp = 0;
@@ -72,7 +81,12 @@ private:
     };
     void initWidgets(std::vector<Widget>& list, Bevel bevel);   // f34_0ebc
     void drawWidget(const Widget& w, bool pressed);             // f34_07b8
-    int pollWidgets();                                          // f34_0fb6: the index pressed, or -1
+    // f34_0fb6: the index pressed, or -1 (a click on no widget is left in
+    // lastClick_, a key in lastKey_).
+    int pollWidgets();
+    void placeSlider(Widget& w, bool onDisplay);                // f34_0d6c / f34_0e14: the knob from the value
+    void drawSlider(const Widget& w, bool onDisplay);           // f34_0372 / f34_0168
+    void dragSlider(Widget& w);                                 // f34_04dc
     void showWidgets(std::initializer_list<int> which);         // 200 off, drawn
     void hideWidgets();                                         // 200 on, all
 
@@ -96,6 +110,17 @@ private:
     int askQuit();                                              // f24_0f8c: 1 quit
     void credits();                                             // f24_12e6
     void activity(int which);                                   // f33_0422's switch
+
+    // --- the jukebox (segment 3, and its music, segment 9: jukebox.cpp) ---
+    int jukebox();                                              // f03_22e8
+    void jukeboxWidgets();                                      // f03_006c
+    void bandCommand(const std::vector<uint8_t>& bytes);        // f09_036e: over sound 1, started
+    void bandReset();                                           // f09_0000
+    void bandStop();                                            // f09_0220
+    void bandStart();                                           // f09_00fc
+    void bandVolume(int role, int volume);                      // f09_0262
+    void bandTempo(int tempo);                                  // f09_0320
+    void bandPart(int role, int choice);                        // f09_00bc
     // f27_01c4; also forgets a click or key f24_0666 has seen.
     void clearInput() {
         ArtechGame::clearInput();
@@ -122,10 +147,24 @@ private:
         int speed = 2;                                // [0780]
     } spot_;
 
+    // The jukebox.
+    std::vector<Widget> jukeboxWidgets_;
+    std::array<Slider, 9> jukeboxSliders_{};           // DS:8BD8 (8 x 0x14), 8C78: tempo
+    struct {
+        std::array<int, 4> members{};                  // DS:6736: drums, chords, bass, solo
+        std::array<uint16_t, 4> part{};                // [14B4]: each role's part record
+        std::array<uint8_t, 4> volume{};               // [126E]
+        uint8_t tempo = 0;                             // [1272]
+        int song = 0;                                  // [8710]
+    } band_;
     // Widgets.
     std::vector<Widget>* widgets_ = nullptr;           // [8D30]
     Bevel bevel_{};                                    // [655A..6560]
     int lastKey_ = 0;                                  // a key no widget took
+    struct {
+        bool on = false;
+        int x = 0, y = 0;
+    } lastClick_;                                      // [3BA8], [3BAA]: a click no widget took
     // The hallway.
     std::vector<Widget> hallwayWidgets_;               // DS:69F4
     std::string name_;                                 // DS:21A0

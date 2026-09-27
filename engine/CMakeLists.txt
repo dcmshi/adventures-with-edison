@@ -32,6 +32,7 @@ add_library(edison_core
     src/rockbach/rockbach.cpp
     src/rockbach/music.cpp
     src/rockbach/hallway.cpp
+    src/rockbach/jukebox.cpp
     src/rockbach/widgets.cpp
     src/mystery/editor.cpp
     src/mystery/end.cpp

@@ -2,6 +2,7 @@
 // faces, labels, toggles and radio groups) in a list the game polls.
 // (Sliders, flags 08 and 10, aren't ported yet: no activity uses one so far.)
 
+#include <algorithm>
 #include <cctype>
 
 #include "rockbach/rockbach.h"
@@ -15,7 +16,10 @@ void RockBach::initWidgets(std::vector<Widget>& list, Bevel bevel) {
     bevel_ = bevel;
     for (Widget& w : list) {
         w.toggle = false;
-        if (w.flags & Widget::kSlider) continue;
+        if (w.flags & Widget::kSlider) {
+            placeSlider(w, false);
+            continue;
+        }
         if (w.flags & Widget::kPressed) {
             drawWidget(w, true);
             if (w.flags & Widget::kToggle) w.toggle = true;
@@ -86,6 +90,7 @@ int RockBach::pollWidgets() {
     // lastKey_ for the caller.
     ctx_.pump();
     lastKey_ = 0;
+    lastClick_.on = false;
     std::vector<Widget>& list = *widgets_;
     auto find = [&](auto hit) {
         for (size_t i = 0; i < list.size(); ++i)
@@ -101,10 +106,18 @@ int RockBach::pollWidgets() {
         byKey = index >= 0;
     }
     int x, y;
-    if (index < 0 && ctx_.platform.takeClick(&x, &y))
+    if (index < 0 && ctx_.platform.takeClick(&x, &y)) {
         index = find([&](const Widget& w) { return x >= w.x0 && x <= w.x1 && y >= w.y0 && y <= w.y1; });
+        if (index < 0) lastClick_ = {true, x, y};
+    }
     if (index < 0) return -1;
     Widget& w = list[index];
+    if ((w.flags & Widget::kSlider) && w.slider) {
+        // Dragged when the click is on the knob; either way its index.
+        const Slider& s = *w.slider;
+        if (!byKey && x >= s.kx && x < s.kx + s.w && y >= s.ky && y < s.ky + s.h) dragSlider(w);
+        return index;
+    }
     if (w.flags & Widget::kToggle) w.toggle = !w.toggle;
     if (!(w.flags & Widget::kPressed)) {
         drawWidget(w, true);
@@ -128,6 +141,58 @@ int RockBach::pollWidgets() {
         w.flags &= ~Widget::kPressed;
     }
     return index;
+}
+
+void RockBach::placeSlider(Widget& w, bool onDisplay) {
+    // f34_0d6c (drawn on the current screen) / f34_0e14 (on screen 2, then
+    // onto the display).
+    if (!w.slider) return;
+    Slider& s = *w.slider;
+    const int k = (s.value - s.min) * s.len / (s.max - s.min + 1);
+    s.kx = w.x0 + (w.flags & 0x08 ? k : 0);
+    s.ky = w.y0 + (w.flags & 0x08 ? 0 : k);
+    drawSlider(w, onDisplay);
+}
+
+void RockBach::drawSlider(const Widget& w, bool onDisplay) {
+    // f34_0372 / f34_0168: the track, then the knob.
+    const Slider& s = *w.slider;
+    const bool across = w.flags & 0x08;
+    const int previous = current();
+    if (onDisplay) select(2);
+    const int tx = across ? w.x0 - s.c : w.x0 - s.a, ty = across ? w.y0 - s.a : w.y0 - s.c;
+    if (w.mode == 'c') drawLogo(tx, ty, w.bitmapUp);
+    else drawOpaque(tx, ty, w.bitmapUp);
+    drawLogo(s.kx, s.ky, w.overlayUp);
+    if (onDisplay) {
+        if (across) copyArea(2, 1, w.x0 - s.c, w.y0, s.len + s.c, s.h + 2);
+        else copyArea(2, 1, w.x0, w.y0 - s.c, s.w + 2, s.len + s.c);
+        select(previous);
+    }
+}
+
+void RockBach::dragSlider(Widget& w) {
+    // f34_04dc: the knob follows the mouse along the track while the button
+    // is down; then the value comes from where it is.
+    Slider& s = *w.slider;
+    const bool across = w.flags & 0x08;
+    int mx, my;
+    bool down = true;
+    ctx_.platform.mouse(&mx, &my, &down);
+    int last = across ? mx : my;
+    while (down) {
+        ctx_.pump();
+        ctx_.platform.mouse(&mx, &my, &down);
+        const int now = across ? mx : my;
+        if (now == last) continue;
+        int& knob = across ? s.kx : s.ky;
+        const int start = across ? w.x0 : w.y0;
+        knob = std::clamp(knob + now - last, start, start + s.len - (across ? s.w : s.h));
+        last = now;
+        drawSlider(w, true);
+    }
+    s.value = ((across ? s.kx - w.x0 : s.ky - w.y0) * (s.max - s.min + 1)) / s.len;
+    placeSlider(w, true);
 }
 
 }  // namespace edison
