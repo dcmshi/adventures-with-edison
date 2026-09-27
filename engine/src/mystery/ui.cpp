@@ -128,6 +128,21 @@ int Mystery::speechBox(int x, int y, const std::vector<std::string>& lines, int 
     return handle;
 }
 
+void Mystery::recolour(int x, int y, int w, int h, uint8_t from, uint8_t to) {
+    if (x + w >= Screen::kWidth) w = Screen::kWidth - x - 1;
+    if (y + h >= Screen::kHeight) h = Screen::kHeight - y - 1;
+    x = std::max(x, 0);
+    y = std::max(y, 0);
+    drawVia3(x, y, w, h, [&](int s) {
+        Screen& scr = ctx_.screens[s];
+        for (int row = y; row < y + h; ++row)
+            for (int col = x; col < x + w; ++col) {
+                uint8_t& p = scr.pixels[static_cast<size_t>(row) * Screen::kWidth + col];
+                if (p == from) p = to;
+            }
+    });
+}
+
 void Mystery::computeUiColours() {
     // Nearest match in the display palette (entries 1-253). The original
     // reads the table as signed chars, so components above 127 count as
@@ -137,9 +152,10 @@ void Mystery::computeUiColours() {
         int best = 0x7FFF, bestIndex = 0;
         for (int a = 1; a < 0xFE; ++a) {
             const Rgb& c = ctx_.displayPalette[a];
-            const int dr = (static_cast<int8_t>(want[0]) - c.r) / 8;
+            // The palette is kept in B, G, R order, and the table with it.
+            const int db = (static_cast<int8_t>(want[0]) - c.b) / 8;
             const int dg = (static_cast<int8_t>(want[1]) - c.g) / 8;
-            const int db = (static_cast<int8_t>(want[2]) - c.b) / 8;
+            const int dr = (static_cast<int8_t>(want[2]) - c.r) / 8;
             const int d = dr * dr + dg * dg + db * db;
             if (d < best) {
                 best = d;

@@ -24,7 +24,7 @@ constexpr SceneFrame kScene[] = {
     {0x230F, 0x82, 0x26, 0x26, 0x37, 2},  {0x2310, 0x82, 0x36, 0x26, 0x2D, 8},
     {0x2311, 0x82, 0x46, 0x23, 0x25, 2},  {0x2312, 0x82, 0x3C, 0x25, 0x2A, 12},
     {0x230E, 0x82, 0x4E, 0x23, 0x21, 2},  {0x2313, 0x82, 0x38, 0x27, 0x2C, 12},
-    {0x2314, 0x82, 0x46, 0, 0, 0},
+    {0x2314, 0x82, 0x46, 0x23, 0x25, 2},  {0x2315, 0x82, 0x38, 0x2C, 0x2C, 2},
 };
 constexpr int kSceneTop = 0xE6;
 constexpr int kSceneW = 0xDA, kSceneH = 0x96;
@@ -54,11 +54,15 @@ void Mystery::title() {
 }
 
 void Mystery::setupScreen() {
-    // The start of f08_232c: the courtyard backdrop on screen 2, shown.
+    // The start of f08_232c: the courtyard backdrop on screen 2 with
+    // Edison's colours, shown.
     select(1);
-    ctx_.blackout();
+    ctx_.screens[2].clear();  // f04_0000
+    ctx_.screens.copyAll(2, 1);
     ctx_.showFullScreen(0x1006, 2);
-    ctx_.setDisplayPalette(2);  // f04_005c(2) (Edison's default colours are in the bitmap)
+    applyColours(2, false);     // f09_0b88(1, 2, 0)
+    ctx_.setDisplayPalette(2);  // f04_005c(2)
+    ctx_.screens[1].palette = ctx_.screens[2].palette;
     ctx_.screens.copyAll(2, 1);
     computeUiColours();
     // Keep a clean copy of the scene area at the top left of screen 2.
@@ -118,7 +122,7 @@ void Mystery::scene(int part) {
     select(1);
 }
 
-void Mystery::talk(int frames) {
+bool Mystery::talk(int frames) {
     // g08_0cf8: Edison (sprite 2315) with his mouth moving for `frames`
     // steps of 0.2 s (2317/2318), then closed (2316). A click stops it.
     select(2);
@@ -139,9 +143,13 @@ void Mystery::talk(int frames) {
                 copyArea(2, 1, 0x8E, 0x11E, 0x34, 0x26);
             }
         }
-        if (clicked) break;
+        if (clicked) {
+            select(1);
+            return true;
+        }
     }
     select(1);
+    return false;
 }
 
 void Mystery::nameEntry() {
@@ -197,6 +205,317 @@ void Mystery::nameEntry() {
     select(1);
     restoreArea(bubble);
     clearInput();
+}
+
+// --- Edison's colours -------------------------------------------------
+
+namespace {
+// Colour groups: hair, shirt, trousers, shoes. Palette entries and table.
+constexpr int kGroupFirst[4] = {1, 4, 7, 11};
+constexpr int kGroupCount[4] = {3, 3, 4, 3};
+constexpr uint16_t kGroupTable[4] = {0x824, 0x848, 0x86C, 0x89C};
+}  // namespace
+
+void Mystery::loadColourTables() {
+    // Four choices per group, stored as 6-bit RGB; f06_1ce0 converts them
+    // to 8-bit once, on the first setup.
+    for (int g = 0; g < 4; ++g) {
+        edisonColours_[g].clear();
+        for (int i = 0; i < 4 * kGroupCount[g]; ++i) {
+            const uint8_t* c = &data_[kGroupTable[g] + 3 * i];
+            edisonColours_[g].push_back(Rgb{static_cast<uint8_t>(c[0] << 2), static_cast<uint8_t>(c[1] << 2),
+                                            static_cast<uint8_t>(c[2] << 2)});
+        }
+    }
+}
+
+void Mystery::applyColours(int screen, bool toDisplay) {
+    // f09_0b88: Edison's colours into a screen's palette, entries 1-15.
+    Palette& pal = ctx_.screens[screen].palette;
+    for (int g = 0; g < 4; ++g)
+        for (int i = 0; i < kGroupCount[g]; ++i)
+            pal[kGroupFirst[g] + i] = edisonColours_[g][player_.colours[g] * kGroupCount[g] + i];
+    pal[14] = Rgb{0, 0, 0};
+    pal[15] = Rgb{0xFC, 0xFC, 0xFC};
+    if (!toDisplay) {
+        for (int i = 0; i < 3; ++i) pal[17 + i] = edisonColours_[1][player_.colours[1] * 3 + i];
+    } else {
+        ctx_.setDisplayPalette(screen);
+    }
+}
+
+void Mystery::setColourGroup(int group) {
+    // f06_1c42: one group's colours straight into the display palette and
+    // screen 2's.
+    for (int i = 0; i < kGroupCount[group]; ++i) {
+        const Rgb c = edisonColours_[group][player_.colours[group] * kGroupCount[group] + i];
+        ctx_.displayPalette[kGroupFirst[group] + i] = c;
+        ctx_.screens[1].palette[kGroupFirst[group] + i] = c;
+        ctx_.screens[2].palette[kGroupFirst[group] + i] = c;
+    }
+}
+
+// --- dialogs ------------------------------------------------------------
+
+std::vector<std::string> Mystery::dataLines(uint16_t table) const {
+    // A list of far pointers to strings, ending with an empty string.
+    std::vector<std::string> lines;
+    for (uint16_t at = table;; at = static_cast<uint16_t>(at + 4)) {
+        std::string line = dataString(dataWord(at));
+        if (line.empty() || lines.size() >= 30) break;
+        lines.push_back(line);
+    }
+    return lines;
+}
+
+int Mystery::yesNo(int x, int y, int w, int h) {
+    // f06_2976: two animated buttons, Yes (208A-208C) on the left and
+    // No (208D-208F) on the right. Y or Enter answer yes, N no.
+    static const int kCycle[6] = {0, 1, 2, 2, 1, 0};
+    const int previous = current();
+    select(1);
+    const int saved = saveArea(x, y, w, h);
+    const Bitmap& yes = ctx_.bitmap(0x208A);
+    const int leftX = x + 5, rightX = x + w - yes.width - 5;
+    const int by = (h - yes.height) / 2 + y;
+    const int hitW = yes.width + 6;
+    int answer = -1, frame = 0;
+    clearInput();
+    while (answer < 0) {
+        int key;
+        while ((key = ctx_.platform.takeKey()) != 0) {
+            if (key == 'y' || key == 'Y' || key == Platform::kEnter) answer = 0;
+            if (key == 'n' || key == 'N') answer = 1;
+        }
+        ctx_.pump();
+        int mx, my;
+        if (ctx_.platform.takeClick(&mx, &my)) {
+            const int bx[2] = {x, rightX};
+            for (int b = 0; b < 2; ++b)
+                if (bx[b] < mx && y < my && mx <= bx[b] + hitW && my <= y + h) answer = b;
+        }
+        if (answer >= 0) break;
+        drawLogo(leftX, by, static_cast<uint16_t>(0x208A + kCycle[frame]));
+        drawLogo(rightX, by, static_cast<uint16_t>(0x208D + kCycle[frame]));
+        waitCountdown(1);
+        frame = (frame + 1) % 6;
+    }
+    restoreArea(saved);
+    select(previous);
+    clearInput();
+    return answer;
+}
+
+bool Mystery::askChangeLooks() {
+    // f08_14d2: "Do you want to change my looks?"
+    const int fh = font_->height();
+    const int y = Screen::kHeight / 2;
+    const int bubble = speechBox(4, y, dataLines(0x958), 3, true);
+    sound(0x4047);
+    talk(5);
+    const int answer = yesNo(4 + fh, y + fh + fh / 2, 0xA0, 0x1E);
+    restoreArea(bubble);
+    return answer == 0;
+}
+
+void Mystery::letsDoIt() {
+    // f08_157e: "Let's do it."
+    const int bubble = speechBox(1, Screen::kHeight / 2, dataLines(0x978), 3, true);
+    sound(0x4046);
+    talk(4);
+    ctx_.countdown[0] = 4;
+    bool down = false;
+    while (ctx_.countdown[0] != 0 && !down) {
+        ctx_.pump();
+        int mx, my;
+        ctx_.platform.mouse(&mx, &my, &down);
+    }
+    restoreArea(bubble);
+}
+
+void Mystery::customizer() {
+    // f08_0f68: the character changer. Buttons 0-3 cycle a colour group,
+    // button 4 (or Enter) is done. After 20 s idle Edison nudges the player.
+    bool done = false;
+    panels_.clear();
+    Panels::Panel panel;
+    panel.x = static_cast<int16_t>(dataWord(0x80A));
+    panel.y = static_cast<int16_t>(dataWord(0x80C));
+    panel.w = static_cast<int16_t>(dataWord(0x80E));
+    panel.h = static_cast<int16_t>(dataWord(0x810));
+    for (int b = 0; b < 5; ++b) {
+        const uint16_t at = static_cast<uint16_t>(0x7D8 + 10 * b);
+        panel.buttons.push_back({static_cast<int16_t>(dataWord(at)), static_cast<int16_t>(dataWord(at + 2)),
+                                 static_cast<int16_t>(dataWord(at + 4)), static_cast<int16_t>(dataWord(at + 6))});
+    }
+    const Panels::Button okButton = panel.buttons[4];
+    panel.onPress = [&](int b) {  // f08_0e24
+        if (b < 0) return;
+        if (b == 4) {
+            drawLogo(okButton.x + 300, okButton.y + 0x86, 0x2089);
+            done = true;
+            return;
+        }
+        player_.colours[b] = static_cast<uint8_t>((player_.colours[b] + 1) & 3);
+        setColourGroup(b);
+    };
+    panels_.add(panel);
+    ctx_.countdown[3] = 200;
+    clearInput();
+    for (;;) {
+        int mx, my;
+        bool down;
+        ctx_.platform.mouse(&mx, &my, &down);
+        if (down) ctx_.countdown[3] = 200;
+        panels_.poll(ctx_.platform);
+        ctx_.pump();
+        if (ctx_.countdown[3] == 0) {
+            static const int kNudge[] = {0, 1, 2, 1, 2, 0, 2, 0, 3, 2, 1, 3};
+            sound(0x404B);
+            const int previous = current();
+            select(1);
+            for (int mouth : kNudge) {
+                drawLogo(0x80, 0x11A, static_cast<uint16_t>(0x2353 + mouth));
+                waitCountdown(2);
+            }
+            select(previous);
+            ctx_.countdown[3] = 200;
+        }
+        int key = 0;
+        while (int k = ctx_.platform.takeKey()) key = k;
+        if (done || key == Platform::kEnter) break;
+    }
+    copyArea(2, 1, 300, 0x70, 0xE4, 0x120);
+    panels_.clear();
+    clearInput();
+}
+
+void Mystery::pickLevel() {
+    // f08_1d2a: "Please pick a level", eight level buttons (a 4 x 2 grid
+    // drawn by sprite 2083) and a high-scores button (2085).
+    const int bubble = speechBox(2, 0xAC, dataLines(0xB22), 3, true);
+    panels_.clear();
+    int result = 0;
+    Panels::Panel panel;  // laid out by f08_16c2 (mode 2)
+    panel.x = 0x14;
+    panel.y = 200;
+    panel.w = 0xB0;
+    panel.h = 0x44;
+    for (int i = 0; i < 8; ++i) panel.buttons.push_back({(i % 4) * 0x2C + 2, i < 4 ? 2 : 0x12, 0x28, 0xE});
+    panel.buttons.push_back({2, 0x34, 0xAC, 0xC});
+    panel.onPress = [&](int b) {  // f08_18be
+        if (b < 0) return;
+        if (b == 8) {
+            result = 2;
+            recolour(0x14 + 2, 200 + 0x34, 0xAC, 0xE, 0xC0, 0xFF);
+        } else {
+            result = 1;
+            player_.level = static_cast<uint8_t>(b);
+            recolour((b % 4) * 0x2C + 0x16, b < 4 ? 0xCA : 0xDA, 0x28, 0xE, 0xC0, 0xFF);
+        }
+    };
+    panels_.add(panel);
+    drawLogo(0x14, 200, 0x2083);
+    drawLogo(0x14, 0xFC, 0x2085);
+    static const uint16_t kSay[2] = {0x404A, 0x4037};
+    for (uint16_t line : kSay) {
+        sound(line);
+        if (talk(6)) break;
+        waitCountdown(5);
+    }
+    while (result == 0) {
+        panels_.poll(ctx_.platform);
+        ctx_.pump();
+    }
+    waitCountdown(2);  // let the highlight show
+    restoreArea(bubble);
+    panels_.clear();
+    highScoresRequested_ = result == 2;
+}
+
+void Mystery::runOff() {
+    // f08_1264: Edison runs off to start the search.
+    struct Frame {
+        uint16_t sprite;
+        int x, y;
+    };
+    static const Frame kRun[10] = {
+        {0x2319, 0x82, 0x46}, {0x231A, 0x82, 0x48}, {0x231B, 0x82, 0x30}, {0x231C, 0x6E, 0x1E},
+        {0x231D, 0x5A, 0x2E}, {0x231E, 0x48, 0x44}, {0x231F, 0x34, 0x34}, {0x2320, 0x20, 0x29},
+        {0x2321, 0x10, 0x24}, {0x2322, 0, 0x42},
+    };
+    select(2);
+    music(0x1B);
+    for (int i = 0; i < 11; ++i) {
+        if (i < 10) drawLogo(kRun[i].x, kRun[i].y + kSceneTop, kRun[i].sprite);
+        copyArea(2, 1, 0, kSceneTop, kSceneW, kSceneH);
+        duplicateArea(2, 2, 0, 0, kSceneW, kSceneH, 0, kSceneTop);
+        waitCountdown(2);
+    }
+    select(1);
+}
+
+// --- the setup state machine (f08_232c) ----------------------------------
+
+int Mystery::setup(int mode) {
+    if (mode == 1) title();
+    setupScreen();
+    const bool returning = mode != 1;
+    int step = 0;
+    for (;;) {
+        switch (step) {
+        case 0:
+            scene(0);
+            step = 1;
+            break;
+        case 1:
+            nameEntry();
+            step = 2;
+            break;
+        case 2:
+            // Loading a returning player's .INF isn't ported yet: every
+            // player is new, which skips the "change my looks?" question.
+            step = 4;
+            break;
+        case 3:
+            step = askChangeLooks() ? 4 : 8;
+            break;
+        case 4:
+            scene(1);
+            step = 5;
+            break;
+        case 5:
+            customizer();
+            step = 6;
+            break;
+        case 6:
+            scene(2);
+            step = 7;
+            break;
+        case 7:
+            scene(3);
+            step = returning ? 8 : 11;
+            break;
+        case 8: case 9: case 10:
+            // Saved game, custom level and last-level prompts: not ported yet.
+            step = 11;
+            break;
+        case 11:
+            pickLevel();
+            // (the high-score list isn't ported yet: ask again)
+            step = highScoresRequested_ ? 11 : 12;
+            break;
+        case 12:
+            letsDoIt();
+            step = 13;
+            break;
+        default:
+            runOff();
+            select(1);
+            fill(0, 0, Screen::kWidth, Screen::kHeight, 0);
+            return 0;
+        }
+    }
 }
 
 }  // namespace edison

@@ -18,6 +18,7 @@ bool Mystery::load(const Options& options, std::string* error) {
     }
     if (options.music) ctx_.platform.setFmDriver(options.cdDir + "/MADLIB.DLL");
     font_ = &ctx_.font(0x0100);  // the default font (set up in f01_00f6's init)
+    loadColourTables();
     return true;
 }
 
@@ -33,13 +34,9 @@ uint16_t Mystery::dataWord(uint16_t offset) const {
 
 void Mystery::run() {
     ctx_.startTimer();
-    title();
-    setupScreen();
-    scene(0);
-    nameEntry();
-    // Not ported further yet: the rest of the setup comes next. Hold the
-    // last frame briefly, then return.
-    waitCountdown(20);
+    setup(1);
+    // The game itself (f09_1dd8) comes next; for now, back to the launcher.
+    waitCountdown(10);
     ctx_.blackout();
     ctx_.pump();
 }

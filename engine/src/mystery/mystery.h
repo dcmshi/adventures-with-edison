@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "artech/context.h"
+#include "mystery/panels.h"
 
 namespace edison {
 
@@ -42,6 +43,8 @@ private:
     void duplicateArea(int src, int dst, int sx, int sy, int w, int h, int dx, int dy);
     int saveArea(int x, int y, int w, int h);                   // f06_1424 (a handle)
     void restoreArea(int handle);                               // f06_2924
+    // recolour_area: pixels of colour `from` become `to` (f06_16d8).
+    void recolour(int x, int y, int w, int h, uint8_t from, uint8_t to);
     // Speech bubble (f06_2494): corners 210C-210F, tail 2106/2107 on
     // `side` 0-3. Returns a saved-area handle when `save` is set.
     int speechBox(int x, int y, const std::vector<std::string>& lines, int side, bool save);
@@ -56,8 +59,19 @@ private:
     void title();                                               // f08_2284
     void setupScreen();                                         // start of f08_232c
     void scene(int part);                                       // f08_06f8
-    void talk(int frames);                                      // g08_0cf8
+    bool talk(int frames);                                      // g08_0cf8 (true if cut short)
     void nameEntry();                                           // g08_0380
+    void loadColourTables();
+    void applyColours(int screen, bool toDisplay);              // f09_0b88
+    void setColourGroup(int group);                             // f06_1c42
+    std::vector<std::string> dataLines(uint16_t table) const;
+    int yesNo(int x, int y, int w, int h);                      // f06_2976: 0 yes, 1 no
+    bool askChangeLooks();                                      // f08_14d2
+    void letsDoIt();                                            // f08_157e
+    void customizer();                                          // f08_0f68
+    void pickLevel();                                           // f08_1d2a
+    void runOff();                                              // f08_1264
+    int setup(int mode);                                        // f08_232c
 
     // --- data from MALL.EXE's data segment (read at run time) ---
     std::string dataString(uint16_t offset) const;
@@ -80,8 +94,12 @@ private:
     // The player record (DS:B465): name and Edison's colour choices.
     struct Player {
         std::string name;
-        uint8_t colours[4] = {0, 0, 0, 0};  // hair, shirt, trousers, shoes? (B46F-B472)
+        uint8_t colours[4] = {0, 0, 0, 0};  // hair, shirt, trousers, shoes (B46F-B472)
+        uint8_t level = 0;                  // B46E
     } player_;
+    std::array<std::vector<Rgb>, 4> edisonColours_;
+    Panels panels_;
+    bool highScoresRequested_ = false;
     int nextHandle_ = 1;
 };
 
