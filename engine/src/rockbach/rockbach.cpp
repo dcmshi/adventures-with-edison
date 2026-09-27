@@ -296,6 +296,11 @@ void RockBach::activity(int which) {
             library();
             pieceStop();   // f12_0054
             break;
+        case 6:
+            harmonyReset();  // f11_0000
+            harmonyHall();
+            harmonyStop();   // f11_008c
+            break;
         default:
             logLine("Rock and Bach: activity " + std::to_string(which) + " isn't ported yet; back to the hallway.");
             break;

@@ -161,6 +161,22 @@ private:
     void pieceStart();                                          // f12_0118
     void pieceStop();                                           // f12_018c
     void pieceTempo(int t);                                     // f12_0270
+
+    // --- Harmony Hall (segments 7 and 11: harmony.cpp) ---
+    int harmonyHall();                                          // f07_1908
+    void harmonyWidgets();                                      // f07_0000
+    void showChord(int key, int chord);                         // f07_1278 (+ f07_1048, f07_112a)
+    void harmonyCommand(const std::vector<uint8_t>& bytes);     // f11_04ee: over sound B, started
+    void harmonyReset();                                        // f11_0000
+    void harmonyStop();                                         // f11_03a2
+    void harmonyStyle(int s);                                   // f11_00b2
+    void harmonyKey(int key);                                   // f11_00e4
+    void harmonyChord(int chord);                               // f11_0100
+    void harmonyPart(int part, int choice);                     // f11_011c
+    void harmonyStart();                                        // f11_0288
+    void harmonyVolume(int part, int volume);                   // f11_03e0
+    void harmonyTempo(int t);                                   // f11_04a2
+    void harmonyRiffs();                                        // f11_05e2 (+ f11_0790)
     // f27_01c4; also forgets a click or key f24_0666 has seen.
     void clearInput() {
         ArtechGame::clearInput();
@@ -197,6 +213,14 @@ private:
         uint8_t tempo = 0;                             // [1272]
         int song = 0;                                  // [8710]
     } band_;
+    // Harmony Hall.
+    std::vector<Widget> harmonyWidgets_;
+    std::array<Slider, 5> harmonySliders_{};           // DS:8BD8 (4 parts), 8C28 the tempo
+    struct HarmonyPlayer {
+        std::array<uint16_t, 4> parts{0x16D0, 0x16A0, 0x1640, 0x1670};  // [172C]: drums, rhythm, lead, bass
+        std::array<uint8_t, 4> volume{};               // DS:1608
+        int key = 0, chord = 0, style = 0;             // [17BC], [17BE], [66C2]
+    } harmony_;
     // The Music Library.
     std::vector<Widget> libraryWidgets_;
     Slider librarySlider_{};                           // DS:8BD8: the tempo
