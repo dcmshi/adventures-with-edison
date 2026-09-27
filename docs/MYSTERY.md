@@ -50,6 +50,24 @@ Menu events (`[91A4]`) jump between steps: 1/4 = show the high scores, 2 = `f08_
 
 ## The game (`f09_1dd8`) and map (segments 9–11)
 
+### `f09_1dd8`, the game loop
+
+- **Starting a new game** (`[B76B]` = 0), by level `[B46E]`:
+  - It sets the time limit `[9314]` (`0x708`, `0xE10` or more).
+  - It picks a mask of which of the 29 map squares are used and a mask of which of the 16 objects are hidden. The square table is `DS:931C`, 4 bytes per square: the puzzle, `?`, the object there (`FF` if none) and whether it's active.
+  - Each square's puzzle comes from a table in data segment 62 (selector `11E8`).
+  - It hides every object at a random active square (`f46_001d` is random(n)). Objects are `DS:C500 + 3k`: the museum 0–17, the square, and found.
+- **Each visit to the map:**
+  - The screen: backdrop `1003` with Edison's colours, then the map (`f09_08dc`), which draws each object's museum icon `2295+m` and a check `22A7` on found ones.
+  - The clock (`f09_0ab2`), the object list (`f09_15f8`) and six button panels (`DS:0D98`, `0E76`, `0CDE`, `0DC6`, `0CBA`, `0E9A`).
+  - Edison says the intro (`DS:1346`, sound `4012`), or "Great, you found…" or "You didn't find an object" after a puzzle, while he talks (`f09_0dc4`).
+  - A 1 Hz callback (`f09_0a7a`) counts `[9314]` down. At zero, `[C12E]` = 1 (out of time).
+  - The loop polls the panels. Entering a square sets `[0E74]`, which runs that square's puzzle (`f10_0708`) and then redraws the map. When no hidden object is left, `[C12E]` = 2 (won), and the end screens (segments 22–23) follow.
+- **Helpers:**
+  - `f09_0dc4(side, n)` animates Smitty or Edison talking on the map (`22B1`–`22B3`, `22B6`–`22B8`).
+  - `f09_0f8a` is the scrolling list of museums (`DS:1124`).
+  - `f09_0592` and `f09_0680` handle "quit this game?" and saving.
+
 - `f09_15f8`: "Okay, here are the objects."
 - `f11_*`: level select ("Please select difficulty level."), the custom-level editor ("Click on a game icon, then click on the map square…") and map confirmation.
 - `f06_*`: shared game UI: the timer display (`%d:%02d`), "Game Paused! Please, Press Space Bar to Continue", "< Press mouse/any key >", and WAVs by name.
@@ -91,7 +109,8 @@ Menu events (`[91A4]`) jump between steps: 1/4 = show the high scores, 2 = `f08_
   - UI colour matching (`f06_01f6`);
   - speech WAVs by id (`f06_2da8`).
 - **Title:** `f08_2284`, shown the first time only: bitmap `100E`, music `29`, for 10 s or until a click or key, then sound `4064`.
-- **Setup:** `setup.cpp` has the courtyard backdrop and the scene (`f08_06f8`), including the lip-synced "Cool!" part. Only part 0 runs so far; the name entry comes next.
+- **Setup:** the whole new-player flow runs: title, courtyard scene, name prompt, character changer (colours live), "Cool!", level pick, "Let's do it." and the run-off. Returning players (`.INF` files), the saved-game prompts and high scores aren't ported yet.
+- **Setup details:** `setup.cpp` has the courtyard backdrop and the scene (`f08_06f8`), including the lip-synced "Cool!" part. Only part 0 runs so far; the name entry comes next.
 - **Findings:**
   - The UI colour matcher reads its target colours (`DS:00BE`) as signed chars. Components above 127 therefore count as negative, and the "white" entries match dark palette colours. The port keeps this.
   - Speech: id - 0x4010 indexes the name table at `DS:0566`. The file is `<CD>\MYSTERY\<name>.wav`.
