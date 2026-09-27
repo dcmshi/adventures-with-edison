@@ -9,7 +9,7 @@ namespace edison {
 namespace {
 
 // Periodic timer slots (the library allows 10).
-enum Slot { kGameTick, kCountdowns, kIntro };
+enum Slot { kGameTick, kIntro };
 
 // Script, anim and sound ids used by the menu (SHELL.D01).
 constexpr uint16_t kMenuScreen = 0x1010, kStarfield = 0x1011;
@@ -81,7 +81,7 @@ void Launcher::opening() {
     while (!ctx_.platform.escapeHeld()) {
         ctx_.pump();
         if (ending) {
-            if (countdown_[0] == 0) break;
+            if (ctx_.countdown[0] == 0) break;
             continue;
         }
         if (!introFrameDue_) continue;
@@ -106,7 +106,7 @@ void Launcher::opening() {
         prev = frame++;
         if (frame >= introEntries_) {
             ending = true;
-            countdown_[0] = 0x16;  // 2.2 s
+            ctx_.countdown[0] = 0x16;  // 2.2 s
         }
     }
     ctx_.timer.setPeriodic(kIntro, 0, nullptr);
@@ -156,9 +156,9 @@ Launcher::Choice Launcher::menu() {
             if (ctx_.finished(0x5013)) {
                 ctx_.clearFinished(0x5013);
                 chime = true;
-                countdown_[0] = 0x10;
+                ctx_.countdown[0] = 0x10;
             }
-            if (chime && countdown_[0] == 0) {
+            if (chime && ctx_.countdown[0] == 0) {
                 ctx_.playWav(0x401C);
                 chime = false;
             }
@@ -214,8 +214,8 @@ Launcher::Choice Launcher::menu() {
         ctx_.playWav(p.wav);
         scripts_.start(p.script, 0);
     }
-    countdown_[0] = choice == 4 ? 5 : 0x14;
-    while (!ctx_.platform.escapeHeld() && countdown_[0] != 0) {
+    ctx_.countdown[0] = choice == 4 ? 5 : 0x14;
+    while (!ctx_.platform.escapeHeld() && ctx_.countdown[0] != 0) {
         ctx_.pump();
         runScripts(ev);
     }
@@ -227,11 +227,7 @@ Launcher::Choice Launcher::menu() {
 }
 
 Launcher::Choice Launcher::run() {
-    ctx_.timer.setPeriodic(kCountdowns, 10, [this] {
-        for (int& c : countdown_)
-            if (c > 0) --c;
-    });
-    ctx_.timer.reset(ctx_.platform.milliseconds());
+    ctx_.startTimer();
     if (!options_.skipOpening) opening();
     return menu();
 }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <map>
 #include <memory>
@@ -30,6 +31,12 @@ struct GameContext {
     Palette displayPalette{};
     // The library's game tick counter (DS:0000), advanced at 16 Hz.
     uint32_t gameTicks = 0;
+    // The library's five countdowns (EDISON DS:55EE, MALL DS:92B2),
+    // decremented at 10 Hz while above zero.
+    std::array<int, 5> countdown{};
+
+    // Starts the timer with the library's own callbacks (the countdowns).
+    void startTimer();
 
     // One pass of the main loop, where the original pumped Windows
     // messages: handles input, runs the timer, shows screen 1.

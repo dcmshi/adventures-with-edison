@@ -14,6 +14,9 @@ add_library(edison_core
     src/artech/anims.cpp
     src/artech/scripts.cpp
     src/launcher/launcher.cpp
+    src/mystery/mystery.cpp
+    src/mystery/ui.cpp
+    src/mystery/setup.cpp
 )
 target_include_directories(edison_core PUBLIC src)
 target_link_libraries(edison_core PUBLIC nuked_opl3)

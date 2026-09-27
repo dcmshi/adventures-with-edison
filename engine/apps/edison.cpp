@@ -3,6 +3,7 @@
 //   edison [CD DSK3 folder] [-O] [-A]
 //     -O  skip the opening (as the original's -O)
 //     -A  no FM music (as the original's -A)
+//     --game mystery   start Mystery at the Museums directly
 //   For testing without a person at the keyboard:
 //     --capture DIR MS    save the display to DIR/NNNNN.bmp every MS milliseconds
 //     --click T X Y       click at game coordinates X, Y at T milliseconds (repeatable)
@@ -26,6 +27,7 @@
 #include "audio/artech_fm_driver.h"
 #include "audio/fm_renderer.h"
 #include "launcher/launcher.h"
+#include "mystery/mystery.h"
 
 namespace {
 
@@ -42,6 +44,7 @@ struct Automation {
 class SdlPlatform : public edison::Platform {
 public:
     Automation automation;
+    std::string startGame;
 
     bool open(bool music, std::string* error) {
         music_ = music;
@@ -275,6 +278,7 @@ int main(int argc, char** argv) {
     edison::Launcher::Options options;
     options.cdDir = "original/cd/DSK3";
     Automation automation;
+    std::string startGame;
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
         if (a == "--capture" && i + 2 < argc) {
@@ -286,6 +290,8 @@ int main(int argc, char** argv) {
             automation.clicks.push_back({at, x, std::atoi(argv[++i])});
         } else if (a == "--quit-after" && i + 1 < argc) {
             automation.quitAfter = std::strtoull(argv[++i], nullptr, 10);
+        } else if (a == "--game" && i + 1 < argc) {
+            startGame = argv[++i];
         } else if (a == "-O" || a == "-o") options.skipOpening = true;
         else if (a == "-A" || a == "-a") options.music = false;
         else options.cdDir = a;
@@ -298,7 +304,23 @@ int main(int argc, char** argv) {
         std::fprintf(stderr, "%s\n", error.c_str());
         return 1;
     }
+    auto runMystery = [&]() -> bool {
+        edison::Mystery::Options mo;
+        mo.cdDir = options.cdDir;
+        mo.music = options.music;
+        auto game = std::make_unique<edison::Mystery>(*platform);
+        if (!game->load(mo, &error)) {
+            std::fprintf(stderr, "%s\n", error.c_str());
+            return false;
+        }
+        game->run();
+        return true;
+    };
     try {
+        if (startGame == "mystery") {
+            if (!runMystery()) return 1;
+            options.skipOpening = true;  // like "edison.exe -O" after a game
+        }
         for (;;) {
             auto launcher = std::make_unique<edison::Launcher>(*platform);
             if (!launcher->load(options, &error)) {
@@ -309,9 +331,13 @@ int main(int argc, char** argv) {
             }
             const auto choice = launcher->run();
             if (choice == edison::Launcher::kQuit) break;
-            static const char* const kNames[] = {"", "Rock and Bach Studio", "Wild Science Arcade",
-                                                 "Mystery at the Museums"};
-            std::printf("%s isn't ported yet; back to the menu.\n", kNames[choice]);
+            if (choice == edison::Launcher::kMystery) {
+                if (!runMystery()) return 1;
+            } else {
+                static const char* const kNames[] = {"", "Rock and Bach Studio", "Wild Science Arcade",
+                                                     "Mystery at the Museums"};
+                std::printf("%s isn't ported yet; back to the menu.\n", kNames[choice]);
+            }
             options.skipOpening = true;  // like coming back from a game
         }
     } catch (const edison::GameContext::Closed&) {

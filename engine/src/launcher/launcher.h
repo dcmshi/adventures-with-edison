@@ -44,7 +44,6 @@ private:
     std::array<int16_t, 4 * 112> introPath_{};  // DS:0150, {x, y, w, h} until x < 0
     int introEntries_ = 0;
 
-    std::array<int, 5> countdown_{};  // DS:55EE, decremented at 10 Hz
     bool introFrameDue_ = false;
 };
 

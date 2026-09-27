@@ -79,3 +79,20 @@ Menu events (`[91A4]`) jump between steps: 1/4 = show the high scores, 2 = `f08_
    - play WAVs by name from the CD.
 2. **Setup screens,** then the map and the game loop, with a placeholder for each puzzle (counted as won).
 3. **Puzzles, one at a time:** each is self-contained and can be tested on its own.
+
+## Port status (`engine/src/mystery`)
+
+- **Library:** the shared Artech library in `engine/src/artech` now has fonts, the timer and countdowns, and a per-game FM driver.
+- **UI helpers:** `ui.cpp` ports segment 6's helpers:
+  - clamped drawing that goes through screen 3 when drawing on the display;
+  - fills and text;
+  - saved and restored areas;
+  - the speech bubble (`f06_2494`);
+  - UI colour matching (`f06_01f6`);
+  - speech WAVs by id (`f06_2da8`).
+- **Setup:** `setup.cpp` has the courtyard backdrop and the scene (`f08_06f8`), including the lip-synced "Cool!" part. Only part 0 runs so far; the name entry comes next.
+- **Findings:**
+  - The UI colour matcher reads its target colours (`DS:00BE`) as signed chars. Components above 127 therefore count as negative, and the "white" entries match dark palette colours. The port keeps this.
+  - Speech: id - 0x4010 indexes the name table at `DS:0566`. The file is `<CD>\MYSTERY\<name>.wav`.
+  - Flags: `-A` turns music off (`[0054]`) and `-T` sets `[7399]`.
+- **Testing:** `edison --game mystery` starts the game directly. Leaving it returns to the launcher without the opening.

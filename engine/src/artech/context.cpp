@@ -41,6 +41,14 @@ const Font& GameContext::font(uint16_t id) {
     return *slot;
 }
 
+void GameContext::startTimer() {
+    timer.setPeriodic(Timer::kSlots - 1, 10, [this] {
+        for (int& c : countdown)
+            if (c > 0) --c;
+    });
+    timer.reset(platform.milliseconds());
+}
+
 void GameContext::pump() {
     if (!platform.pumpEvents()) throw Closed{};
     timer.advance(platform.milliseconds());
