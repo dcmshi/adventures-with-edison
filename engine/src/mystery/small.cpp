@@ -1,6 +1,7 @@
 // The smaller puzzles, each a segment of MALL.EXE on its own.
 
 #include <algorithm>
+#include <cstdio>
 #include <random>
 
 #include "mystery/mystery.h"
@@ -218,6 +219,272 @@ bool Mystery::circuitAnalyzer(int level) {
     const bool result = puzzleResult(won, points, mode, limit - timeLeft);
     fill(0, 0, Screen::kWidth, Screen::kHeight, 0);
     return result;
+}
+
+// --- 6: Codes (segment 20) -------------------------------------------------
+
+bool Mystery::codes(int level) {
+    // g20_1474. One of three code alphabets (26 pictures from 2177, 2191
+    // or 21AB) with its chart below. Level 0: a word in code; click a
+    // symbol, then the chart symbol it matches (25 points up or down).
+    // Higher levels: a phrase whose words have their letters mixed up,
+    // shown in code with the letters under; click two letters to swap
+    // them until the phrase reads right. Five minutes.
+    const bool decode = level == 0;  // [88B2]
+    static const uint16_t kAlphabet[3] = {0x21AB, 0x2191, 0x2177};
+    const uint16_t alphabet = kAlphabet[random(3)];  // [88AE]
+    const int limit = 300;
+    int timeLeft = limit;         // segment 66: 0x50
+    bool timeChanged = true;      // segment 66: 0x52
+    int points = 0;               // [88AC]
+    bool solved = false;          // [88AA]
+    bool quit = false;            // [91A2]
+    bool helpWanted = false;      // [B75A]
+    bool gizmo = false;           // [3AE4]
+    bool showLetters = false;     // [C134]
+    int picked = -1;              // [88A4]: the message symbol clicked
+    int chartPick = -1;           // [88B6]
+    int lastPicked = -1;          // [88A8] (the letter wanted, in decode mode)
+    int wantAt = -1;              // [88A6]
+    bool messagePicked = false;
+    int clicks = 0;               // [3D80]
+    bool fixed[40] = {};          // DS:B362: spaces, not clickable
+    bool done[40] = {};           // DS:C24C: decoded letters
+    std::string phrase, message;  // the answer, and segment 66:0x28
+    int left = 0;                 // [88B0]
+
+    const Font* normal = font_;
+    font_ = &ctx_.font(0x101);
+    auto slotX = [](int i) { return 0x48 + (i % 13) * 0x26; };
+    auto slotY = [](int i) { return 0x24 + (i / 13 == 0 ? 0 : (i / 13) * 0x2C + 0x10); };
+    auto shifted = [&](int x, int y, uint16_t id, int add) {  // f06_19fa at 1:1: colours shifted by `add`
+        const Bitmap& bmp = ctx_.bitmap(id);
+        drawVia3(x, y, bmp.width, bmp.height, [&](int s) {
+            Screen& scr = ctx_.screens[s];
+            for (int r = 0; r < bmp.height; ++r)
+                for (int c = 0; c < bmp.width; ++c) {
+                    const uint8_t p = bmp.at(c, r);
+                    const int px = x + c, py = y + r;
+                    if (p && px >= 0 && py >= 0 && px < Screen::kWidth && py < Screen::kHeight)
+                        scr.pixels[static_cast<size_t>(py) * Screen::kWidth + px] = static_cast<uint8_t>(p + add);
+                }
+        });
+    };
+    auto symbol = [&](int i, bool highlight, bool letter) {  // g20_07e8 / g20_06ee
+        if (i >= static_cast<int>(message.size()) || message[i] == ' ') return;
+        select(1);
+        const uint16_t id = static_cast<uint16_t>(alphabet + message[i] - 'A');
+        const int x = slotX(i), y = slotY(i);
+        if (highlight)
+            shifted(x, y, id, 3);
+        else
+            drawOpaque(x, y, id);
+        if (letter) text(x, y + ctx_.bitmap(id).height, std::string(1, message[i]), 0);
+    };
+    auto drawMessage = [&] {  // g20_08e8
+        for (int i = 0; i < static_cast<int>(message.size()); ++i) symbol(i, false, !decode || showLetters);
+    };
+    auto chart = [&] {  // g20_0a70
+        select(1);
+        for (int k = 0; k < 26; ++k) {
+            const int x = 0x48 + (k % 13) * 0x26, y = k < 13 ? 0xDA : 0x116;
+            drawOpaque(x, y, static_cast<uint16_t>(alphabet + k));
+            text(x, y + ctx_.bitmap(static_cast<uint16_t>(alphabet + k % 13)).height,
+                 std::string(1, static_cast<char>('A' + k)), 0);
+        }
+    };
+    auto box = [&](int x, const std::string& s) {  // g20_0000 / g20_00c0
+        select(2);
+        fill(x, 0x163, 0x2A, 0x10, 0);
+        text((0x2A - font_->width(s)) / 2 + x, (0x10 - font_->height()) / 2 + 0x163, s, 0xFF);
+        copyArea(2, 1, x, 0x163, 0x2A, 0x10);
+        select(1);
+    };
+    auto score = [&] { box(0xFB, std::to_string(points)); };
+    auto clock = [&] {
+        char s[16];
+        std::snprintf(s, sizeof s, "%d:%02d", timeLeft / 60, timeLeft % 60);
+        box(0x1A9, s);
+    };
+    auto verdict = [&](bool right) {  // g20_0d02
+        const std::string s = dataString(dataWord(right ? 0x3D68 : 0x3D7E));
+        const int fh = font_->height(), x = (Screen::kWidth - font_->width(s)) / 2;
+        text(x, fh, s, 0);
+        waitCountdown(10);
+        copyArea(2, 1, x, fh, font_->width(s), fh);
+    };
+
+    // g20_0bdc: the buttons.
+    panels_.clear();
+    Panels::Panel exit;  // f06_23d8
+    exit.x = 0x208, exit.y = 0x156, exit.w = 0x50, exit.h = 0x2A;
+    exit.buttons = {{0, 0, 0x50, 0x2A}};
+    exit.onPress = [&](int k) {
+        if (k >= 0) quit = true;
+    };
+    panels_.add(exit);
+    Panels::Panel helpButton;  // f06_2436
+    helpButton.x = 0x28, helpButton.y = 0x156, helpButton.w = 0x50, helpButton.h = 0x2A;
+    helpButton.buttons = {{0, 0, 0x50, 0x2A}};
+    helpButton.onPress = [&](int k) {
+        if (k >= 0) helpWanted = true;
+    };
+    panels_.add(helpButton);
+    Panels::Panel words;  // DS:3AA8
+    words.x = 0x48, words.y = 0x24, words.w = 0x1EE, words.h = 0xA8;
+    for (int i = 0; i < 39; ++i) words.buttons.push_back({slotX(i) - 0x48, slotY(i) - 0x24, 0x26, 0x2C});
+    words.onPress = [&](int i) {  // g20_0976
+        if (i >= 0 && !fixed[i]) picked = i;
+    };
+    panels_.add(words);
+    if (decode) {
+        Panels::Panel letters;  // DS:3AC2
+        letters.x = 0x48, letters.y = 0xDA, letters.w = 0x1EE, letters.h = 0x1EE;
+        for (int k = 0; k < 26; ++k) letters.buttons.push_back({(k % 13) * 0x26, k < 13 ? 0 : 0x3C, 0x26, 0x2C});
+        letters.onPress = [&](int k) {  // g20_09bc
+            if (k >= 0) chartPick = k;
+        };
+        panels_.add(letters);
+    }
+    Panels::Panel gadget;  // DS:3AE6
+    gadget.x = 0x24E, gadget.y = 0x52, gadget.w = 0x32, gadget.h = 0x72;
+    gadget.buttons = {{0, 0, 0x32, 0x72}};
+    gadget.onPress = [&](int k) {  // g20_0190
+        if (k >= 0 && !gizmo) {
+            music(0x12);
+            gizmo = true;
+        }
+    };
+    panels_.add(gadget);
+    clearInput();
+    ctx_.timer.setPeriodic(kSecondSlot, 1, [&] {  // g20_09e8
+        if (timeLeft > 0) --timeLeft;
+        timeChanged = true;
+    });
+
+    // g20_0e00
+    ctx_.blackout();
+    ctx_.showFullScreen(0x1005, 2);
+    select(2);
+    drawLogo(0x24E, 0x52, 0x2206);
+    select(1);
+    show(2);
+    computeUiColours();
+    chart();
+    if (!decode) {
+        // g20_04bc: the phrase, each word's letters mixed (as many random
+        // swaps as half its length).
+        phrase = dataString(dataWord(static_cast<uint16_t>(0x39B6 + 4 * random(10))));
+        message.clear();
+        for (size_t at = 0; at < phrase.size();) {
+            std::string word;
+            while (at < phrase.size() && phrase[at] != ' ') word += phrase[at++];
+            const int n = static_cast<int>(word.size());
+            for (int k = 0; k < n / 2; ++k) std::swap(word[random(n)], word[random(n)]);
+            message += word;
+            while (at < phrase.size() && phrase[at] == ' ') message += phrase[at++];
+        }
+        for (int i = 0; i < 39; ++i) fixed[i] = i >= static_cast<int>(message.size()) || message[i] == ' ';
+    } else {
+        phrase = message = dataString(dataWord(static_cast<uint16_t>(0x3A64 + 4 * random(17))));  // g20_0434
+        left = static_cast<int>(message.size());
+    }
+    drawMessage();
+    score();
+    while (!quit && !solved) {
+        panels_.poll(ctx_.platform);
+        ctx_.pump();
+        if (!decode) {
+            if (picked >= 0) {
+                symbol(picked, true, true);
+                if (++clicks > 1 && picked != lastPicked) {
+                    clicks = 0;
+                    if (lastPicked >= 0) std::swap(message[picked], message[lastPicked]);
+                    copyArea(2, 1, 0x48, 0x24, 0x1EE, 0xA8);
+                    drawMessage();
+                }
+                lastPicked = picked;
+                if (message == phrase) solved = true;
+                picked = -1;
+            }
+        } else {
+            if (picked >= 0) {
+                for (int i = 0; i < static_cast<int>(message.size()); ++i) symbol(i, i == picked, done[i]);
+                lastPicked = message[picked] - 'A';
+                wantAt = picked;
+                messagePicked = true;
+            }
+            if (chartPick >= 0 && messagePicked) {
+                chart();
+                shifted(0x48 + (chartPick % 13) * 0x26, chartPick < 13 ? 0xDA : 0x116,
+                        static_cast<uint16_t>(alphabet + chartPick), 3);
+                if (chartPick == lastPicked) {
+                    points += 0x19;
+                    verdict(true);
+                    // (The original counts a letter again if it is decoded
+                    // twice; kept.)
+                    if (--left == 0) solved = true;
+                    done[wantAt] = true;
+                } else {
+                    points -= 0x19;
+                    verdict(false);
+                }
+                score();
+                copyArea(2, 1, 0x48, 0x24, 0x1EE, 0x2C);
+                for (int i = 0; i < static_cast<int>(message.size()); ++i) symbol(i, false, done[i]);
+                chart();
+                messagePicked = false;
+            }
+            picked = chartPick = -1;
+        }
+        if (gizmo) {  // g20_01c8
+            for (int f = 1; f <= 0x14; ++f) {
+                drawOpaque(0x24E, 0x52, static_cast<uint16_t>(0x2206 + (f == 0x14 ? 0 : f)));
+                waitCountdown(2);
+            }
+            gizmo = false;
+        }
+        if (timeChanged) {
+            timeChanged = false;
+            clock();
+        }
+        if (helpWanted || helpPressed_) {
+            helpWanted = helpPressed_ = false;
+            shifted(0x28, 0x156, 0x2176, 0x14);
+            messageBox(dataLines(decode ? 0x3C40 : 0x3D42));
+            drawLogo(0x28, 0x156, 0x2176);
+        }
+        if (quit) shifted(0x208, 0x156, 0x2175, 0x14);
+    }
+    ctx_.timer.setPeriodic(kSecondSlot, 0, nullptr);
+    bool won = false;
+    if (solved) {
+        // Every second left is worth 2 points (6 in the unscramble mode).
+        const int used = limit - timeLeft;
+        while (timeLeft > 0) {
+            --timeLeft;
+            clock();
+            points += decode ? 2 : 6;
+            score();
+        }
+        clock();
+        waitCountdown(4);
+        font_ = normal;
+        panels_.clear();
+        won = puzzleResult(true, points, 0, used);
+    } else {
+        // The answer is shown.
+        message = phrase;
+        copyArea(2, 1, 0x48, 0x24, 0x1EE, 0xA8);
+        showLetters = true;
+        drawMessage();
+        font_ = normal;
+        panels_.clear();
+        puzzleResult(false, 0, 0, 0);
+    }
+    font_ = normal;
+    clearInput();
+    return won;
 }
 
 // --- 3: Binary Lights (segment 17) ---------------------------------------

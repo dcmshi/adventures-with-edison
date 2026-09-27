@@ -134,6 +134,7 @@ private:
     // --- the smaller puzzles (small.cpp) ---
     bool circuitAnalyzer(int level);                            // g16_089c
     bool binaryLights(int level);                               // g17_1256
+    bool codes(int level);                                      // g20_1474
     // The part of the picture puzzles' main loops they share; `help` is
     // the help text. Returns the result from puzzleResult.
     bool pictureLoop(uint16_t help);
