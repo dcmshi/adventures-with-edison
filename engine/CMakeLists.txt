@@ -4,6 +4,14 @@ add_library(edison_core
     src/audio/artech_fm_driver.cpp
     src/audio/opl_synth.cpp
     src/audio/fm_renderer.cpp
+    src/formats/dcl.cpp
+    src/formats/archive.cpp
+    src/formats/bitmap.cpp
+    src/shell/screens.cpp
+    src/shell/shell_context.cpp
+    src/shell/anims.cpp
+    src/shell/scripts.cpp
+    src/shell/launcher.cpp
 )
 target_include_directories(edison_core PUBLIC src)
 target_link_libraries(edison_core PUBLIC nuked_opl3)
@@ -27,3 +35,14 @@ add_test(NAME sequencer_matches_differential_cases
 add_executable(fmplay apps/fmplay.cpp)
 target_link_libraries(fmplay PRIVATE edison_core SDL3::SDL3)
 target_compile_options(fmplay PRIVATE ${EDISON_WARNINGS})
+
+# Unpacks every archive entry and decodes every bitmap on the CD.
+add_executable(formattest tests/formattest.cpp)
+target_link_libraries(formattest PRIVATE edison_core)
+target_compile_options(formattest PRIVATE ${EDISON_WARNINGS})
+add_test(NAME archives_decode COMMAND formattest ${PROJECT_SOURCE_DIR}/original/cd/DSK3)
+
+# The native launcher (EDISON.EXE's opening and menu).
+add_executable(edison apps/edison.cpp)
+target_link_libraries(edison PRIVATE edison_core SDL3::SDL3)
+target_compile_options(edison PRIVATE ${EDISON_WARNINGS})

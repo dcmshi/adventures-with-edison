@@ -1,0 +1,275 @@
+// edison: the native Adventures with Edison launcher.
+//
+//   edison [CD DSK3 folder] [-O] [-A]
+//     -O  skip the opening (as the original's -O)
+//     -A  no FM music (as the original's -A)
+//   For testing without a person at the keyboard:
+//     --capture DIR MS    save the display to DIR/NNNNN.bmp every MS milliseconds
+//     --click T X Y       click at game coordinates X, Y at T milliseconds (repeatable)
+//     --quit-after MS     close after MS milliseconds
+//
+// The folder defaults to original/cd/DSK3 (needs EDISON.EXE, SHELL.D01 and
+// CADLIB.DLL from the CD). The games themselves aren't ported yet, so
+// picking one returns to the menu.
+
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_main.h>
+
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <vector>
+
+#include "audio/artech_fm_driver.h"
+#include "audio/fm_renderer.h"
+#include "shell/launcher.h"
+
+namespace {
+
+constexpr int kSampleRate = 48000;
+
+struct Automation {
+    std::string captureDir;
+    uint64_t captureEvery = 0;
+    struct Click { uint64_t at; int x, y; };
+    std::vector<Click> clicks;
+    uint64_t quitAfter = 0;
+};
+
+class SdlPlatform : public edison::Platform {
+public:
+    Automation automation;
+
+    bool open(const std::string& cdDir, bool music, std::string* error) {
+        if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO)) return fail(error, "SDL_Init");
+        if (!SDL_CreateWindowAndRenderer("Adventures with Edison", 1280, 800, SDL_WINDOW_RESIZABLE,
+                                         &window_, &renderer_))
+            return fail(error, "SDL_CreateWindowAndRenderer");
+        SDL_SetRenderLogicalPresentation(renderer_, edison::Screen::kWidth, edison::Screen::kHeight,
+                                         SDL_LOGICAL_PRESENTATION_LETTERBOX);
+        SDL_SetRenderVSync(renderer_, 1);
+        texture_ = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_XRGB8888, SDL_TEXTUREACCESS_STREAMING,
+                                     edison::Screen::kWidth, edison::Screen::kHeight);
+        if (!texture_) return fail(error, "SDL_CreateTexture");
+        SDL_SetTextureScaleMode(texture_, SDL_SCALEMODE_NEAREST);
+
+        device_ = SDL_OpenAudioDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, nullptr);
+        if (!device_) {
+            std::fprintf(stderr, "no audio: %s\n", SDL_GetError());
+            return true;
+        }
+        const SDL_AudioSpec fmSpec{SDL_AUDIO_S16, 2, kSampleRate};
+        if (music) {
+            driver_ = std::make_unique<edison::ArtechFmDriver>();
+            std::string driverError;
+            if (driver_->loadDll(cdDir + "/CADLIB.DLL", &driverError)) {
+                driver_->init();
+                renderer16_ = std::make_unique<edison::FmRenderer>(*driver_, kSampleRate);
+                fmStream_ = SDL_CreateAudioStream(&fmSpec, nullptr);
+                SDL_SetAudioStreamGetCallback(fmStream_, &SdlPlatform::fmCallback, this);
+                SDL_BindAudioStream(device_, fmStream_);
+            } else {
+                std::fprintf(stderr, "no FM music: %s\n", driverError.c_str());
+                driver_.reset();
+            }
+        }
+        start_ = SDL_GetTicks();
+        return true;
+    }
+
+    ~SdlPlatform() override {
+        if (fmStream_) SDL_DestroyAudioStream(fmStream_);
+        if (wavStream_) SDL_DestroyAudioStream(wavStream_);
+        if (device_) SDL_CloseAudioDevice(device_);
+        if (texture_) SDL_DestroyTexture(texture_);
+        if (renderer_) SDL_DestroyRenderer(renderer_);
+        if (window_) SDL_DestroyWindow(window_);
+        SDL_Quit();
+    }
+
+    bool pumpEvents() override {
+        const uint64_t now = milliseconds();
+        if (automation.quitAfter && now >= automation.quitAfter) return false;
+        for (auto& c : automation.clicks)
+            if (c.at && now >= c.at) {
+                clicked_ = true;
+                clickX_ = c.x;
+                clickY_ = c.y;
+                c.at = 0;
+            }
+        SDL_Event e;
+        while (SDL_PollEvent(&e)) {
+            if (e.type == SDL_EVENT_QUIT) return false;
+            if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN && e.button.button == SDL_BUTTON_LEFT) {
+                SDL_ConvertEventToRenderCoordinates(renderer_, &e);
+                clicked_ = true;
+                clickX_ = static_cast<int>(e.button.x);
+                clickY_ = static_cast<int>(e.button.y);
+            }
+        }
+        return true;
+    }
+
+    uint64_t milliseconds() override { return SDL_GetTicks() - start_; }
+
+    void present(const edison::Screen& screen, const edison::Palette& palette) override {
+        void* pixels;
+        int pitch;
+        if (SDL_LockTexture(texture_, nullptr, &pixels, &pitch)) {
+            uint32_t lut[256];
+            for (int i = 0; i < 256; ++i)
+                lut[i] = 0xFF000000u | palette[i].r << 16 | palette[i].g << 8 | palette[i].b;
+            for (int y = 0; y < edison::Screen::kHeight; ++y) {
+                auto* row = reinterpret_cast<uint32_t*>(static_cast<uint8_t*>(pixels) + y * pitch);
+                const uint8_t* src = &screen.pixels[static_cast<size_t>(y) * edison::Screen::kWidth];
+                for (int x = 0; x < edison::Screen::kWidth; ++x) row[x] = lut[src[x]];
+            }
+            SDL_UnlockTexture(texture_);
+        }
+        capture(screen, palette);
+        SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
+        SDL_RenderClear(renderer_);
+        SDL_RenderTexture(renderer_, texture_, nullptr, nullptr);
+        SDL_RenderPresent(renderer_);
+    }
+
+    bool takeClick(int* x, int* y) override {
+        if (!clicked_) return false;
+        clicked_ = false;
+        *x = clickX_;
+        *y = clickY_;
+        return true;
+    }
+
+    bool escapeHeld() override { return SDL_GetKeyboardState(nullptr)[SDL_SCANCODE_ESCAPE]; }
+
+    void playWav(const std::vector<uint8_t>& wav) override {
+        if (!device_) return;
+        SDL_AudioSpec spec;
+        Uint8* data = nullptr;
+        Uint32 length = 0;
+        if (!SDL_LoadWAV_IO(SDL_IOFromConstMem(wav.data(), wav.size()), true, &spec, &data, &length)) {
+            std::fprintf(stderr, "bad WAV: %s\n", SDL_GetError());
+            return;
+        }
+        if (!wavStream_) {
+            wavStream_ = SDL_CreateAudioStream(&spec, nullptr);
+            SDL_BindAudioStream(device_, wavStream_);
+        }
+        // One sample at a time, like the original's waveOut: a new one cuts the last.
+        SDL_ClearAudioStream(wavStream_);
+        SDL_SetAudioStreamFormat(wavStream_, &spec, nullptr);
+        SDL_PutAudioStreamData(wavStream_, data, static_cast<int>(length));
+        SDL_free(data);
+    }
+
+    void sendFm(uint16_t sound) override {
+        if (!driver_) return;
+        std::lock_guard<std::mutex> lock(fmMutex_);
+        driver_->sendSound(sound);
+    }
+
+private:
+    void capture(const edison::Screen& screen, const edison::Palette& palette) {
+        if (automation.captureDir.empty() || milliseconds() < nextCapture_) return;
+        nextCapture_ = milliseconds() + automation.captureEvery;
+        SDL_Surface* s = SDL_CreateSurfaceFrom(edison::Screen::kWidth, edison::Screen::kHeight,
+                                               SDL_PIXELFORMAT_INDEX8,
+                                               const_cast<uint8_t*>(screen.pixels.data()),
+                                               edison::Screen::kWidth);
+        if (!s) return;
+        SDL_Palette* pal = SDL_CreateSurfacePalette(s);
+        SDL_Color colours[256];
+        for (int i = 0; i < 256; ++i) colours[i] = {palette[i].r, palette[i].g, palette[i].b, 255};
+        SDL_SetPaletteColors(pal, colours, 0, 256);
+        char name[64];
+        std::snprintf(name, sizeof name, "/%05llu.bmp", static_cast<unsigned long long>(milliseconds()));
+        SDL_SaveBMP(s, (automation.captureDir + name).c_str());
+        SDL_DestroySurface(s);
+    }
+
+    static void SDLCALL fmCallback(void* self, SDL_AudioStream* stream, int additional, int) {
+        auto* p = static_cast<SdlPlatform*>(self);
+        const int frames = additional / 4;
+        if (frames <= 0) return;
+        p->fmBuffer_.resize(static_cast<size_t>(frames) * 2);
+        {
+            std::lock_guard<std::mutex> lock(p->fmMutex_);
+            p->renderer16_->render(p->fmBuffer_.data(), static_cast<uint32_t>(frames));
+        }
+        SDL_PutAudioStreamData(stream, p->fmBuffer_.data(), frames * 4);
+    }
+
+    bool fail(std::string* error, const char* what) {
+        if (error) *error = std::string(what) + ": " + SDL_GetError();
+        return false;
+    }
+
+    SDL_Window* window_ = nullptr;
+    SDL_Renderer* renderer_ = nullptr;
+    SDL_Texture* texture_ = nullptr;
+    SDL_AudioDeviceID device_ = 0;
+    SDL_AudioStream* fmStream_ = nullptr;
+    SDL_AudioStream* wavStream_ = nullptr;
+    std::unique_ptr<edison::ArtechFmDriver> driver_;
+    std::unique_ptr<edison::FmRenderer> renderer16_;
+    std::mutex fmMutex_;
+    std::vector<int16_t> fmBuffer_;
+    uint64_t start_ = 0;
+    uint64_t nextCapture_ = 0;
+    bool clicked_ = false;
+    int clickX_ = 0, clickY_ = 0;
+};
+
+}  // namespace
+
+int main(int argc, char** argv) {
+    edison::Launcher::Options options;
+    options.cdDir = "original/cd/DSK3";
+    Automation automation;
+    for (int i = 1; i < argc; ++i) {
+        const std::string a = argv[i];
+        if (a == "--capture" && i + 2 < argc) {
+            automation.captureDir = argv[++i];
+            automation.captureEvery = std::strtoull(argv[++i], nullptr, 10);
+        } else if (a == "--click" && i + 3 < argc) {
+            const uint64_t at = std::strtoull(argv[++i], nullptr, 10);
+            const int x = std::atoi(argv[++i]);
+            automation.clicks.push_back({at, x, std::atoi(argv[++i])});
+        } else if (a == "--quit-after" && i + 1 < argc) {
+            automation.quitAfter = std::strtoull(argv[++i], nullptr, 10);
+        } else if (a == "-O" || a == "-o") options.skipOpening = true;
+        else if (a == "-A" || a == "-a") options.music = false;
+        else options.cdDir = a;
+    }
+
+    auto platform = std::make_unique<SdlPlatform>();
+    platform->automation = automation;
+    std::string error;
+    if (!platform->open(options.cdDir, options.music, &error)) {
+        std::fprintf(stderr, "%s\n", error.c_str());
+        return 1;
+    }
+    try {
+        for (;;) {
+            auto launcher = std::make_unique<edison::Launcher>(*platform);
+            if (!launcher->load(options, &error)) {
+                std::fprintf(stderr, "%s\n", error.c_str());
+                if (!automation.quitAfter)
+                    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Adventures with Edison", error.c_str(), nullptr);
+                return 1;
+            }
+            const auto choice = launcher->run();
+            if (choice == edison::Launcher::kQuit) break;
+            static const char* const kNames[] = {"", "Rock and Bach Studio", "Wild Science Arcade",
+                                                 "Mystery at the Museums"};
+            std::printf("%s isn't ported yet; back to the menu.\n", kNames[choice]);
+            options.skipOpening = true;  // like coming back from a game
+        }
+    } catch (const edison::Launcher::Closed&) {
+    }
+    return 0;
+}

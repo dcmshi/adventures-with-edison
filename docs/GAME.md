@@ -82,3 +82,20 @@ loop. Decompiler: `tools/scripts.py`.
 - **Usage:** the shipped scripts (all 20 in SHELL) only sequence
   animations: `STARTANIM`, `STOPANIM`, `KILLSCRIPT`. The menu logic itself
   is C code.
+
+### Native port (`engine/src/shell`, `apps/edison.cpp`)
+
+The launcher is ported:
+- `Launcher::opening` is `f05_0034` and `Launcher::menu` is `f04_0172`.
+- `Anims` is segment 8 and `Scripts` is segments 6–7.
+- The library timer is emulated as a 13 ms tick feeding callbacks by rate:
+  the game tick runs at 16 Hz, countdowns at 10 Hz, and the opening's frames at 16 Hz.
+
+**Findings used by the port:**
+- **Transparency:** logos and anim frames use colour 0 as transparent.
+- **Screens:** screen 3 is the backdrop, 2 is for composition and 1 is the display.
+- **Display palette:** the screen's own palette, with entries 0 and 255 forced to black and white.
+- **Opening:** 111 sprites (`0x2300 + i`) move along a path stored at `EDISON.EXE DS:0150` as `{x, y, w, h}`. The port reads the path from the EXE at run time.
+- **Menu buttons (`f04_0024`):** clicks within y 0x41–0x8C select a game by x: 0x28–0xAA, 0xF0–0x172 or 0x1D6–0x258. EXIT is x 0x228–0x268, y 0x15B–0x186.
+- **Original bug:** the opening's first step copies a 16x16 box at the last mouse position. With a windowed game and the cursor elsewhere, that fails with `copy_area(...): Invalid xPos` (seen under winevdm), so the port skips it.
+- **Automated checks:** `edison --capture DIR MS --click T X Y --quit-after MS` runs without anyone at the keyboard and saves frames.

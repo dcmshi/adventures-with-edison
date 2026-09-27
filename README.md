@@ -31,6 +31,14 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ```
 
+### Launcher
+
+`edison` is the native version of EDISON.EXE: the opening and the main menu, with FM music and sound effects. The games themselves aren't ported yet, so picking one returns to the menu.
+
+```sh
+build/engine/edison original/cd/DSK3        # -O skips the opening, -A turns FM music off
+```
+
 ### Music player
 
 `fmplay` plays the game's FM music and sound effects straight from its DLLs,
