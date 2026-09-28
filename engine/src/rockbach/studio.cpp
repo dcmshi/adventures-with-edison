@@ -74,54 +74,54 @@ void RockBach::setVstring(uint16_t at, const std::string& s) {
 void RockBach::videoBlank(bool keepProducer) {
     // f33_0144: no band, no song, no scenes; the names 19 spaces (the
     // producer's kept if asked).
-    vbyte(0x6754) = 1;
-    vbyte(0x69BB) = vbyte(0x69BC) = vbyte(0x69BD) = 0;
-    setVword(0x6799, 0xF0);
+    vbyte(kVersion) = 1;
+    vbyte(kVideoNamed) = vbyte(kSongNamed) = vbyte(kBandNamed) = 0;
+    setVword(kTempo, 0xF0);
     for (int m = 0; m < 4; ++m) {
-        vbyte(static_cast<uint16_t>(0x6755 + m)) = 0xFF;
-        setVword(static_cast<uint16_t>(0x693B + 4 * m), 0);
-        setVword(static_cast<uint16_t>(0x693D + 4 * m), 0);
+        vbyte(static_cast<uint16_t>(kMembers + m)) = 0xFF;
+        setVword(static_cast<uint16_t>(kCamPlaces + 4 * m), 0);
+        setVword(static_cast<uint16_t>(kCamPlaces + 2 + 4 * m), 0);
     }
     for (int i = 0; i < 16; ++i) {
-        setVword(static_cast<uint16_t>(0x6759 + 4 * i), -1);
-        setVword(static_cast<uint16_t>(0x675B + 4 * i), -1);
-        vbyte(static_cast<uint16_t>(0x679B + i)) = 1;
-        for (int k = 0; k < 4; ++k) setVword(static_cast<uint16_t>(0x67AB + 8 * i + 2 * k), -1);
-        setVword(static_cast<uint16_t>(0x682B + 2 * i), -1);
-        vbyte(static_cast<uint16_t>(0x684B + i)) = 1;
-        for (int k = 0; k < 4; ++k) setVword(static_cast<uint16_t>(0x685B + 8 * i + 2 * k), -1);
-        setVword(static_cast<uint16_t>(0x68DB + 2 * i), -1);
-        vbyte(static_cast<uint16_t>(0x68FB + i)) = 1;
-        setVword(static_cast<uint16_t>(0x691B + 2 * i), 0);
-        setVword(static_cast<uint16_t>(0x694B + 2 * i), -1);
-        vbyte(static_cast<uint16_t>(0x690B + i)) = 0;
+        setVword(static_cast<uint16_t>(kSong + 4 * i), -1);
+        setVword(static_cast<uint16_t>(kSong + 2 + 4 * i), -1);
+        vbyte(static_cast<uint16_t>(kBgTurns + i)) = 1;
+        for (int k = 0; k < 4; ++k) setVword(static_cast<uint16_t>(kBgColours + 8 * i + 2 * k), -1);
+        setVword(static_cast<uint16_t>(kBackground + 2 * i), -1);
+        vbyte(static_cast<uint16_t>(kFxTurns + i)) = 1;
+        for (int k = 0; k < 4; ++k) setVword(static_cast<uint16_t>(kFxColours + 8 * i + 2 * k), -1);
+        setVword(static_cast<uint16_t>(kEffect + 2 * i), -1);
+        vbyte(static_cast<uint16_t>(kCamPlays + i)) = 1;
+        setVword(static_cast<uint16_t>(kCamMotion + 2 * i), 0);
+        setVword(static_cast<uint16_t>(kCamera + 2 * i), -1);
+        vbyte(static_cast<uint16_t>(kCamColours + i)) = 0;
     }
     for (int i = 0; i < 19; ++i) {
-        vbyte(static_cast<uint16_t>(0x696B + i)) = vbyte(static_cast<uint16_t>(0x697F + i)) =
-            vbyte(static_cast<uint16_t>(0x6993 + i)) = ' ';
-        if (!keepProducer) vbyte(static_cast<uint16_t>(0x69A7 + i)) = ' ';
+        vbyte(static_cast<uint16_t>(kVideoName + i)) = vbyte(static_cast<uint16_t>(kSongName + i)) =
+            vbyte(static_cast<uint16_t>(kBandName + i)) = ' ';
+        if (!keepProducer) vbyte(static_cast<uint16_t>(kProducer + i)) = ' ';
     }
-    vbyte(0x697E) = vbyte(0x6992) = vbyte(0x69A6) = 0;
-    if (!keepProducer) vbyte(0x69BA) = 0;
+    vbyte(static_cast<uint16_t>(kVideoName + 19)) = vbyte(static_cast<uint16_t>(kSongName + 19)) = vbyte(static_cast<uint16_t>(kBandName + 19)) = 0;
+    if (!keepProducer) vbyte(static_cast<uint16_t>(kProducer + 19)) = 0;
 }
 
 void RockBach::videoNew() {
     // f04_107c: everything FF, then the flags, empty names, the player as
     // the producer.
     video_.fill(0xFF);
-    vbyte(0x6754) = 1;
-    setVword(0x6799, 0xF0);
+    vbyte(kVersion) = 1;
+    setVword(kTempo, 0xF0);
     for (int i = 0; i < 16; ++i) {
-        vbyte(static_cast<uint16_t>(0x679B + i)) = vbyte(static_cast<uint16_t>(0x684B + i)) =
-            vbyte(static_cast<uint16_t>(0x68FB + i)) = 1;
-        vbyte(static_cast<uint16_t>(0x690B + i)) = vbyte(static_cast<uint16_t>(0x693B + i)) = 0;
-        setVword(static_cast<uint16_t>(0x691B + 2 * i), 0);
+        vbyte(static_cast<uint16_t>(kBgTurns + i)) = vbyte(static_cast<uint16_t>(kFxTurns + i)) =
+            vbyte(static_cast<uint16_t>(kCamPlays + i)) = 1;
+        vbyte(static_cast<uint16_t>(kCamColours + i)) = vbyte(static_cast<uint16_t>(kCamPlaces + i)) = 0;
+        setVword(static_cast<uint16_t>(kCamMotion + 2 * i), 0);
     }
-    setVstring(0x696B, "");
-    setVstring(0x697F, "");
-    setVstring(0x6993, "");
-    setVstring(0x69A7, name_);
-    vbyte(0x69BB) = vbyte(0x69BC) = vbyte(0x69BD) = 0;
+    setVstring(kVideoName, "");
+    setVstring(kSongName, "");
+    setVstring(kBandName, "");
+    setVstring(kProducer, name_);
+    vbyte(kVideoNamed) = vbyte(kSongNamed) = vbyte(kBandNamed) = 0;
 }
 
 bool RockBach::videoLoad() {
@@ -340,7 +340,7 @@ void RockBach::edisonSays(int* area, const std::string& text, bool ask, int whic
             my = ny;
         }
     } else {
-        static const uint16_t kFields[3] = {0x697F, 0x6993, 0x696B};  // the song, the band, the video
+        static const uint16_t kFields[3] = {kSongName, kBandName, kVideoName};  // the song, the band, the video
         if (which >= 0 && which < 3) askName(kFields[which]);
     }
     select(2);
@@ -425,7 +425,7 @@ int RockBach::bandMaker() {
     // group) and asks for a name the first time.
     static const int kSolo[28] = {0, 1, 0, 1, 11, 1, 2, 3, 4, 5, 6, 7, 6, 7, 8, 9, 8, 9, 8, 9, 10, 2, 10, 2, 11, 1, 0, 1};
     std::vector<Widget>& w = studioWidgets_;
-    auto member = [this](int g) { return static_cast<int8_t>(vbyte(static_cast<uint16_t>(0x6755 + g))); };
+    auto member = [this](int g) { return static_cast<int8_t>(vbyte(static_cast<uint16_t>(kMembers + g))); };
     auto face = [this](int m) { return static_cast<uint16_t>(0x200E + data_[0x4E + m]); };
     auto memberName = [this](int m) { return dataString(static_cast<uint16_t>(0x194C + m * 11)); };
     blackout();
@@ -441,7 +441,7 @@ int RockBach::bandMaker() {
         w[38 + g].overlayUp = w[38 + g].overlayDown = face(m);
         w[42 + g].label = memberName(m);
     }
-    w[46].label = vstring(0x6993);
+    w[46].label = vstring(kBandName);
     initWidgets(w, {0xFB, 0xFC, 0xFD, 0xFE});
     select(1);
     copyArea(2, 1, 0, 0, Screen::kWidth, Screen::kHeight);
@@ -464,18 +464,18 @@ int RockBach::bandMaker() {
             bool empty = false;
             for (int g = 0; g < 4; ++g) empty |= member(g) < 0;
             if (empty)
-                for (int g = 0; g < 4; ++g) vbyte(static_cast<uint16_t>(0x6755 + g)) = static_cast<uint8_t>(g * 9);
+                for (int g = 0; g < 4; ++g) vbyte(static_cast<uint16_t>(kMembers + g)) = static_cast<uint8_t>(g * 9);
             done = true;
-            if (!vbyte(0x69BD)) {
-                vbyte(0x69BD) = 1;
+            if (!vbyte(kBandNamed)) {
+                vbyte(kBandNamed) = 1;
                 sound(0x6023);
                 edisonSays(&prompt, dataString(0x1B5B), true, 1);
-                if (vstring(0x6993).empty()) setVstring(0x6993, dataString(0x1BE0));
+                if (vstring(kBandName).empty()) setVstring(kBandName, dataString(0x1BE0));
             }
         }
         if (r >= 1 && r <= 36) {
             const int g = (r - 1) / 9;
-            vbyte(static_cast<uint16_t>(0x6755 + g)) = static_cast<uint8_t>(r - 1);
+            vbyte(static_cast<uint16_t>(kMembers + g)) = static_cast<uint8_t>(r - 1);
             w[38 + g].overlayUp = w[38 + g].overlayDown = face(r - 1);
             drawWidget(w[38 + g], w[38 + g].flags & Widget::kPressed);
             w[42 + g].label = memberName(r - 1);
@@ -488,14 +488,14 @@ int RockBach::bandMaker() {
             ctx_.timer.setPeriodic(kSoloSlot, 3, [&due] { due = true; });
         }
         if (r == 46) {
-            vbyte(0x69BD) = 1;
+            vbyte(kBandNamed) = 1;
             sound(0x6023);
             edisonSays(&prompt, dataString(0x1B5B), true, 1);
-            if (vstring(0x6993).empty()) {
-                vbyte(0x69BD) = 0;
+            if (vstring(kBandName).empty()) {
+                vbyte(kBandNamed) = 0;
                 edisonSays(&prompt, dataString(0x1B8F), false, 1);
             }
-            w[46].label = vstring(0x6993);
+            w[46].label = vstring(kBandName);
             drawWidget(w[46], w[46].flags & Widget::kPressed);
         }
     }
@@ -592,7 +592,7 @@ void RockBach::songMakerWidgets() {
         {567, 153, 630, 174, 0x100, 0x00, 0x00, 0x2142, 0x2142, 1, 0x22A2, 0x22A2, 'c', 0},  // 77
     });
     studioWidgets_[62].slider = &studioSliders_[0];
-    studioWidgets_[71].label = vstring(0x697F);
+    studioWidgets_[71].label = vstring(kSongName);
 }
 
 int RockBach::songMaker() {
@@ -603,8 +603,8 @@ int RockBach::songMaker() {
     // track 0 in style 0 (and asks for a name the first time); the band
     // button goes back to the band maker (-99).
     std::vector<Widget>& w = studioWidgets_;
-    auto slotTrack = [this](int i) { return vword(static_cast<uint16_t>(0x6759 + 4 * i)); };
-    auto slotStyle = [this](int i) { return vword(static_cast<uint16_t>(0x675B + 4 * i)); };
+    auto slotTrack = [this](int i) { return vword(static_cast<uint16_t>(kSong + 4 * i)); };
+    auto slotStyle = [this](int i) { return vword(static_cast<uint16_t>(kSong + 2 + 4 * i)); };
     auto showSlot = [&](int i) {
         const int t = slotTrack(i), s = slotStyle(i);
         if (t >= 0 && t < 12) w[17 + i].overlayUp = w[17 + i].overlayDown = trackPicture(t);
@@ -617,8 +617,8 @@ int RockBach::songMaker() {
     };
     blackout();
     musicReset();  // (f20_0286: every slot track 7)
-    studioSliders_[0] = Slider{0, vword(0x6799) - 0x7A, 0xA7, 0xE, 0xA, 9, 5, 0x44};
-    tempo_ = static_cast<uint8_t>(vword(0x6799));
+    studioSliders_[0] = Slider{0, vword(kTempo) - 0x7A, 0xA7, 0xE, 0xA, 9, 5, 0x44};
+    tempo_ = static_cast<uint8_t>(vword(kTempo));
     songMakerWidgets();
     for (int i = 0; i < 16; ++i) showSlot(i);
     select(2);
@@ -628,15 +628,15 @@ int RockBach::songMaker() {
     static const int kX[4] = {0x6A, 0xC6, 0x122, 0x17E};
     for (int g = 0; g < 4; ++g) drawOpaque(kX[g], 0x15A, 0x2007);
     for (int g = 0; g < 4; ++g) {
-        const int m = static_cast<int8_t>(vbyte(static_cast<uint16_t>(0x6755 + g)));
+        const int m = static_cast<int8_t>(vbyte(static_cast<uint16_t>(kMembers + g)));
         if (m < 0) continue;
         drawLogo(kX[g], 0x15A, g == 3 && m == 0x23 ? 0x21E7 : static_cast<uint16_t>(0x200E + data_[0x4E + m]));
     }
-    if (static_cast<int8_t>(vbyte(0x6755)) >= 0) {
-        const std::string band = vstring(0x6993);
+    if (static_cast<int8_t>(vbyte(kMembers)) >= 0) {
+        const std::string band = vstring(kBandName);
         font_->draw(ctx_.screens[2], 0x14D - font_->width(band) / 2, 0x132, band, 0);
         for (int g = 0; g < 4; ++g) {
-            const int m = static_cast<int8_t>(vbyte(static_cast<uint16_t>(0x6755 + g)));
+            const int m = static_cast<int8_t>(vbyte(static_cast<uint16_t>(kMembers + g)));
             font_->draw(ctx_.screens[2], kX[g] + 2, 0x146, dataString(static_cast<uint16_t>(0x194C + m * 11)), 0);
         }
     }
@@ -730,20 +730,20 @@ int RockBach::songMaker() {
             for (int i = 0; i < 16; ++i) unfinished |= slotTrack(i) < 0 || slotStyle(i) < 0;
             if (unfinished) {
                 for (int i = 0; i < 16; ++i) {
-                    setVword(static_cast<uint16_t>(0x6759 + 4 * i), 0);
-                    setVword(static_cast<uint16_t>(0x675B + 4 * i), 0);
+                    setVword(static_cast<uint16_t>(kSong + 4 * i), 0);
+                    setVword(static_cast<uint16_t>(kSong + 2 + 4 * i), 0);
                 }
             }
-            for (int g = 0; g < 4; ++g) noBand |= static_cast<int8_t>(vbyte(static_cast<uint16_t>(0x6755 + g))) < 0;
+            for (int g = 0; g < 4; ++g) noBand |= static_cast<int8_t>(vbyte(static_cast<uint16_t>(kMembers + g))) < 0;
             if (noBand) {
                 edisonSays(&prompt, dataString(0x1E46), false, 0);
             } else {
-                result = vbyte(0x6754);
-                if (!vbyte(0x69BC)) {
-                    vbyte(0x69BC) = 1;
+                result = vbyte(kVersion);
+                if (!vbyte(kSongNamed)) {
+                    vbyte(kSongNamed) = 1;
                     sound(0x6024);
                     edisonSays(&prompt, dataString(0x1E7D), true, 0);
-                    if (vstring(0x697F).empty()) setVstring(0x697F, dataString(0x1ECE));
+                    if (vstring(kSongName).empty()) setVstring(kSongName, dataString(0x1ECE));
                 }
             }
             drawWidget(w[0], w[0].flags & Widget::kPressed);
@@ -752,7 +752,7 @@ int RockBach::songMaker() {
             if (track >= 0) {
                 w[r].overlayUp = w[r].overlayDown = trackPicture(track);
                 drawWidget(w[r], w[r].flags & Widget::kPressed);
-                setVword(static_cast<uint16_t>(0x6759 + 4 * (r - 17)), track);
+                setVword(static_cast<uint16_t>(kSong + 4 * (r - 17)), track);
             } else {
                 unlightAll();
                 if (playing) musicStop();
@@ -774,7 +774,7 @@ int RockBach::songMaker() {
             if (style >= 0) {
                 w[r].overlayUp = w[r].overlayDown = stylePicture(style);
                 drawWidget(w[r], w[r].flags & Widget::kPressed);
-                setVword(static_cast<uint16_t>(0x675B + 4 * (r - 46)), style);
+                setVword(static_cast<uint16_t>(kSong + 2 + 4 * (r - 46)), style);
             }
             style = -1;
             carry.picture = 0xFFFF;
@@ -808,8 +808,8 @@ int RockBach::songMaker() {
             // One of the eight songs (DS:1BE6, 0x40 bytes each).
             for (int i = 0; i < 16; ++i) {
                 const uint16_t from = static_cast<uint16_t>(0x1BE6 + (r - 38) * 0x40 + 4 * i);
-                setVword(static_cast<uint16_t>(0x6759 + 4 * i), static_cast<int16_t>(dataWord(from)));
-                setVword(static_cast<uint16_t>(0x675B + 4 * i), static_cast<int16_t>(dataWord(static_cast<uint16_t>(from + 2))));
+                setVword(static_cast<uint16_t>(kSong + 4 * i), static_cast<int16_t>(dataWord(from)));
+                setVword(static_cast<uint16_t>(kSong + 2 + 4 * i), static_cast<int16_t>(dataWord(static_cast<uint16_t>(from + 2))));
                 showSlot(i);
                 drawWidget(w[17 + i], w[17 + i].flags & Widget::kPressed);
                 drawWidget(w[46 + i], w[46 + i].flags & Widget::kPressed);
@@ -828,14 +828,14 @@ int RockBach::songMaker() {
         }
         if (r == 62) {
             tempo_ = static_cast<uint8_t>(studioSliders_[0].value + 0x7A);
-            setVword(0x6799, studioSliders_[0].value + 0x7A);
+            setVword(kTempo, studioSliders_[0].value + 0x7A);
         }
         if (r == 71) {
-            vbyte(0x69BC) = 1;
+            vbyte(kSongNamed) = 1;
             sound(0x6024);
             edisonSays(&prompt, dataString(0x1E7D), true, 0);
-            if (vstring(0x697F).empty()) setVstring(0x697F, dataString(0x1ED3));
-            w[71].label = vstring(0x697F);
+            if (vstring(kSongName).empty()) setVstring(kSongName, dataString(0x1ED3));
+            w[71].label = vstring(kSongName);
             drawWidget(w[r], w[r].flags & Widget::kPressed);
         }
         if (r == 72 || r == 73) {
@@ -843,7 +843,7 @@ int RockBach::songMaker() {
             t.value = r == 72 ? std::max(t.value - 8, 0) : std::min(t.value + 8, 0x85);
             placeSlider(w[62], true);
             tempo_ = static_cast<uint8_t>(t.value + 0x7A);
-            setVword(0x6799, t.value + 0x7A);
+            setVword(kTempo, t.value + 0x7A);
         }
         if (r == 62 || r == 72 || r == 73) {
             unlightAll();

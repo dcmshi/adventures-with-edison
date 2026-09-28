@@ -104,7 +104,7 @@ void RockBach::videoSign() {
 void RockBach::videoBackground(int scene, int mode) {
     // f18_1f78: the scene's background (only when it changes, or after a
     // bouncing scene), or black with a word for the previews without one.
-    const int bg = vword(static_cast<uint16_t>(0x682B + 2 * scene));
+    const int bg = vword(static_cast<uint16_t>(kBackground + 2 * scene));
     restoreArea(vid_.clean);
     auto centred = [&](uint16_t s) {
         const std::string t = dataString(s);
@@ -114,8 +114,8 @@ void RockBach::videoBackground(int scene, int mode) {
         fill(videoX_, videoY_, kW, kH, 0);
         if (mode == 1) centred(0x201A);  // "No BACKGROUND selected for this slot"
     } else if (mode < 2) {
-        if (scene < 1 || bg != vword(static_cast<uint16_t>(0x682B + 2 * (scene - 1))) ||
-            vword(static_cast<uint16_t>(0x691B + 2 * (scene - 1))) == 1) {
+        if (scene < 1 || bg != vword(static_cast<uint16_t>(kBackground + 2 * (scene - 1))) ||
+            vword(static_cast<uint16_t>(kCamMotion + 2 * (scene - 1))) == 1) {
             if (bg == 5) {
                 fill(videoX_, videoY_, kW, kH, 1);
             } else {
@@ -125,10 +125,10 @@ void RockBach::videoBackground(int scene, int mode) {
         }
     } else {
         fill(videoX_, videoY_, kW, kH, 0);
-        if (mode == 3 && vword(static_cast<uint16_t>(0x694B + 2 * scene)) < 0) centred(0x2066);  // "No CAMERA VIEW ..."
+        if (mode == 3 && vword(static_cast<uint16_t>(kCamera + 2 * scene)) < 0) centred(0x2066);  // "No CAMERA VIEW ..."
     }
     vid_.clean = saveArea(videoX_, videoY_, kW, kH);
-    vid_.bgTurns = vbyte(static_cast<uint16_t>(0x679B + scene)) != 0;
+    vid_.bgTurns = vbyte(static_cast<uint16_t>(kBgTurns + scene)) != 0;
 }
 
 void RockBach::videoEffectStart(int scene) {
@@ -150,7 +150,7 @@ void RockBach::videoEffectStart(int scene) {
     freeArea(vid_.walkerArea);
     vid_.walkerArea = saveArea(vid_.walkerX, vid_.walkerY, w.width, w.height);
     vid_.walker = 0;
-    vid_.fxTurns = vbyte(static_cast<uint16_t>(0x684B + scene)) != 0;
+    vid_.fxTurns = vbyte(static_cast<uint16_t>(kFxTurns + scene)) != 0;
 }
 
 void RockBach::videoCamera(int scene, int mode) {
@@ -162,8 +162,8 @@ void RockBach::videoCamera(int scene, int mode) {
     static const int kQuad[4][2] = {{0xD6, 0x5A}, {0x186, 0x5A}, {0xD6, 0xD6}, {0x186, 0xD6}};
     auto hide = [&] {
         for (int i = 0; i < 4; ++i) {
-            setVword(static_cast<uint16_t>(0x693B + 4 * i), 0);
-            setVword(static_cast<uint16_t>(0x693D + 4 * i), 0);
+            setVword(static_cast<uint16_t>(kCamPlaces + 4 * i), 0);
+            setVword(static_cast<uint16_t>(kCamPlaces + 2 + 4 * i), 0);
             vid_.shown[i] = false;
         }
         vid_.scale = 0x100;
@@ -172,11 +172,11 @@ void RockBach::videoCamera(int scene, int mode) {
         hide();
         return;
     }
-    if (vbyte(static_cast<uint16_t>(0x690B + scene)) == 1) {
+    if (vbyte(static_cast<uint16_t>(kCamColours + scene)) == 1) {
         videoColours(std::vector<Rgb>(cameraColours_.begin(), cameraColours_.end()), 0x80);
         videoColours(std::vector<Rgb>(savedLook_.begin(), savedLook_.end()), 0xE1);
     }
-    const int cam = vword(static_cast<uint16_t>(0x694B + 2 * scene));
+    const int cam = vword(static_cast<uint16_t>(kCamera + 2 * scene));
     if (cam < 0) {
         hide();
     } else {
@@ -184,16 +184,16 @@ void RockBach::videoCamera(int scene, int mode) {
             int x = 0, y = 0;
             if (cam == 0 || cam == 5) x = kQuad[i][0], y = kQuad[i][1];
             else if (i == cam - 1) x = 0x12E, y = 0x98;
-            setVword(static_cast<uint16_t>(0x693B + 4 * i), x);
-            setVword(static_cast<uint16_t>(0x693D + 4 * i), y);
+            setVword(static_cast<uint16_t>(kCamPlaces + 4 * i), x);
+            setVword(static_cast<uint16_t>(kCamPlaces + 2 + 4 * i), y);
             vid_.shown[i] = x >= 1;
         }
         vid_.scale = kScale[std::min(cam, 5)];
     }
-    if (vbyte(static_cast<uint16_t>(0x68FB + scene)) == 1 && cam >= 0 && cam < 5) {
+    if (vbyte(static_cast<uint16_t>(kCamPlays + scene)) == 1 && cam >= 0 && cam < 5) {
         const int role = cam == 0 ? rnd() % 4 : cam - 1;
         vid_.rolePlaying[role] = 1;
-        const int m = static_cast<int8_t>(vbyte(static_cast<uint16_t>(0x6755 + role)));
+        const int m = static_cast<int8_t>(vbyte(static_cast<uint16_t>(kMembers + role)));
         if (m >= 0 && m < 36) memberPlaying_[m] = true;
         sound(0x6000);
     }
@@ -203,8 +203,8 @@ void RockBach::videoScene(int scene, int mode) {
     // f18_219a: on screen 2, then the picture onto the display.
     select(2);
     videoBackground(scene, mode);
-    if (mode == 0 || (mode == 1 && vword(static_cast<uint16_t>(0x682B + 2 * scene)) > 0)) videoRamps(scene, 0x67AB, 1);
-    if (mode == 0 || (mode == 2 && vword(static_cast<uint16_t>(0x68DB + 2 * scene)) > 0)) videoRamps(scene, 0x685B, 0x40);
+    if (mode == 0 || (mode == 1 && vword(static_cast<uint16_t>(kBackground + 2 * scene)) > 0)) videoRamps(scene, kBgColours, 1);
+    if (mode == 0 || (mode == 2 && vword(static_cast<uint16_t>(kEffect + 2 * scene)) > 0)) videoRamps(scene, kFxColours, 0x40);
     videoEffectStart(scene);
     videoCamera(scene, mode);
     videoFrame(mode, false);
@@ -216,9 +216,9 @@ void RockBach::videoFrame(int mode, bool onDisplay) {
     // f18_0bb0: the effect's next step over the clean picture (which then
     // keeps it), then the band over that.
     const int scene = vid_.scene;
-    const int effect = vword(static_cast<uint16_t>(0x68DB + 2 * scene));
-    const int motion = vword(static_cast<uint16_t>(0x691B + 2 * scene));  // 1 bouncing, 2 spinning
-    const int cam = vword(static_cast<uint16_t>(0x694B + 2 * scene));
+    const int effect = vword(static_cast<uint16_t>(kEffect + 2 * scene));
+    const int motion = vword(static_cast<uint16_t>(kCamMotion + 2 * scene));  // 1 bouncing, 2 spinning
+    const int cam = vword(static_cast<uint16_t>(kCamera + 2 * scene));
     const int X = videoX_, Y = videoY_;
     const int cx = X + 0xB0, cy = Y + 0x7C;  // [6732], [66F2]
     constexpr int kR = 0x32, kStep = 0xA6;    // [6664], [8B4C]
@@ -230,7 +230,7 @@ void RockBach::videoFrame(int mode, bool onDisplay) {
     // its y from a sine, of the angle scaled and moved.
     auto px = [&](int32_t a) { return cx + static_cast<int>((static_cast<int32_t>(cosine(a)) * kW) >> 13); };
     auto py = [&](int32_t a) { return cy + static_cast<int>((static_cast<int32_t>(sine(a)) * kH) >> 13); };
-    const auto member = [this](int i) { return static_cast<int>(static_cast<int8_t>(vbyte(static_cast<uint16_t>(0x6755 + i)))); };
+    const auto member = [this](int i) { return static_cast<int>(static_cast<int8_t>(vbyte(static_cast<uint16_t>(kMembers + i)))); };
     auto body = [&](int m) {
         return static_cast<uint16_t>(0x206F + m * 5 + static_cast<int8_t>(data_[0x194 + m * 16 + memberFrame_[m]]));
     };
@@ -395,7 +395,7 @@ void RockBach::videoFrame(int mode, bool onDisplay) {
         }
         memberFrame_[m] = f;
         const uint16_t id = cam == 5 ? face(m) : body(m);
-        const uint16_t ax = static_cast<uint16_t>(0x693B + 4 * i), ay = static_cast<uint16_t>(0x693D + 4 * i);
+        const uint16_t ax = static_cast<uint16_t>(kCamPlaces + 4 * i), ay = static_cast<uint16_t>(kCamPlaces + 2 + 4 * i);
         if (motion == 1) {
             // Bouncing off the picture's edges.
             const Bitmap& b = ctx_.bitmap(id);
@@ -425,13 +425,13 @@ void RockBach::videoCredits() {
     auto line = [&](int row, const std::string& s) { text(x - font_->width(s) / 2, y + row * 0xF, s, 0xFF); };
     line(0, dataString(0x663));   // Corel Productions
     line(1, dataString(0x686));   // Proudly Presents
-    line(2, vstring(0x6993));     // the band
+    line(2, vstring(kBandName));     // the band
     line(4, dataString(0x69F));   // Singing
-    line(5, vstring(0x697F));     // the song
+    line(5, vstring(kSongName));     // the song
     line(7, dataString(0x6BA));   // In their new video
-    line(8, vstring(0x696B));     // the video
+    line(8, vstring(kVideoName));     // the video
     line(10, dataString(0x6E6));  // Produced and Directed By
-    line(11, vstring(0x69A7));    // the producer
+    line(11, vstring(kProducer));    // the producer
 }
 
 void RockBach::playVideo(int mode) {
@@ -450,7 +450,7 @@ void RockBach::playVideo(int mode) {
     vid_.clean = saveArea(videoX_, videoY_, kW, kH);
     vid_.walkerArea = saveArea(0, 0, 2, 2);
     int song[16][2];
-    for (int i = 0; i < 16; ++i) song[i][0] = vword(static_cast<uint16_t>(0x6759 + 4 * i)), song[i][1] = vword(static_cast<uint16_t>(0x675B + 4 * i));
+    for (int i = 0; i < 16; ++i) song[i][0] = vword(static_cast<uint16_t>(kSong + 4 * i)), song[i][1] = vword(static_cast<uint16_t>(kSong + 2 + 4 * i));
     setSong(song);
     select(1);
     show(2);
@@ -493,7 +493,7 @@ void RockBach::playVideo(int mode) {
     }
     clearInput();
     videoScene(0, mode);
-    tempo_ = static_cast<uint8_t>(vword(0x6799));
+    tempo_ = static_cast<uint8_t>(vword(kTempo));
     musicPlay();
     ctx_.platform.withFm([](ArtechFmDriver& d) { d.poke(d.getVar(), 0); });
     bool drawDue = false, meterDue = false, signDue = false;
