@@ -107,6 +107,24 @@ The song player lives in the driver's sound table (ADLIB2's, for example):
 - **Sound FX** (`f29_17e2`, `soundfx.cpp`; no FM): backdrop `1008`, 38 widgets (`f29_0000`; 6-26 are a radio group it never shows). LOAD (the chooser, then a list: see the dialogs), SAVE (a name, then the header at the playing rate and the selection), DELETE (the game's folder only, after "PERMANENTLY DELETE THE / WAVE FILE: name"); GO / STOP; LOOP, BACKWARD, ECHO, REVERB, LOFILTER (each lights its sliders); sliders for the speed (`(200 - v) * 20 - 2000` on the rate), the echo's delay and gain, the reverb's delay and gain and the filter's frequency; a tip line (`DS:2AA2`). The waveform (`f29_0ffe`: a column every len/596, colour `E0`) has handles (`222B`/`222C`); only the end one can be dragged (the original never hit-tests the start's).
   - The effects (segment 13, `f13_0a90`): on the input (made signed), in order: reverse, the low filter (two poles, coefficients `DS:18EC` by frequency x 16 / rate), one echo (read from the input), reverb (two taps of its own output); then scaled to its loudest and made unsigned. Up to 55000 bytes. Playing writes the WAV header over the selection's first bytes, as the original does.
 - **The file dialogs** (segments 22, 23; `dialogs.cpp`): LOAD's chooser (CD ROM: the CD's `\RB\EFFECTS\`; HARD DRIVE: the game's folder; remembered for the next LOAD of the same kind), the list (12 slots under icons `22FC`/`22FD`, the names upper-cased, a letter jumps, a scroll bar with arrows and a thumb), the name box (8 letters or digits, a blinking caret, O.K. / CANCEL) and message boxes (CANCEL / YES / O.K.). Dialog colours: the 16 EGA colours' nearest entries in screen 2's palette (`f27_0054`).
-- **Activities not ported yet:** the Studio; each switches its FM driver and comes back.
+- **The Studio** (`f35_018a`, `studio.cpp`; `ADLIB2.DLL`): makes and plays videos. A video is the record at `DS:6754` (0x26A bytes), which is also the `.vid` file as is (the CD has samples in `\RB\EFFECTS\`):
+
+  | At | What |
+  |---|---|
+  | `6754` | 1 |
+  | `6755` | the band: the player (0-35) in each role (drums, chords, bass, solo), -1 none |
+  | `6759` | the song: 16 slots of {track 0-11, style 0-15} (words; -1 empty) |
+  | `6799` | the tempo (`F0`) |
+  | `679B`, `67AB`, `682B` | the backgrounds: 16 flags, 16 x 4 colours, 16 choices |
+  | `684B`, `685B`, `68DB` | the special effects: the same |
+  | `68FB`, `690B`, `691B`, `693B`, `694B` | the camera views: two flags, a word, (4 x 2 words), the choice |
+  | `696B`, `697F`, `6993`, `69A7` | the names (20 bytes): the video, the song, the band, the producer |
+  | `69BB`-`69BD` | the video, the song, the band have been named |
+
+  `f33_0144` blanks it (names of 19 spaces), `f04_107c` makes a new one (the player the producer). Each Studio screen copies Edison's colours (`DS:8CC0`, `f40_1a26` takes source first) over its backdrop's `E1-ED`.
+  - The front room (`f04_112e`, backdrop `1004`): EXIT (CANCEL / NO / O.K. to "SAVE CHANGES TO YOUR VIDEO: name BEFORE EXITING?"), LOAD (the dialogs, kind 0; it plays at once), SAVE, PLAY, NEW, EDIT, DELETE (the game's folder only); Edison on his chair (`218E`, `218A-218D` at random, 3 a second). NEW and EDIT of a new video go to the band maker and then the song maker; EDIT asks "What do you want to do?" (`f04_0580`: Song, Video, Done). After the song, EDIT is pressed again.
+  - The band maker (`f14_10f4`, `1002`): a player for each role (a chosen one's picture is its shape in colour `70`); the solo's picture plays a riff (`22A7 + n`, 28 frames at 3 a second); leaving fills empty roles with each group's first and asks for the band's name once. Edison's questions (`f15_1d7e`): he walks in (`21DC-21E0`) with his bubble (`21E1`), then waits 10 s (or a click, key or 400 pixels of mouse moves) or takes a name (`f15_1cf2`: 18 letters, upper case).
+  - The song maker (`f15_1f84`, `1003`): a track (1-8, 74-77) or style (9-16, 63-70) picked up follows the pointer; any click puts it down, into the slot clicked if it's one (tracks 17-32, styles 46-61). A click on a slot with nothing carried plays from there (the playing slot lit, `21E8`); GO, STOP; eight songs to start from (`DS:1BE6`); the tempo (a slider and steps of 8); the song's name; the band button goes back to the band maker. Leaving fills an unfinished song with track 0, style 0 and asks for the song's name once.
+- **Activities not ported yet:** the Studio's video makers (`f26_1edc`, `f16_217c`, `f17_20f2`) and its player (`f18_22a4`).
 - **Timers:** the library's countdowns tick in timer slot 9, so the games' own periodic timers use slots 5-8.
 - **Sounds:** `f27_020e` plays `<CD>\RB\<name>.wav` by id (`DS:278C`, id - `0x6000`), else `<name>.wav` in the game's folder (the player's own); longer than 64 KB plays nothing.

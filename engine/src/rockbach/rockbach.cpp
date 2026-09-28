@@ -2,6 +2,7 @@
 
 #include "rockbach/rockbach.h"
 
+#include <algorithm>
 #include <array>
 #include <cstdio>
 #include <fstream>
@@ -49,6 +50,11 @@ void RockBach::run() {
         corelPresents();
         setDriver(4);
         logo();
+    } else {
+        // (Testing: Edison's colours as the hallway would have left them.)
+        loadLook();
+        lookColours(0);
+        std::copy_n(ctx_.screens[2].palette.begin() + 0xE1, savedLook_.size(), savedLook_.begin());
     }
     bool again = false;
     for (;;) {
@@ -311,6 +317,9 @@ void RockBach::activity(int which) {
             break;
         case 8:
             soundFx();
+            break;
+        case 9:
+            studio();
             break;
         default:
             logLine("Rock and Bach: activity " + std::to_string(which) + " isn't ported yet; back to the hallway.");

@@ -208,6 +208,30 @@ private:
     void harmonyVolume(int part, int volume);                   // f11_03e0
     void harmonyTempo(int t);                                   // f11_04a2
     void harmonyRiffs();                                        // f11_05e2 (+ f11_0790)
+    // --- the Studio (segments 35, 4, 14 and 15: studio.cpp) ---
+    int studio();                                               // f35_018a
+    int studioRoom(bool edit);                                  // f04_112e: 0 leave, 2 the song, 5 the video, 6 play
+    void studioWidgets();                                       // f04_0000
+    void studioSign(bool onDisplay);                            // f04_0824
+    int studioWhatNext();                                       // f04_0580: 7 song, 8 video, 9 done
+    bool videoLoad();                                           // f04_0b46
+    void videoDelete();                                         // f04_0bf2
+    bool videoSave();                                           // f04_0cd2
+    void videoBlank(bool keepProducer);                         // f33_0144
+    void videoNew();                                            // f04_107c
+    void studioBackdrop(uint16_t id);                           // a backdrop on screen 2 in Edison's colours
+    int studioSong();                                           // f35_0000
+    int studioVideo();                                          // f35_005a
+    int bandMaker();                                            // f14_10f4
+    void bandMakerWidgets();                                    // f14_0000
+    int songMaker();                                            // f15_1f84: -99 back to the band
+    void songMakerWidgets();                                    // f15_0000
+    // f15_1d7e: Edison walks in with `text`; then either waits (10 s, a
+    // click or a key) or asks for a name (0 the song, 1 the band, 2 the
+    // video). `area` is the saved area under him (on screen 2).
+    void edisonSays(int* area, const std::string& text, bool ask, int which);
+    void askName(uint16_t field);                               // f15_1cf2
+
     // f27_01c4; also forgets a click or key f24_0666 has seen.
     void clearInput() {
         ArtechGame::clearInput();
@@ -305,6 +329,25 @@ private:
         std::array<uint8_t, 5> variant{}, sound{};     // DS:150A, 1500
         bool onOwn = false;                            // [150F]: pattern 7, the player's
     } drums_;
+    // The Studio. The video being made is the record at DS:6754 (0x26A
+    // bytes, which is also the .vid file), read and written by its DS
+    // addresses: see docs/ROCKBACH.md.
+    std::array<uint8_t, 0x26A> video_{};
+    uint8_t& vbyte(uint16_t at) { return video_[at - 0x6754u]; }
+    int vword(uint16_t at) const { return static_cast<int16_t>(video_[at - 0x6754u] | video_[at - 0x6753u] << 8); }
+    void setVword(uint16_t at, int v) {
+        video_[at - 0x6754u] = static_cast<uint8_t>(v);
+        video_[at - 0x6753u] = static_cast<uint8_t>(v >> 8);
+    }
+    std::string vstring(uint16_t at) const;
+    void setVstring(uint16_t at, const std::string& s);          // 20 bytes
+    std::vector<Widget> studioWidgets_;                // DS:69F4 (the hallway's list, reused)
+    std::array<Slider, 1> studioSliders_{};            // DS:8BD8: the song maker's tempo
+    bool videoOpen_ = false;                           // [8D1C]: a video is loaded or made
+    bool videoChanged_ = false;                        // [673A]
+    bool bandMade_ = false;                            // [2EFE]
+    std::string videoName_;                            // DS:4A4C: its file name
+    int signArea_ = 0;                                 // [8D0C]
     // Widgets.
     std::vector<Widget>* widgets_ = nullptr;           // [8D30]
     Bevel bevel_{};                                    // [655A..6560]
