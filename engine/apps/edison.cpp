@@ -13,6 +13,7 @@
 //   For testing without a person at the keyboard:
 //     --capture DIR MS    save the display to DIR/NNNNN.bmp every MS milliseconds
 //     --click T X Y       click at game coordinates X, Y at T milliseconds (repeatable)
+//     --rclick T X Y      the same with the right button
 //     --drag T X0 Y0 X1 Y1 MS   press at X0, Y0 at T, move to X1, Y1 over MS, release
 //     --type T TEXT       type TEXT at T milliseconds ('|' is Enter; repeatable)
 //     --quit-after MS     close after MS milliseconds
@@ -47,7 +48,7 @@ struct Automation {
     std::string captureDir;
     uint64_t captureEvery = 0;
     struct Click { uint64_t at; int x, y; };
-    std::vector<Click> clicks;
+    std::vector<Click> clicks, rightClicks;
     // Press at (x0, y0), move to (x1, y1) over `ms`, release.
     struct Drag { uint64_t at; int x0, y0, x1, y1; uint64_t ms; bool started = false, done = false; };
     std::vector<Drag> drags;
@@ -112,6 +113,13 @@ public:
                 autoMouse_ = true;
                 dragging_ = false;
             }
+        for (auto& c : automation.rightClicks)
+            if (c.at && now >= c.at) {
+                rightClicked_ = true;
+                rightX_ = c.x;
+                rightY_ = c.y;
+                c.at = 0;
+            }
         for (auto& d : automation.drags) {
             if (d.done || now < d.at) continue;
             if (!d.started) {
@@ -155,6 +163,12 @@ public:
                 clickX_ = static_cast<int>(e.button.x);
                 clickY_ = static_cast<int>(e.button.y);
             }
+            if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN && e.button.button == SDL_BUTTON_RIGHT) {
+                SDL_ConvertEventToRenderCoordinates(renderer_, &e);
+                rightClicked_ = true;
+                rightX_ = static_cast<int>(e.button.x);
+                rightY_ = static_cast<int>(e.button.y);
+            }
         }
         return true;
     }
@@ -187,6 +201,14 @@ public:
         clicked_ = false;
         *x = clickX_;
         *y = clickY_;
+        return true;
+    }
+
+    bool takeRightClick(int* x, int* y) override {
+        if (!rightClicked_) return false;
+        rightClicked_ = false;
+        *x = rightX_;
+        *y = rightY_;
         return true;
     }
 
@@ -345,6 +367,8 @@ private:
     uint64_t start_ = 0;
     uint64_t nextCapture_ = 0;
     bool clicked_ = false;
+    bool rightClicked_ = false;
+    int rightX_ = 0, rightY_ = 0;
     int clickX_ = 0, clickY_ = 0;
     bool autoMouse_ = false;
     bool dragging_ = false, autoDown_ = false;  // an automated drag
@@ -366,6 +390,10 @@ int main(int argc, char** argv) {
         if (a == "--capture" && i + 2 < argc) {
             automation.captureDir = argv[++i];
             automation.captureEvery = std::strtoull(argv[++i], nullptr, 10);
+        } else if (a == "--rclick" && i + 3 < argc) {
+            const uint64_t at = std::strtoull(argv[++i], nullptr, 10);
+            const int x = std::atoi(argv[++i]);
+            automation.rightClicks.push_back({at, x, std::atoi(argv[++i])});
         } else if (a == "--click" && i + 3 < argc) {
             const uint64_t at = std::strtoull(argv[++i], nullptr, 10);
             const int x = std::atoi(argv[++i]);

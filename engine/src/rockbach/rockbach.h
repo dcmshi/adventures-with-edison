@@ -232,6 +232,14 @@ private:
     void edisonSays(int* area, const std::string& text, bool ask, int which);
     void askName(uint16_t field);                               // f15_1cf2
 
+    // The video makers (segments 16, 17, 26): kind 1 the backgrounds, 2
+    // the special effects, 3 the camera views. They return the next maker
+    // (1-3), a preview (11-13: kind + 10) or -66 (leave).
+    int videoMaker(int kind);                                   // f16_217c / f17_20f2 / f26_1edc
+    void backgroundMakerWidgets();                              // f16_0000
+    void effectMakerWidgets();                                  // f17_0000
+    void cameraMakerWidgets();                                  // f26_0000
+
     // --- the Studio's video player (segment 18: video.cpp) ---
     // Modes: 0 the whole video (in the front room), 1-3 the previews of
     // the background, special effect and camera makers.
@@ -351,6 +359,26 @@ private:
     // bytes, which is also the .vid file), read and written by its DS
     // addresses: see docs/ROCKBACH.md.
     std::array<uint8_t, 0x26A> video_{};
+    // Its fields, by DS address (words unless said; x16 is one per scene).
+    enum VideoField : uint16_t {
+        kVersion = 0x6754,      // byte: 1
+        kMembers = 0x6755,      // 4 bytes: the player in each role, -1 none
+        kSong = 0x6759,         // x16 {track, style}
+        kTempo = 0x6799,
+        kBgTurns = 0x679B,      // x16 bytes: the background's colours turn
+        kBgColours = 0x67AB,    // x16 x4
+        kBackground = 0x682B,   // x16
+        kFxTurns = 0x684B,      // x16 bytes
+        kFxColours = 0x685B,    // x16 x4
+        kEffect = 0x68DB,       // x16
+        kCamPlays = 0x68FB,     // x16 bytes: a member starts playing
+        kCamColours = 0x690B,   // x16 bytes: the members' colours put back
+        kCamMotion = 0x691B,    // x16: 1 bouncing, 2 spinning
+        kCamPlaces = 0x693B,    // x4 {x, y}: the player's own
+        kCamera = 0x694B,       // x16
+        kVideoName = 0x696B, kSongName = 0x697F, kBandName = 0x6993, kProducer = 0x69A7,  // 20 bytes each
+        kVideoNamed = 0x69BB, kSongNamed = 0x69BC, kBandNamed = 0x69BD,                    // bytes
+    };
     uint8_t& vbyte(uint16_t at) { return video_[at - 0x6754u]; }
     int vword(uint16_t at) const { return static_cast<int16_t>(video_[at - 0x6754u] | video_[at - 0x6753u] << 8); }
     void setVword(uint16_t at, int v) {

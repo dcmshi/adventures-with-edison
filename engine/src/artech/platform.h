@@ -27,6 +27,8 @@ public:
 
     // Left click latched since the last call (game coordinates 640x400).
     virtual bool takeClick(int* x, int* y) = 0;
+    // Right click latched since the last call (Rock and Bach's [3BA7] = 2).
+    virtual bool takeRightClick(int* x, int* y) { (void)x, (void)y; return false; }
     // Mouse position (game coordinates) and whether the left button is down.
     virtual void mouse(int* x, int* y, bool* down) = 0;
     virtual bool escapeHeld() = 0;

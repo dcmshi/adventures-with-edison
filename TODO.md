@@ -15,10 +15,10 @@ What's left is checking it against the original:
 
 ## Rock and Bach
 
-See `docs/ROCKBACH.md` for the map. Ported so far (`edison --game rockbach`,
+See `docs/ROCKBACH.md` for the map. Ported (`edison --game rockbach`,
 `--level N` goes straight to hallway result N): the intro and logo, the
 widgets (segment 34), the file dialogs (segments 22-23), the whole hallway
-and seven of the eight activities. Each was checked with automated captures
+and all eight activities. Each was checked with automated captures
 against the disassembly, not yet against the original.
 
 - [x] The FM driver's other entry points and the song player (segment 20); the logo intro's band.
@@ -27,12 +27,13 @@ against the disassembly, not yet against the original.
 - [x] The jukebox (2), the Drum Clinic (3), the Music Library (4), Harmony Hall (6), the Instrument Room (7), Sound FX (8).
 - [x] The Studio's front room (`f04_112e`), band maker (`f14_10f4`) and song maker (`f15_1f84`); videos load, save and delete.
 - [x] The Studio's player (`f18_22a4`, with the credits `f04_08cc`).
-- [ ] **Next: the rest of the Studio**: the video makers `f26_1edc`, `f16_217c`, `f17_20f2` (`f35_005a`) and their previews.
+- [x] The Studio's video makers (`f26_1edc`, `f16_217c`, `f17_20f2`, through `f35_005a`) and their previews.
 - [ ] Compare with the original:
   - the hallway: a returning player's look only shows once a part is changed, the Yes/No buttons take the hair's colour, the look is lost after the credits (how the code reads);
   - the Music Library's end-of-piece check waits for the driver to start the sounds (a port adjustment for a timing race);
   - Sound FX: the handles vanish after LOAD until an effect is changed (how the code reads); the scroll bar's arrows repeat every 0.1 s (the original repeats every poll);
-  - the Drum Clinic's pointer snapping over the grid isn't ported.
+  - the Drum Clinic's pointer snapping over the grid isn't ported;
+  - the video makers' "playing" light flips every 0.5 s (the original flips it every 13000 polls).
 - [ ] Decode its real tempo (`fmplay` uses 128 for now).
 
 ## Wild Science Arcade
