@@ -22,6 +22,7 @@ bool RockBach::load(const Options& options, std::string* error) {
     NeFile exe;
     if (!exe.load(options.cdDir + "/WINMAIN.EXE", error)) return false;
     data_ = exe.segment(exe.segmentCount());  // DGROUP, the last segment
+    sine_ = exe.segment(53);
     if (data_.size() < 0x2000 || dataString(0x10) != "Rock and Bach") {
         if (error) *error = "WINMAIN.EXE: unexpected data segment";
         return false;

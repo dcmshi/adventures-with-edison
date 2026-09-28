@@ -40,6 +40,7 @@ add_library(edison_core
     src/rockbach/dialogs.cpp
     src/rockbach/soundfx.cpp
     src/rockbach/studio.cpp
+    src/rockbach/video.cpp
     src/rockbach/widgets.cpp
     src/mystery/editor.cpp
     src/mystery/end.cpp

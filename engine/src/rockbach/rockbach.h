@@ -232,6 +232,24 @@ private:
     void edisonSays(int* area, const std::string& text, bool ask, int which);
     void askName(uint16_t field);                               // f15_1cf2
 
+    // --- the Studio's video player (segment 18: video.cpp) ---
+    // Modes: 0 the whole video (in the front room), 1-3 the previews of
+    // the background, special effect and camera makers.
+    void playVideo(int mode);                                   // f18_22a4
+    void videoCredits();                                        // f04_08cc
+    void videoScene(int scene, int mode);                       // f18_219a
+    void videoBackground(int scene, int mode);                  // f18_1f78
+    void videoRamps(int scene, uint16_t colours, int first);    // f18_0520 / f18_0778
+    void videoEffectStart(int scene);                           // f18_0252
+    void videoCamera(int scene, int mode);                      // f18_1c00
+    void videoFrame(int mode, bool onDisplay);                  // f18_0bb0
+    void videoColours(const std::vector<Rgb>& colours, int first);  // f18_0000
+    void videoTurn(int first, int count);                       // f18_09c0 / f18_0ab8
+    void videoMeter();                                          // f18_00d0
+    void videoSign();                                           // f18_03f8
+    int sine(int a) const;                                      // f53_103b: a turn is 0x10000, 1 is 0x1000
+    int cosine(int a) const { return sine(a + 0x4000); }        // f53_106d
+
     // f27_01c4; also forgets a click or key f24_0666 has seen.
     void clearInput() {
         ArtechGame::clearInput();
@@ -348,6 +366,30 @@ private:
     bool bandMade_ = false;                            // [2EFE]
     std::string videoName_;                            // DS:4A4C: its file name
     int signArea_ = 0;                                 // [8D0C]
+    // The player (segment 18).
+    int videoX_ = 0x7E, videoY_ = 0x1C;                // [2E92], [2E94]: the picture's corner (352 x 248)
+    struct VideoState {
+        int scene = 0;                                 // [86F6]
+        int clean = 0;                                 // [9270]: the picture without the band
+        int flashArea = 0, walkerArea = 0;             // [83DC], [69F2]
+        bool bgTurns = false, fxTurns = false;         // [8D32], [6740]
+        bool bgDue = false, fxDue = false;             // [8D1A], [674C]
+        int32_t angle = 0;                             // [86E4]
+        int colour = 0x40;                             // [50B6]
+        std::array<int, 8> sparkX{}, sparkY{};         // DS:5088, 5098
+        int sparkTick = 0, sparkEvery = 3;             // [52A2], [8D08]
+        int flash = -1, flashX = 0, flashY = 0;        // [1FCC], [64B0], [52AE]
+        int boxW = 0, boxH = 0;                        // [8DD4], [8DD2]
+        int walker = 0, walkerX = 0, walkerY = 0;      // [8D12], [69C8], [69EE]
+        std::array<int, 4> vx{}, vy{};                 // DS:8D1E
+        std::array<bool, 4> shown{};                   // DS:871A
+        std::array<int, 4> rolePlaying{};              // DS:1FCE
+        int scale = 0x100;                             // [876E]
+        int meter = 8;                                 // [8D48]
+        int tape = 0;                                  // [4F76]
+    } vid_;
+    std::array<Rgb, 64> cameraColours_{};              // [bp-CE]: colours 80-BF as the video started
+    std::vector<uint8_t> sine_;                        // WINMAIN's segment 53: a quarter of a sine wave
     // Widgets.
     std::vector<Widget>* widgets_ = nullptr;           // [8D30]
     Bevel bevel_{};                                    // [655A..6560]

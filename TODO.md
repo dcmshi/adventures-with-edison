@@ -26,7 +26,8 @@ against the disassembly, not yet against the original.
 - [x] The widgets (segment 34), sliders included; the file dialogs (segments 22, 23).
 - [x] The jukebox (2), the Drum Clinic (3), the Music Library (4), Harmony Hall (6), the Instrument Room (7), Sound FX (8).
 - [x] The Studio's front room (`f04_112e`), band maker (`f14_10f4`) and song maker (`f15_1f84`); videos load, save and delete.
-- [ ] **Next: the rest of the Studio**: the video makers `f26_1edc`, `f16_217c`, `f17_20f2` (`f35_005a`) and the player `f18_22a4` (with the credits, `f04_08cc`).
+- [x] The Studio's player (`f18_22a4`, with the credits `f04_08cc`).
+- [ ] **Next: the rest of the Studio**: the video makers `f26_1edc`, `f16_217c`, `f17_20f2` (`f35_005a`) and their previews.
 - [ ] Compare with the original:
   - the hallway: a returning player's look only shows once a part is changed, the Yes/No buttons take the hair's colour, the look is lost after the credits (how the code reads);
   - the Music Library's end-of-piece check waits for the driver to start the sounds (a port adjustment for a timing race);

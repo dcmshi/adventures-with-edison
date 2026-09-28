@@ -906,7 +906,7 @@ int RockBach::studio() {
             studioVideo();
             edit = true;
         }
-        if (r == 6 && videoOpen_) logLine("Rock and Bach: the Studio's player isn't ported yet.");
+        if (r == 6 && videoOpen_) playVideo(0);
     }
     musicStop();  // f20_004a
     return 0;
