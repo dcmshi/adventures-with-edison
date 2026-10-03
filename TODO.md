@@ -41,7 +41,16 @@ winevdm (`tools/reference/otvdm.ps1`, `screendiff.py`).
 
 ## Wild Science Arcade
 
-- [ ] Wild Science Arcade (`WMAIN.EXE`).
+See `docs/SCIENCE.md`. A different codebase from the other two games (C++
+scene objects and an event queue, floating point), so it goes in stages:
+
+- [x] First look: the game's flow under winevdm, WinMain, the game loop, the files.
+- [ ] Map the library layers (segment 14 over 63, 64, 67, 70, 72, 76; sounds in 36) and the scene classes (their vtables).
+- [ ] `edison --game science`: the archive, the title and the story (`f38_0718`) with narration.
+- [ ] The laboratory: the name, the Character Enhancer, the professor's lesson.
+- [ ] The rooms (`S*.SRF`) and the table's physics: the ball, gravity, friction, ball types, power.
+- [ ] The arcade's menu table, the levels, high scores (`WSCIENCE.HS`), the lab, the credits.
+- [ ] Compare with the original under winevdm as each part lands.
 
 ## Formats and tooling
 
