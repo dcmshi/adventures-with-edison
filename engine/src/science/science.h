@@ -95,8 +95,14 @@ private:
         std::vector<std::unique_ptr<Box>> children;  // +16
         int parentHeight() const { return parent ? parent->height : 0; }
     };
+    // An object of S<n>.SRF: OBJn x y type a b c d e f (f61_011d).
+    struct Object {
+        int x = 0, y = 0, type = 0;
+        int args[6] = {};
+    };
     // The room as its camera (segment 25) and the root of its boxes.
     struct Table {
+        std::vector<Object> objects;
         Box root;
         Rect view;                      // +50: the play area
         int scrollX = 0, scrollY = 0;   // +58, +5A
@@ -111,6 +117,10 @@ private:
     int faceAt(const Box& box, int x, int y) const;  // f34_02fa: 0 none, 1 top, 2-5 sides
     int heightAt(const Box& box, int x, int y) const;  // f12_44f9 (f34_07ec)
     void drawTable();                               // f27_0e5b (the room's method 0, f27_0ec5)
+    int heightUnder(int x, int y) const;            // f27_0903 + f34_07ec
+    std::pair<int, int> objectCentre(int x, int y, int z, int w, int d, int h) const;  // f25_0a51
+    void objectSprite(int cx, int cy, uint16_t id);  // f14_0d69 at 1:1
+    void drawObjects();                             // the drawables at rest
     void roomPictures(int room);                    // the room's method 4 (room 1: f41_0126)
     void redrawTable(const Rect& area);             // f27_1e36, the room's method 3
     void enterRoom(int room);                       // f31_0783 for rooms 1-100

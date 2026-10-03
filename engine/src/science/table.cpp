@@ -49,6 +49,12 @@ public:
         while (at_ < text_.size() && std::isdigit(static_cast<unsigned char>(text_[at_]))) n = n * 10 + (text_[at_++] - '0');
         return negative ? -n : n;
     }
+    std::string word() {
+        skip();
+        std::string w;
+        while (at_ < text_.size() && !std::isspace(static_cast<unsigned char>(text_[at_]))) w += text_[at_++];
+        return w;
+    }
     char marker() {
         skip();
         return at_ < text_.size() ? text_[at_++] : '\2';
@@ -124,7 +130,85 @@ bool Science::loadTable(int room) {
         }
     };
     read(nullptr);
+
+    // The objects (f61_011d): OBJn x y type a b c d e f, then PANEL.
+    t.objects.clear();
+    for (std::string w = r.word(); w.rfind("OBJ", 0) == 0; w = r.word()) {
+        Object o;
+        o.x = r.number(), o.y = r.number(), o.type = r.number();
+        for (int& v : o.args) v = r.number();
+        t.objects.push_back(o);
+    }
     return true;
+}
+
+int Science::heightUnder(int x, int y) const {
+    // f27_0903 then f34_07ec: the height of the deepest box's face under
+    // the point.
+    const Box* box = &table_.root;
+    for (bool deeper = true; deeper;) {
+        deeper = false;
+        for (const auto& child : box->children)
+            if (inside(child->bottom, x, y)) {
+                box = child.get(), deeper = true;
+                break;
+            }
+    }
+    return heightAt(*box, x, y);
+}
+
+std::pair<int, int> Science::objectCentre(int x, int y, int z, int w, int d, int h) const {
+    // f25_0a51 / f27_16ae: the box's near bottom and far top corners
+    // projected give the object's rectangle; sprites go at its centre.
+    const auto a = project(x, y, z);
+    const auto b = project(x + w - 1, y + d - 1, z + h - 1);
+    const int rw = b.first - a.first + 2, rh = a.second - b.second + 2;
+    return {a.first + (rw >> 1), b.second + (rh >> 1)};
+}
+
+void Science::objectSprite(int cx, int cy, uint16_t id) {
+    // f14_0d69 at 1:1: centred, colour 0 left out, and only when it lies
+    // wholly inside the clip (the view).
+    const Bitmap& bmp = ctx_.bitmap(id);
+    const int x = cx - (bmp.width >> 1), y = cy - (bmp.height >> 1);
+    const Rect& v = table_.view;
+    if (!inside(v, x, y) || !inside(v, x + bmp.width, y + bmp.height)) return;
+    ctx_.screens.drawSprite(current(), bmp, x, y);
+}
+
+void Science::drawObjects() {
+    // The drawables (+1AD) in the redraw, at rest. (The painter's order of
+    // f27_19d9 isn't ported: room 1's objects don't overlap at rest but for
+    // the ball over its target's back half.)
+    const Object* ball = nullptr;
+    for (const Object& o : table_.objects) {
+        if (o.type == 8) {
+            // A hole (f28_00f3, g28_0003, drawn by f28_0d82): a = the room
+            // it leads to, b = its wall (0 the left one), c = big, d = its
+            // height (-1: the face's under it). Frame 0 at rest.
+            const int wall = o.args[1], big = o.args[2] != 0;
+            const int r = big ? 17 : 11;
+            const int z = o.args[3] != -1 ? o.args[3] : heightUnder(o.x, o.y);
+            auto [cx, cy] = objectCentre(o.x - (wall == 0 ? r : 0), o.y, z, 2 * r, 2 * r, 2 * r);
+            uint16_t id;  // DS:20FC (small), DS:2114 (big), by the wall
+            if (!big) id = wall == 0 ? 0x1247 : 0x1245, cy -= wall == 0 ? 3 : 0;
+            else id = wall == 0 ? 0x124B : 0x1249, cy += wall == 0 ? 0 : 3;
+            objectSprite(cx, cy, id);
+        } else if (o.type == 1) {
+            ball = &o;
+        }
+    }
+    if (!ball) return;
+    // The ball (f06_0043, radius 10) on the face under it, and its target
+    // (f06_0877, kept at +F79): the ring's back 1042 under the ball, its
+    // front 1043 over it ([1508]); the ball's first rolling frame 1016
+    // (DS:1300).
+    const int z = heightUnder(ball->x, ball->y);
+    const auto [tx, ty] = objectCentre(ball->x, ball->y, z, 20, 20, 10);
+    objectSprite(tx + 1, ty, 0x1042);
+    const auto [bx, by] = objectCentre(ball->x - 10, ball->y - 10, z, 21, 21, 21);
+    objectSprite(bx, by, 0x1016);
+    objectSprite(tx + 1, ty, 0x1043);
 }
 
 std::pair<int, int> Science::project(int x, int y, int h) const {
@@ -404,6 +488,7 @@ void Science::redrawTable(const Rect& area) {
     for (int y = a.y; y < a.y + a.h; ++y)
         std::fill_n(two.pixels.begin() + static_cast<size_t>(y) * Screen::kWidth + a.x, a.w, uint8_t{0});
     select(2);
+    drawObjects();
     // The score (+F35, at +F25) and " shots: n" (+F39, at +F2D, DS:2040):
     // the yellow box 1425 and the number in colour 10 (f76_0021).
     const Bitmap& box = ctx_.bitmap(0x1425);

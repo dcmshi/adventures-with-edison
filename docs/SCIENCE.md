@@ -320,6 +320,27 @@ Borland's `mov ax, ss; nop; inc bp` prologue): `f31_0783` is
   after shots. The final copy from screen 3 is keyed on the destination
   (`f14_0c88` → `f65_0294`: screen 3's pixel only where screen 2 is still
   colour 0), unlike `f14_0c4f`'s (source-keyed).
+- **Objects on screen**: an object's box (x, y, z, w, d, h; at its core
+  `+6E`) has its near bottom corner and far top corner projected
+  (`f25_0a51`); the rectangle (A.x, B.y, B.x - A.x + 2, A.y - B.y + 2)
+  (`f27_16ae`) and its centre (half the width and height, shifted) is
+  where its sprite is centred (`f14_0d69` at 1:1: colour 0 left out, and
+  skipped unless it lies wholly inside the clip).
+  - A hole (type 8; `f61_011d` → `f28_00f3`, or `f28_0391` the second of
+    a door when `e` isn't 0): `a` the room, `b` the wall (0 the left
+    one), `c` big, `d` its height (-1: the face's under it, `f27_0903`).
+    Its box is a cube of side 2r (r 17 big, 11 small), moved r to the
+    left on the left wall. At rest (`f28_0d82`, frame 0) the sprite is
+    `1247` (small, left wall; 3 up), `1245` (small), `1249` (big; 3 down)
+    or `124B` (big, left wall) (`DS:20FC`, `DS:2114`).
+  - The ball (type 1, `f06_0043`, radius 10, on the face under it): its
+    box (x-10, y-10, z, 21, 21, 21); its sprite the rolling frames at
+    `DS:1300` (`1016`-`101B`, 32 x 21), frame 0 at rest. Its target
+    (`f06_0877`, kept at `+F79`): box (x, y, z, 20, 20, 10), the ring's
+    back `1042` at (centre + 1, centre); after the drawables, with
+    `[1508]` set, its front `1043` at the same place over the ball.
+  - Room 1's holes, labels, logo, EXIT, ball and boxes match the original
+    pixel for pixel at rest.
 - Still different from the original at rest: the view's top row (the
   textures there; probably the library's polygon clip, `f83_0065`, at the
   clip's edge) and the steep grid lines.
