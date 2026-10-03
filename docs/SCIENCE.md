@@ -339,11 +339,21 @@ Borland's `mov ax, ss; nop; inc bp` prologue): `f31_0783` is
     (`f06_0877`, kept at `+F79`): box (x, y, z, 20, 20, 10), the ring's
     back `1042` at (centre + 1, centre); after the drawables, with
     `[1508]` set, its front `1043` at the same place over the ball.
-  - Room 1's holes, labels, logo, EXIT, ball and boxes match the original
-    pixel for pixel at rest.
-- Still different from the original at rest: the view's top row (the
-  textures there; probably the library's polygon clip, `f83_0065`, at the
-  clip's edge) and the steep grid lines.
+- **The library's lines and polygon edges** (`f63_1cd5` → `f80_0024`,
+  and `f81_0000`, both 32-bit code, `ndisasm -b 32`): one run of pixels a
+  row from the top end down, the runs' ends stepping by dx / dy in 16.16
+  at the half rows (P = 2 x + (2k + 1) step, the next end ceil(int(P) /
+  2)); a polygon's rows are the union of its edges' runs. `f14_15f1`
+  clamps a line's ends into `[1706]`, the whole screen, not the view: the
+  grid's lines that run out of the view land where the machine covers
+  them.
+- The ball's shadow (`f13_01ce`, with the linked object's `+60` set and
+  `[14E0]` clear): `1040` at the ball's centre, the radius less one lower,
+  before the ball.
+- With these, room 1 at rest matches the original within the view but
+  for 5 pixels (on one of the ramp's grid lines); outside it the panel's
+  controls and the side columns (the player's `+A4`, `+AA`, `+AC`) aren't
+  ported yet.
 
 ## The rooms (`S<n>.SRF`)
 

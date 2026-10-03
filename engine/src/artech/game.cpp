@@ -82,15 +82,43 @@ void ArtechGame::fillPolygonStretched(const std::vector<std::pair<int, int>>& pt
     for (auto [x, y] : poly) top = std::min(top, y), bottom = std::max(bottom, y);
     const int rows = bottom - top + 1;
     std::vector<std::pair<int, int>> span(static_cast<size_t>(rows), {0x7FFF, 0});
+    auto widen = [&](int y, int x0, int x1) {
+        auto& s = span[static_cast<size_t>(y - top)];
+        s.first = std::min(s.first, x0), s.second = std::max(s.second, x1);
+    };
     for (size_t k = 0; k < poly.size(); ++k) {
-        const auto p = poly[k], q = poly[(k + 1) % poly.size()];
-        const int y0 = std::min(p.second, q.second), y1 = std::max(p.second, q.second);
-        for (int y = y0; y <= y1; ++y) {
-            const int x = p.second == q.second ? (y == p.second ? p.first : q.first)
-                                               : p.first + (y - p.second) * (q.first - p.first) / (q.second - p.second);
-            auto& s = span[static_cast<size_t>(y - top)];
-            s.first = std::min(s.first, x), s.second = std::max(s.second, x);
-            if (p.second == q.second) s.first = std::min({s.first, p.first, q.first}), s.second = std::max({s.second, p.first, q.first});
+        // Each edge from its top end down, as the library's line: P = 2 x +
+        // (2k + 1) dx / dy in 16.16, the next row's x ceil(int(P) / 2).
+        const auto p = poly[(k + poly.size() - 1) % poly.size()], q = poly[k];
+        const auto& hi = p.second <= q.second ? p : q;
+        const auto& lo = p.second <= q.second ? q : p;
+        const int dx = std::abs(lo.first - hi.first), dy = lo.second - hi.second;
+        if (dx == 0) {
+            for (int y = hi.second; y <= lo.second; ++y) widen(y, hi.first, hi.first);
+            continue;
+        }
+        if (dy == 0) {
+            widen(hi.second, std::min(p.first, q.first), std::max(p.first, q.first));
+            continue;
+        }
+        const uint32_t step = (static_cast<uint32_t>(dx / dy) << 16) | ((static_cast<uint32_t>(dx % dy) << 16) / static_cast<uint32_t>(dy));
+        int x = hi.first, y = hi.second;
+        if (lo.first > hi.first) {
+            uint32_t at = (static_cast<uint32_t>(2 * x) << 16) + step;
+            for (int r = 0; r < dy; ++r, ++y, at += 2 * step) {
+                const int i = static_cast<int>(at >> 16), next = (i >> 1) + (i & 1);
+                widen(y, x, next != x ? next - 1 : next);
+                x = next;
+            }
+            widen(y, x, lo.first);
+        } else {
+            uint32_t at = (static_cast<uint32_t>(2 * x) << 16) - step;
+            for (int r = 0; r < dy; ++r, ++y, at -= 2 * step) {
+                const int i = static_cast<int>(at >> 16), next = (i >> 1) + (i & 1);
+                widen(y, next != x ? next + 1 : next, x);
+                x = next;
+            }
+            widen(y, lo.first, x);
         }
     }
     // f82_02f0: the stretch.

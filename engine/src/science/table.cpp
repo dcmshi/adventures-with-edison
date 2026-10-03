@@ -207,6 +207,10 @@ void Science::drawObjects() {
     const auto [tx, ty] = objectCentre(ball->x, ball->y, z, 20, 20, 10);
     objectSprite(tx + 1, ty, 0x1042);
     const auto [bx, by] = objectCentre(ball->x - 10, ball->y - 10, z, 21, 21, 21);
+    // f13_01ce: its shadow first (1040, the radius less one below the
+    // centre: with the linked object's +60 set and not [14E0]), then the
+    // ball.
+    objectSprite(bx, by + 10 - 1, 0x1040);
     objectSprite(bx, by, 0x1016);
     objectSprite(tx + 1, ty, 0x1043);
 }
@@ -298,11 +302,56 @@ void Science::faceFill(std::vector<std::pair<int, int>> points, int look, bool t
 }
 
 void Science::tableLine(int x0, int y0, int x1, int y1, uint8_t colour) {
-    // f14_15f1: each end clamped into the clip (f11_0aea), then the line.
-    const Rect& v = table_.view;
-    auto clampX = [&](int x) { return std::clamp(x, v.x, v.x + v.w - 1); };
-    auto clampY = [&](int y) { return std::clamp(y, v.y, v.y + v.h - 1); };
-    line(clampX(x0), clampY(y0), clampX(x1), clampY(y1), colour);
+    // f14_15f1: each end clamped into the clip [1706] (f11_0aea), which is
+    // the whole screen here (not the view: lines running out of the view
+    // land on parts the machine covers later).
+    auto clampX = [&](int x) { return std::clamp(x, 0, Screen::kWidth - 1); };
+    auto clampY = [&](int y) { return std::clamp(y, 0, Screen::kHeight - 1); };
+    libraryLine(clampX(x0), clampY(y0), clampX(x1), clampY(y1), colour);
+}
+
+void Science::libraryLine(int x0, int y0, int x1, int y1, uint8_t colour) {
+    // f63_1cd5 → f80_0024 (32-bit code: ndisasm -b 32): the line as one
+    // run of pixels a row, from its top end down. The runs' ends step by
+    // dx / dy in 16.16, taken at the half rows: P = 2 x + (2k + 1) step,
+    // the next end ceil(int(P) / 2).
+    Screen& scr = ctx_.screens[current()];
+    auto run = [&](int x, int y, int len) {
+        if (y < 0 || y >= Screen::kHeight) return;
+        for (int i = 0; i < len; ++i)
+            if (x + i >= 0 && x + i < Screen::kWidth) scr.pixels[static_cast<size_t>(y) * Screen::kWidth + x + i] = colour;
+    };
+    const int top = std::min(y0, y1);
+    const int dx = std::abs(x0 - x1), dy = std::abs(y0 - y1);
+    if (dx == 0) {  // one pixel a row
+        for (int y = top; y <= top + dy; ++y) run(x1, y, 1);
+        return;
+    }
+    if (dy == 0) {
+        run(std::min(x0, x1), top, dx + 1);
+        return;
+    }
+    const int start = y0 < y1 ? x0 : x1, end = y0 < y1 ? x1 : x0;  // the top end's x first
+    const uint32_t step = (static_cast<uint32_t>(dx / dy) << 16) | ((static_cast<uint32_t>(dx % dy) << 16) / static_cast<uint32_t>(dy));
+    int x = start, y = top;
+    if (end > start) {
+        uint32_t p = (static_cast<uint32_t>(2 * start) << 16) + step;
+        for (int k = 0; k < dy; ++k, ++y, p += 2 * step) {
+            const int i = static_cast<int>(p >> 16), next = (i >> 1) + (i & 1);
+            run(x, y, std::max(next - x, 1));
+            x = next;
+        }
+        run(x, y, end - x + 1);
+    } else {
+        uint32_t p = (static_cast<uint32_t>(2 * start) << 16) - step;
+        for (int k = 0; k < dy; ++k, ++y, p -= 2 * step) {
+            const int i = static_cast<int>(p >> 16), next = (i >> 1) + (i & 1);
+            if (next == x) run(x, y, 1);
+            else run(next + 1, y, x - next);
+            x = next;
+        }
+        run(end, y, x - end + 1);
+    }
 }
 
 bool Science::gridOn(int face) const {

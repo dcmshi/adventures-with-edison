@@ -129,6 +129,7 @@ private:
     void drawPits(const Box& box);                  // f12_39b5: on screen 2
     void faceFill(std::vector<std::pair<int, int>> points, int look, bool texture);  // f12_0ddf
     void tableLine(int x0, int y0, int x1, int y1, uint8_t colour);  // f14_15f1: ends clamped to the view
+    void libraryLine(int x0, int y0, int x1, int y1, uint8_t colour);  // f63_1cd5 (f80_0024)
     void gridX(const Box& box, int face, int x, int y, int end);  // f12_335e
     void gridY(const Box& box, int face, int x, int y, int end);  // f12_35c5
     bool gridOn(int face) const;
