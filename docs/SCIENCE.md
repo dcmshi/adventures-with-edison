@@ -199,6 +199,45 @@ Borland's `mov ax, ss; nop; inc bp` prologue): `f31_0783` is
   most in segments 2-8 (the table's objects), 15 (the lessons' pictures and
   buttons) and 28-30.
 
+## The arcade's table (being mapped)
+
+- **A room is also its camera.** The classes go camera (segment 25,
+  `f25_03bf`, class `1F62`) → room base (27, `f27_03da`, `2051`) → room
+  (26, `1F76`) → each room's own (41-60; room 1 `2E29`), built as
+  `room(parent, [1FEE] = 809, [1FF0] = 789, view)`, the view the player's
+  play area (54, 6, 530 x 280). Camera fields: `+46` the angle (`0x2000`,
+  45 degrees; `f25_07cb` takes its sine and cosine through segment 86 into
+  `+4C` / `+4E`, in 32767ths), `+48` / `+4A` the world's size, `+50`-`+56`
+  the view, `+58` / `+5A` the scroll (room 1: -[1FF2] = -279, 0; set by
+  `f25_0779`), `+5C` the view's bottom.
+- **The projection** (`f25_0813`) is oblique: a point (x, y, height) is at
+  screen x = x + y cos k + `+50` + `+58`, screen y = `+5C` + `+5A` -
+  (y sin k + height), with k = `[1F56]` / `[1F58]` = 5 / 10. So x is 1:1,
+  depth is drawn at 0.354, and the world is wider than the view (room 1's
+  walls cover what's left of x 269, which lands at the view's left edge).
+  Angles of `0x4000` and more are the "left perspective case not
+  implemented" (`f12_093b`).
+- **Drawing a room** (`f27_0e5b`): the room's method 0 (`f27_0ec5`)
+  draws the table on screen 2 (`f12_0d2f` makes the room the current
+  one; then the boxes; lines through `f14_15f1`, two points clamped,
+  `f11_0aea`); then the machine (`2002`, with the look) on screen 3, the
+  table copied into its window (the view rectangle, `+60`), and the whole
+  to the display. The room's method 4 then draws its own pictures on
+  screen 3 (room 1: the holes' labels, the logo, EXIT).
+- **Boxes** (the `.SRF` nodes, made by the room's method 1, `f27_12b6`,
+  through `f25_057b`; class `f12_0312`, `116E`): bottom and top
+  rectangles, a height, and five faces (segment 34, `f34_00f9`; types 1
+  top, 2-5 the sides). The faces are the ball's height map:
+  `f34_02fa` finds the face under a point and `f34_07ec` interpolates the
+  height across a slope. They're drawn as textured polygons (bitmap fill,
+  `f63_20e4`, tiled from the screen's corner, which an oblique projection
+  allows: the floor's grid stays a repeating pattern on screen) and
+  pattern fills (`f14_07a0`): segment 12's `f12_0ddf`, `f12_220d`,
+  `f12_2871`, `f12_2a09` (to map: which texture each face takes, and the
+  order).
+- Segment 11 is rectangles (union `f11_08b7`, overlap `f11_0a26`, clamp
+  a point `f11_0aea`, intersection `f11_0c12`).
+
 ## The rooms (`S<n>.SRF`)
 
 A room reads `S<n>.SRF` (`f27_0ad8`: the name built at `DS:1FF4`, read
