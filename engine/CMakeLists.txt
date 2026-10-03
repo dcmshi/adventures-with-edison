@@ -42,6 +42,7 @@ add_library(edison_core
     src/rockbach/studio.cpp
     src/rockbach/video.cpp
     src/rockbach/widgets.cpp
+    src/science/science.cpp
     src/mystery/editor.cpp
     src/mystery/end.cpp
     src/mystery/three.cpp

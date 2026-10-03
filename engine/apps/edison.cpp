@@ -5,6 +5,7 @@
 //     -A  no FM music (as the original's -A)
 //     --game mystery   start Mystery at the Museums directly
 //     --game rockbach  start Rock and Bach Studio directly (--level N: straight to hallway spot N)
+//     --game science   start the Wild Science Arcade directly
 //     --level N        (with --game mystery) skip setup and play level N (0-7)
 //     --puzzle K       (with --game mystery) play only puzzle K (0-15), at difficulty --level;
 //                      16 is the bonus maze, 17 the winning end of a game, 18 the losing one,
@@ -39,6 +40,7 @@
 #include "launcher/launcher.h"
 #include "mystery/mystery.h"
 #include "rockbach/rockbach.h"
+#include "science/science.h"
 
 namespace {
 
@@ -464,7 +466,24 @@ int main(int argc, char** argv) {
         game->run();
         return true;
     };
+    auto runScience = [&]() -> bool {
+        edison::Science::Options so;
+        so.cdDir = options.cdDir;
+        so.music = options.music;
+        so.saveDir = saveDir;
+        auto game = std::make_unique<edison::Science>(*platform);
+        if (!game->load(so, &error)) {
+            std::fprintf(stderr, "%s\n", error.c_str());
+            return false;
+        }
+        game->run();
+        return true;
+    };
     try {
+        if (startGame == "science") {
+            if (!runScience()) return 1;
+            options.skipOpening = true;
+        }
         if (startGame == "rockbach") {
             if (!runRockBach()) return 1;
             options.skipOpening = true;
@@ -487,8 +506,8 @@ int main(int argc, char** argv) {
                 if (!runMystery()) return 1;
             } else if (choice == edison::Launcher::kRockAndBach) {
                 if (!runRockBach()) return 1;
-            } else {
-                std::printf("Wild Science Arcade isn't ported yet; back to the menu.\n");
+            } else if (choice == edison::Launcher::kWildScience) {
+                if (!runScience()) return 1;
             }
             options.skipOpening = true;  // like coming back from a game
         }

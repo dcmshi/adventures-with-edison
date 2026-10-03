@@ -47,15 +47,17 @@ Started by the launcher as `wmain.exe -A`; on leaving it runs
   the original waits for ever after its title.
 - `f38_0718` is the story.
 
-## The story (`f38_0718`, to port first)
+## The story (`f38_0718`, ported: `science.cpp`)
 
 `f36_00ad(n, 1)` plays narration WAV n (names 9 bytes apart at
 `seg97:0519`), and the story waits while `[92BC]` (a WAV playing) is set.
 Bit 1 of the held-keys bitmap (`DS:9560`, Escape) skips the rest.
 
 1. WAV 8; picture `2007` on screen 2 (`f14_092c`, Edison's look in its
-   palette); colour 10 set to `3F3F3F`; three caption lines (`f14_191d`,
-   colour 10). Then WAVs 0 and 1, and a wait of 60 x `f32_07aa(10)`.
+   palette: the 6-bit tables copied as they are, so it comes out dark);
+   colour 10 set to `3F3F3F` (then the picture's own palette, green, is
+   shown); three caption lines (`f14_191d`, colour 10, from (112, 284), a
+   line every font height + 4; font resource `103`). Then WAVs 0 and 1, and a wait of 60 x `f32_07aa(10)`.
 2. Picture `2008` and three lines; WAVs 2, 3 and 4; a wait of 60.
 3. Picture `2008` and two lines, copied to the display; WAVs 5, 6 and 7;
    a wait of 600 x `f32_07aa(1)`.

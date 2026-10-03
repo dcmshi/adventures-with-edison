@@ -47,7 +47,8 @@ scene objects and an event queue, floating point), so it goes in stages:
 - [x] First look: the game's flow under winevdm, WinMain, the game loop, the files.
 - [x] Map the library layers (segment 14 over 63-83) and the framework: the game and player objects, the events, the room dispatcher (110 rooms and the special ones).
 - [ ] Map the room base class (segment 27: the `.SRF` rooms, the table's drawing) and the object classes (segments 2-8, 15, 28-30), the physics (11, 24-26).
-- [ ] `edison --game science`: the archive, the title and the story (`f38_0718`) with narration.
+- [x] `edison --game science` (and the main menu's Wild Science): the archive, the title and the story (`f38_0718`) with narration; both pixel-identical to the original.
+- [ ] The title's FM sound: the port's FM driver doesn't take `SADLIB.DLL` yet ("not an Artech ADLIB-family driver").
 - [ ] The laboratory: the name, the Character Enhancer, the professor's lesson.
 - [ ] The rooms (`S*.SRF`) and the table's physics: the ball, gravity, friction, ball types, power.
 - [ ] The arcade's menu table, the levels, high scores (`WSCIENCE.HS`), the lab, the credits.
