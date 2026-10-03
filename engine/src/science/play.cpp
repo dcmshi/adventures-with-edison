@@ -40,6 +40,7 @@ void Science::playRoom(int room) {
             next += 20;
             if (next + 100 < now) next = now;  // fallen behind (a stall): no catching up
             tickRoom();
+            if (shotHeld_) shoot();
         }
         flushRoom();
     }
@@ -182,6 +183,16 @@ void Science::shoot() {
     // middle (its box's x + w / 2, y + d / 2, its foot); sound 6003; a shot
     // more.
     if (!hasBall_) return;
+    if (const char* when = std::getenv("SCI_SHOOT_WHEN")) {
+        // (Testing: the shot held till the ball is in this state, "cx,cy,cz,
+        // vx,vy,vz", the original's when its shot came, so a trace taken
+        // while the ball moves can be compared from there.)
+        const Ball& b = ball_;
+        const std::string now = std::to_string(b.cx) + "," + std::to_string(b.cy) + "," + std::to_string(b.cz) + "," +
+                                std::to_string(b.v[0]) + "," + std::to_string(b.v[1]) + "," + std::to_string(b.v[2]);
+        shotHeld_ = now != when;
+        if (shotHeld_) return;
+    }
     const int z = heightUnder(targetX_, targetY_) + (targetMoved_ ? 1 : 0);
     ballLaunch(targetX_, targetY_, z);
     sound(0x6003);

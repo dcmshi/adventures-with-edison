@@ -508,7 +508,14 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   (centre, velocity) the original's ball went through on the way, read
   from its memory (`tools/reference/memwatch.py watch WMAINSKP.EXE
   "cx=[[[5ffc+ae]+f77]]+2" ... "vx=[[[5ffc+ae]+f77]+2]+62" ...`), is one
-  the port's went through (`SCI_DEBUG=1` logs them; `tracecmp.py`). Useful
+  the port's went through (`SCI_DEBUG=1` logs them; `tracecmp.py`). So do
+  full-power shots at the back wall and to the left, shots with ball types 2
+  and 4, and gravity at +4: the ball rises to the ceiling (z 289, above the
+  view) and bounces there for good (in the original too, never settling),
+  then a shot from there. A real-time click lands at a random point of such
+  a bounce, so the port can hold its shot till the ball is in the state the
+  original's trace shows just before its shot (`SCI_SHOOT_WHEN=cx,cy,cz,vx,
+  vy,vz`), then the paths after it compare. Useful
   addresses: the player object DS:5FFC, its room +AE; the room's gravity
   +EFF / +F03 (longs), friction +F07, power +F0F, shots +F39, its ball
   +F77 (the ball's +0: the motion part, sphere at +2; +2: the core,

@@ -265,7 +265,8 @@ private:
     int lastHitSound_ = 0;              // [100A]
     int stepDepth_ = 0;                 // [101E]
     Control captured_ = Control::None;  // [27AC] / [27AE]: who has the mouse
-    bool ballTypePressed_ = false, shootPressed_ = false;  // the buttons' +3A
+    bool ballTypePressed_ = false, shootPressed_ = false;
+    bool shotHeld_ = false;  // (testing: SCI_SHOOT_WHEN)  // the buttons' +3A
     int sliderRepeats_ = 0;             // [2338]
     int panelTicks_ = 0;                // [8E4E]
     Column columns_[2];                 // +AA (left), +AC (right)
