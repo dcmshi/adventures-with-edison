@@ -45,11 +45,22 @@ void Science::run() {
     ctx_.startTimer();
     if (options_.music) ctx_.platform.setFmDriver(options_.cdDir + "/SADLIB.DLL");
     select(1);
-    title();
-    story();
-    lab();  // room 501
-    // (The professor's lesson, room 505, and the arcade aren't ported yet.)
-    logLine("Wild Science Arcade: the lesson and the arcade aren't ported yet; back to the menu.");
+    const int start = options_.startRoom;
+    if (start < 0) {
+        title();
+        story();
+    }
+    if (start < 0 || start == 501) lab();  // room 501
+    if (start == 505) {
+        // (Testing: the look and name as the lab would leave them.)
+        loadLook();
+        looksConverted_ = true;
+        playerName_ = dataString(0x1D6F);  // "Player"
+    }
+    // Room 501 goes on to the first lesson (f31_0783).
+    if (start < 0 || start == 501 || start == 505) lesson5();  // room 505, then room 1
+    // (The arcade's rooms aren't ported yet.)
+    logLine("Wild Science Arcade: the arcade isn't ported yet; back to the menu.");
     if (options_.music) ctx_.platform.setFmDriver(std::string());
 }
 
@@ -76,7 +87,10 @@ void Science::showScreenWithLook(uint16_t picture, int screen) {
     for (int t = 0; t < 4; ++t)
         for (int k = 0; k < kParts[t].count; ++k) {
             const size_t at = kParts[t].table + 3u * (static_cast<size_t>(look_[t]) * kParts[t].count + k);
-            if (at + 2 < looks_.size()) pal[kParts[t].first + k] = Rgb{looks_[at + 2], looks_[at + 1], looks_[at]};
+            if (at + 2 >= looks_.size()) continue;
+            // Once the lab has turned the tables into 8-bit colours
+            // (f19_0614), they're right.
+            pal[kParts[t].first + k] = looksConverted_ ? lookColour(t, look_[t], k) : Rgb{looks_[at + 2], looks_[at + 1], looks_[at]};
         }
     if (screen == 1) ctx_.setDisplayPalette(1);
 }
@@ -105,7 +119,9 @@ void Science::fmSound(uint16_t sound) {
 void Science::narration(int n, bool story) {
     // f36_00ad: the name, 9 bytes apart, then the CD's \science\ or the
     // game's data\ folder.
-    const size_t at = (story ? 0x519u : 0u) + 9u * static_cast<size_t>(n);
+    // (The second list is reached as the original does, wrapping at 64 KB:
+    // (n * 9 + 9700) & FFFF, so the lessons' 6169 is WSA1521.)
+    const size_t at = story ? 0x519u + 9u * static_cast<size_t>(n) : (static_cast<unsigned>(n) * 9u + 0x9700u) & 0xFFFFu;
     std::string name;
     for (size_t i = at; i < strings_.size() && strings_[i] && name.size() < 9; ++i) name += static_cast<char>(strings_[i]);
     std::ifstream in(cdRoot_ + "/SCIENCE/" + name + ".WAV", std::ios::binary);

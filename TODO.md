@@ -50,7 +50,9 @@ scene objects and an event queue, floating point), so it goes in stages:
 - [x] `edison --game science` (and the main menu's Wild Science): the archive, the title and the story (`f38_0718`) with narration; both pixel-identical to the original.
 - [ ] The FM music: `SADLIB.DLL` is a different driver from the ADLIB family (none of their code patterns), so it needs its own emulation; till then the game has no FM music.
 - [x] The laboratory, room 501 (`f19_0a59`): Edison walks in, the name, "Do you wanna change the way I look?", the Character Enhancer, "Cool!"; `wscience.edi` and the players in `wscience.hs`. The name prompt matches the original pixel for pixel.
-- [ ] The professor's lesson (room 505, `f38_0fb5`), then the arcade's menu (room 1).
+- [x] The professor's first lesson (room 505, `f15_0fee`): the classroom (`2003`), his eight lines in bubbles (laid out and wrapped as `f15_31fa` and segment 23 do), the narration, MORE. The bubbles match the original pixel for pixel.
+- [ ] The lesson's animations: Edison's head at his desk (`13AF`-`13B1`, `f16_010e`) and the professor's mouth (`f15_0bde`); the palette cycle (`f32_0e7f`, colours 70-7F); the other lessons (rooms 506-510); then the arcade's menu (room 1).
+- [x] `--room 501` (the lab) and `--room 505` (the first lesson) to start there when testing.
 - [ ] The rooms (`S*.SRF`) and the table's physics: the ball, gravity, friction, ball types, power.
 - [ ] The arcade's menu table, the levels, high scores (`WSCIENCE.HS`), the lab, the credits.
 - [ ] Compare with the original under winevdm as each part lands.

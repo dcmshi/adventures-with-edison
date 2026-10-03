@@ -16,6 +16,7 @@ public:
         std::string cdDir;              // the CD's DSK3 folder (WMAIN.EXE, GRAFX.DAT, S*.SRF)
         bool music = true;              // not -A
         std::string saveDir = "save";   // wscience.edi, wscience.hs
+        int startRoom = -1;             // for testing: 501 the lab, 505 the first lesson
     };
 
     explicit Science(Platform& platform) : ArtechGame(platform) {}
@@ -64,6 +65,18 @@ private:
     void loadLook();                                // wscience.edi
     void saveLook() const;
 
+    // --- the lessons, rooms 505-510 (segment 15, lesson.cpp) ---
+    struct Bubble {
+        int x = 0, y = 0, w = 0, h = 0;  // what it covers
+    };
+    std::vector<std::string> wrapText(const std::string& text, int width) const;  // f23_02a4
+    void drawStretched(int x, int y, int w, int h, uint16_t id);                  // f14_148a
+    Bubble bubble(int ax, int ay, int width, int tail, const std::string& text);  // g15_0467
+    std::string textResource(uint16_t id);
+    bool waitMore();
+    void lessonStart(uint16_t picture);             // f15_076a
+    int lesson5();                                  // f15_0fee: the next room
+
     std::string dataString(uint16_t offset) const;  // DGROUP (segment 103)
 
     Options options_;
@@ -81,6 +94,7 @@ private:
     std::vector<PlayerEntry> players_;  // the high scores (and looks), wscience.hs
     std::string playerName_;            // DS:8D22
     unsigned labFrame_ = 0;             // [1D40]
+    bool looksConverted_ = false;       // [1D3E]: f19_0614 has run
 };
 
 }  // namespace edison

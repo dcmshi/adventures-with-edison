@@ -93,6 +93,35 @@ on screen 1, up to 130 countdown ticks or a key or click, then `f20_0094`.
   click takes the part's next choice (0-7, `f19_07fa`) with its colours at
   once; DONE shows `142A`. Sounds by id are WAVs in `GRAFX.DAT` (`f36_007e`).
 
+## The lessons (rooms 505-510, `f38_0fb5`; the first ported: `lesson.cpp`)
+
+- Each is a game object (segment 15; lesson 5 `f15_0fee`, class `DS:1A41`;
+  6 `f15_1524`; 7 `f15_19d4`; 8 `f15_1dbb`; 9 `f15_21a2`; 10 `f15_2591`) on
+  the base `f15_076a(this, picture, sound, view)`: FM sound (default 25),
+  the look, the display cleared, the picture with the look on screen 2.
+  Pictures: 2003 (lessons 5, 7, 8), 2004 (6), 2006 (9), 2005 (10). MORE is
+  the lesson's rectangle (528, 370, 88, 24). At the end, event 9 to the
+  room at `+138` (lesson 5: room 1; 6: 50).
+- The script (lesson 5: `g15_1260`) is a step counter (`+13A`) and a jump
+  table (`15:14EE`): each step says a line (`g15_0a1d`: the last bubble
+  goes, a new one) and queues the narration the next bubble plays
+  (`[171A]`, `f36_00ad(n, 0)`, the name at `seg97:(n * 9 + 9700) & FFFF`;
+  the first, WSA1521, is queued by the builder). Lesson 5: anchors (480,
+  174) and (540, 124), width 200 (230 once), texts `75F1`, `75F4`, `75FB`,
+  `75FC`, `75F5`, `75FD`, `75FE`, `75F6` (one-line text resources).
+- The bubble (`g15_0467`, class `1B89`; drawn by its text's `f15_2a35`): a
+  box the given width and as tall as the lines (font height each), placed
+  by the tail (`f15_31fa`; `[1732]` = 2 here: left of and above the
+  anchor by the tail's size); filled with colour F, edged with the
+  bitmaps 4 / 3 (left / right, 12 wide, the box's height + 2) and 1 / 2
+  (top / bottom, 11 high, the width + 24) stretched (`f14_148a`), the
+  lines in colour 0, the tail (5, 7, 6 for types 0-2) at the anchor.
+- Wrapping (segment 23, `f23_02a4`): from an estimate of the characters a
+  line holds (first (width x width) / the text's width, then the last
+  line's length), back to the space before (`f23_0193`, the space left
+  for the next line) while too wide, else on to the next space
+  (`f23_0218`, the space kept) while it fits.
+
 ## The segments
 
 | Segments | What |

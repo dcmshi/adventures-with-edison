@@ -5,7 +5,7 @@
 //     -A  no FM music (as the original's -A)
 //     --game mystery   start Mystery at the Museums directly
 //     --game rockbach  start Rock and Bach Studio directly (--level N: straight to hallway spot N)
-//     --game science   start the Wild Science Arcade directly
+//     --game science   start the Wild Science Arcade directly (--room 501: the lab; 505: the first lesson)
 //     --level N        (with --game mystery) skip setup and play level N (0-7)
 //     --puzzle K       (with --game mystery) play only puzzle K (0-15), at difficulty --level;
 //                      16 is the bonus maze, 17 the winning end of a game, 18 the losing one,
@@ -388,6 +388,7 @@ int main(int argc, char** argv) {
     Automation automation;
     std::string startGame;
     int startLevel = -1;
+    int startRoom = -1;  // --room (Wild Science)
     int startPuzzle = -1;
     std::string saveDir = "save";
     for (int i = 1; i < argc; ++i) {
@@ -415,6 +416,8 @@ int main(int argc, char** argv) {
         } else if (a == "--type" && i + 2 < argc) {
             const uint64_t at = std::strtoull(argv[++i], nullptr, 10);
             automation.typed.push_back({at, argv[++i]});
+        } else if (a == "--room" && i + 1 < argc) {
+            startRoom = std::atoi(argv[++i]);
         } else if (a == "--hidden") {
             automation.hidden = true;
         } else if (a == "--quit-after" && i + 1 < argc) {
@@ -476,6 +479,8 @@ int main(int argc, char** argv) {
         so.cdDir = options.cdDir;
         so.music = options.music;
         so.saveDir = saveDir;
+        so.startRoom = startRoom;
+        startRoom = -1;  // only the first time
         auto game = std::make_unique<edison::Science>(*platform);
         if (!game->load(so, &error)) {
             std::fprintf(stderr, "%s\n", error.c_str());

@@ -78,6 +78,7 @@ Rgb Science::lookColour(int part, int choice, int k) const {
 void Science::applyLook() {
     // f19_06bc: the look into screen 1's palette (E1-ED), and that to the
     // display.
+    looksConverted_ = true;
     Palette& pal = ctx_.screens[1].palette;
     for (int t = 0; t < 4; ++t)
         for (int k = 0; k < kParts[t].count; ++k) pal[kParts[t].first + k] = lookColour(t, look_[t], k);
