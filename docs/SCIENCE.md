@@ -237,6 +237,17 @@ Borland's `mov ax, ss; nop; inc bp` prologue): `f31_0783` is
   order).
 - Segment 11 is rectangles (union `f11_08b7`, overlap `f11_0a26`, clamp
   a point `f11_0aea`, intersection `f11_0c12`).
+- **Redrawing** (the room's method 3, `f27_1e36`, for a changed
+  rectangle within the view): the area cleared to colour 0, then the
+  room's drawable objects (a list at `+1AD`, 17h bytes each, the count at
+  `+EFD`, up to 30h) painted back to front: a 30h x 30h table at `+5FD`
+  says which of two objects is in front (`f27_19d9`; rebuilt by
+  `f27_1af3` when `+F1D` is set, brought up to date by `f27_1bd9` when
+  `+F1B` is), each drawn by `f27_1d2f` (boxes through `f35_04ca` →
+  `f12_220d`); then the score (`+F35`) and "shots: n" (`+F39`, at the
+  view's corners), five more sprites (`+F3D`), and the area to the
+  display (or through screen 3 with `[2024]`). Segment 35 keeps the clip
+  for it (`f35_0015`, `f35_0046`).
 
 ## The rooms (`S<n>.SRF`)
 
