@@ -69,13 +69,27 @@ ctest --test-dir build --output-on-failure
   - Imports from the CD's DLLs are named, and functions found by `nedis.py` are added.
   - Needs [Ghidra](https://github.com/NationalSecurityAgency/ghidra) 12 and a JDK 21. It expects them in `D:/tools`; otherwise set `GHIDRA` and `JAVA_HOME`.
 - `tools/scripts.py`: decompiles the menu scripts (see `docs/GAME.md`).
-- `tools/reference/otvdm.ps1 start|shot|dialogs|stop|click|rclick|type|run`: runs the original game under [winevdm](https://github.com/otya128/winevdm) as a visual reference.
+- `tools/reference/otvdm.ps1 start|shot|dialogs|stop|unlock|click|rclick|type|run`: runs the original game under [winevdm](https://github.com/otya128/winevdm) as a visual reference.
   - `click`, `rclick` and `type` post input to the game's window (the real cursor isn't moved); `run SCRIPT DIR` plays a script of those, `wait` and `shot` steps (see `tools/reference/*.txt`).
   - `tools/reference/screendiff.py PORT.bmp ORIGINAL.png OUT.png` compares a port capture (`--capture`) with a screenshot of the original.
   - `edison --hidden` runs with no window shown and the sound muted, for test runs in the background.
-  - Always stop it with `stop`, never by killing `otvdmw`. The game's error boxes can disable an unrelated window (such as your terminal), which stays disabled if the game is killed while the box is open.
-  - `stop` closes dialogs first and then re-enables any disabled windows.
-  - **Symptom:** a window that chimes when clicked and ignores all input is disabled, not frozen. `EnableWindow(hwnd, TRUE)` fixes it.
+
+#### Booting and cleaning up the original
+
+The original's error boxes often have no owner, so winevdm attaches them to whatever window is in front, usually your terminal, and Windows disables that window until the box closes. If the game is killed or crashes while a box is open, the window (often every Windows Terminal window, since they share a process) stays disabled.
+
+```powershell
+pwsh tools/reference/otvdm.ps1 start                # boot EDISON.EXE (or: start WMAIN.EXE)
+pwsh tools/reference/otvdm.ps1 dialogs              # check for open error boxes
+pwsh tools/reference/otvdm.ps1 stop                 # always end a session with this
+pwsh tools/reference/otvdm.ps1 unlock               # if the game already died
+```
+
+- `start` runs the game in a window: it hides the black, screen-sized backdrop that the game's library opens behind its 640x400 window, and keeps the game window on top so other windows can't cover it in shots. Set `OTVDM_FULLSCREEN=1` to keep the backdrop.
+- To get to the Wild Science Arcade's menu table quickly, `python tools/reference/wmain_skip.py` writes `WMAINSKP.EXE` into the run folder. It's a copy with the intro flag cleared, so `start "WMAINSKP.EXE -A"` skips the title, the story, the lab and the professor and is at room 1 in about 8 seconds. In the port, `edison --game science --room 1` does the same.
+- If `WMAIN.EXE` shows only a black window and uses a whole CPU core (seen right after a reboot), `stop` it, run `EDISON.EXE` once, and try again.
+- Always end with `stop`, never by killing `otvdmw` or closing its window. `stop` closes dialogs, asks the game to quit, kills it only as a last resort, and then re-enables disabled windows.
+- **Symptom:** a window that chimes when clicked and ignores all input is disabled, not frozen. Run `unlock` from any working shell (such as a new terminal window from the Start menu, or Claude Code's shell). It re-enables those windows; it skips conpty's `PseudoConsoleWindow` and UWP frames, which are disabled by design.
 
 ## Status
 
