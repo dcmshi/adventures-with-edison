@@ -1247,7 +1247,8 @@ int RockBach::videoMaker(int kind) {
         }
         squares(i);
     }
-    // Carrying a choice (its picture at the pointer's corner).
+    // Carrying a choice (its picture at the pointer's corner, kept on the
+    // screen: f16_20e8, always with 0x42 x 0x30). x, y are where it is.
     struct Carry {
         bool on = false;
         uint16_t picture = 0xFFFF;
@@ -1255,6 +1256,9 @@ int RockBach::videoMaker(int kind) {
     } carry;
     carry.area = saveArea(0, 0, 2, 2);
     auto drawCarry = [&](int mx, int my) {
+        if (mx + 0x42 >= Screen::kWidth) mx = Screen::kWidth - 0x42 - 1;
+        if (my + 0x30 >= Screen::kHeight) my = Screen::kHeight - 0x30 - 1;
+        if (my < 0) my = 0;
         restoreArea(carry.area);
         carry.area = saveArea(mx, my, carry.w, carry.h);
         drawLogo(mx, my, carry.picture);
@@ -1329,7 +1333,9 @@ int RockBach::videoMaker(int kind) {
         int mx, my;
         bool down;
         ctx_.platform.mouse(&mx, &my, &down);
-        if (carry.on && carry.picture != 0xFFFF && (mx != carry.x || my != carry.y)) drawCarry(mx, my);
+        // It follows the pointer's x only: the original's check of y
+        // compares [bp-C] with itself.
+        if (carry.on && carry.picture != 0xFFFF && mx != carry.x) drawCarry(mx, my);
         if (carry.on && anyClick) drop();
         if (r == 0) {
             result = -0x42;

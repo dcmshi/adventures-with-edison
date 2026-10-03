@@ -52,9 +52,11 @@ void RockBach::run() {
         setDriver(4);
         logo();
     } else {
-        // (Testing: Edison's colours as the hallway would have left them.)
+        // (Testing: Edison's colours as the hallway would have left them,
+        // which are its backdrop's own E1-ED: lookColours(0) only puts the
+        // look into screen 2's palette, and DS:8CC0 keeps the display's.)
         loadLook();
-        lookColours(0);
+        backdrop(0x1007);
         std::copy_n(ctx_.screens[2].palette.begin() + 0xE1, savedLook_.size(), savedLook_.begin());
     }
     bool again = false;

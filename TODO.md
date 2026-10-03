@@ -28,6 +28,7 @@ against the disassembly, not yet against the original.
 - [x] The Studio's front room (`f04_112e`), band maker (`f14_10f4`) and song maker (`f15_1f84`); videos load, save and delete.
 - [x] The Studio's player (`f18_22a4`, with the credits `f04_08cc`).
 - [x] The Studio's video makers (`f26_1edc`, `f16_217c`, `f17_20f2`, through `f35_005a`) and their previews.
+- [x] The Studio checked against the original under winevdm: its front room, playback and video makers match.
 - [ ] Compare with the original:
   - the hallway: a returning player's look only shows once a part is changed, the Yes/No buttons take the hair's colour, the look is lost after the credits (how the code reads);
   - the Music Library's end-of-piece check waits for the driver to start the sounds (a port adjustment for a timing race);
