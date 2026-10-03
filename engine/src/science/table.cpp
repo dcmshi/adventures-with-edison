@@ -368,25 +368,86 @@ void Science::drawTable() {
     drawPits(table_.root);
     copyKeyed(3, 2, v.x, v.y, v.w, v.h);
     clearPolygonClip();
-    // f27_0e5b: the machine (2002, with the look) on screen 3, the table
-    // into its window (+60), and the whole to the display.
+    // f27_0e5b (from the room's method 4, its last argument 0): the
+    // machine (2002, with the look) on screen 3 and the table into its
+    // window (+60); not yet to the display.
     select(3);
     showScreenWithLook(0x2002, 3);
     copyArea(2, 3, v.x, v.y, v.w, v.h);
-    toDisplay(3);
 }
 
-void Science::showTable(int room) {
-    // For testing (--room 1): the room's table as the original first draws
-    // it (no holes, labels or ball yet), till a click.
-    loadLook();
-    looksConverted_ = true;
+void Science::roomPictures(int room) {
+    // The room's method 4 after f27_0e5b: its own pictures on screen 3, at
+    // fixed places, each only if it fits (f14_1179: show_Clogo).
+    struct Picture {
+        int x, y;
+        uint16_t id;
+    };
+    static const Picture kRoom1[] = {
+        // f41_0126: the holes' labels (HIGH Score, Lab, Credits, play room,
+        // LEVEL 1, 4 and 5), the logo, EXIT.
+        {58, 168, 0x1399}, {104, 139, 0x139A}, {144, 98, 0x139B}, {236, 80, 0x139C}, {320, 76, 0x139D},
+        {408, 76, 0x139E}, {504, 29, 0x139F}, {54, 6, 0x13D0}, {478, 212, 0x13D2}};
+    select(3);
+    if (room == 1)
+        for (const Picture& p : kRoom1) drawLogo(p.x, p.y, p.id);
+}
+
+void Science::redrawTable(const Rect& area) {
+    // f27_1e36, the room's method 3: within the view, screen 2 cleared to
+    // colour 0, the room's objects painted back to front (not yet), the
+    // score and shots boxes, then screen 3 where screen 2 is still colour 0
+    // (f14_0c88 → f65_0294), and the area to the display.
+    const Rect a = intersect(area, table_.view);
+    if (a.w == 0 || a.h == 0) return;
+    Screen& two = ctx_.screens[2];
+    for (int y = a.y; y < a.y + a.h; ++y)
+        std::fill_n(two.pixels.begin() + static_cast<size_t>(y) * Screen::kWidth + a.x, a.w, uint8_t{0});
+    select(2);
+    // The score (+F35, at +F25) and " shots: n" (+F39, at +F2D, DS:2040):
+    // the yellow box 1425 and the number in colour 10 (f76_0021).
+    const Bitmap& box = ctx_.bitmap(0x1425);
+    auto overlaps = [&](int x, int y) { return intersect(a, {x, y, box.width, box.height}).w > 0 && intersect(a, {x, y, box.width, box.height}).h > 0; };
+    if (overlaps(480, 8)) {
+        drawLogo(480, 8, 0x1425);
+        textAt(480 + 0x17, 8 + 3, std::to_string(score_), 0x10);
+    }
+    if (overlaps(58, 8)) {
+        drawLogo(58, 8, 0x1425);
+        textAt(58 + 3, 8 + 3, dataString(0x2040) + std::to_string(shots_), 0x10);
+    }
+    const Screen& three = ctx_.screens[3];
+    for (int y = a.y; y < a.y + a.h; ++y)
+        for (int x = a.x; x < a.x + a.w; ++x) {
+            const size_t at = static_cast<size_t>(y) * Screen::kWidth + x;
+            if (two.pixels[at] == 0) two.pixels[at] = three.pixels[at];
+        }
+    copyArea(2, 1, a.x, a.y, a.w, a.h);
+}
+
+void Science::enterRoom(int room) {
+    // f31_0783 for rooms 1-100: screen 2 filled with colour 2, the room
+    // built (its shape, objects and panel, then its method 4: the table and
+    // its pictures on screen 3), screen 3 to the display, then event 5: the
+    // redraw of the whole (the player's method 4, f31_27de).
+    std::fill(ctx_.screens[2].pixels.begin(), ctx_.screens[2].pixels.end(), uint8_t{2});
     if (!loadTable(room)) {
         logLine("Wild Science Arcade: no S" + std::to_string(room) + ".SRF");
         return;
     }
-    for (int s : {2, 3}) std::fill(ctx_.screens[s].pixels.begin(), ctx_.screens[s].pixels.end(), 0);
+    score_ = 0, shots_ = 0;
     drawTable();
+    roomPictures(room);
+    toDisplay(3);
+    redrawTable({0, 0, Screen::kWidth, Screen::kHeight});
+}
+
+void Science::showTable(int room) {
+    // For testing (--room 1): the room as the original first shows it
+    // (not yet its objects or panel), till a click.
+    loadLook();
+    looksConverted_ = true;
+    enterRoom(room);
     select(1);
     int x, y;
     for (;;) {

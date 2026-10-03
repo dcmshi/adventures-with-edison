@@ -302,6 +302,28 @@ Borland's `mov ax, ss; nop; inc bp` prologue): `f31_0783` is
   display (or through screen 3 with `[2024]`). Segment 35 keeps the clip
   for it (`f35_0015`, `f35_0046`).
 
+- **Entering a room** (`f31_0783`, rooms 1-100; ported: `enterRoom`):
+  screen 2 filled with colour 2; the builder (the shape, the objects, the
+  panel, then the room's method 4: `f27_0e5b` with its last argument 0,
+  so the machine and table on screen 3 only, then the room's pictures on
+  screen 3: room 1's `f41_0126` the labels `1399`-`139F` at (58, 168),
+  (104, 139), (144, 98), (236, 80), (320, 76), (408, 76), (504, 29), the
+  logo `13D0` at (54, 6) and EXIT `13D2` at (478, 212), each through
+  `f14_1179`, a transparent sprite drawn only if it fits); screen 3 to
+  the display; then event 5, the player's method 4 (`f31_27de`): the
+  room's redraw of the whole screen, then the panel's controls (`+A4`,
+  `+A8`, `+AA`, `+AC`, their method `+40`).
+- **The redraw at rest**: besides the objects, the score (`+F35`, a long,
+  `ltoa`) in the yellow box `1425` at (480, 8), the text at (+17h, +3) in
+  colour 10; " shots: n" (`DS:2040`, `+F39`) in the same box at (58, 8),
+  text at (+3, +3); the five impact marks (`+F65`, `1163` + state) only
+  after shots. The final copy from screen 3 is keyed on the destination
+  (`f14_0c88` → `f65_0294`: screen 3's pixel only where screen 2 is still
+  colour 0), unlike `f14_0c4f`'s (source-keyed).
+- Still different from the original at rest: the view's top row (the
+  textures there; probably the library's polygon clip, `f83_0065`, at the
+  clip's edge) and the steep grid lines.
+
 ## The rooms (`S<n>.SRF`)
 
 A room reads `S<n>.SRF` (`f27_0ad8`: the name built at `DS:1FF4`, read

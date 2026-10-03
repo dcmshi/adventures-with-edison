@@ -111,6 +111,9 @@ private:
     int faceAt(const Box& box, int x, int y) const;  // f34_02fa: 0 none, 1 top, 2-5 sides
     int heightAt(const Box& box, int x, int y) const;  // f12_44f9 (f34_07ec)
     void drawTable();                               // f27_0e5b (the room's method 0, f27_0ec5)
+    void roomPictures(int room);                    // the room's method 4 (room 1: f41_0126)
+    void redrawTable(const Rect& area);             // f27_1e36, the room's method 3
+    void enterRoom(int room);                       // f31_0783 for rooms 1-100
     void drawBox(const Box& box);                   // f12_2a09
     void drawStanding(const Box& box);              // f12_38ad: on screen 3, the pits cut out
     void drawPits(const Box& box);                  // f12_39b5: on screen 2
@@ -140,6 +143,8 @@ private:
     unsigned labFrame_ = 0;             // [1D40]
     bool looksConverted_ = false;       // [1D3E]: f19_0614 has run
     Table table_;
+    long score_ = 0;                    // the room's +F35
+    int shots_ = 0;                     // +F39
     bool gridFaces_[6] = {};            // [11F0] 1, [11EE] 2, [11EC] 3, [11E8] 4, [11EA] 5
 };
 
