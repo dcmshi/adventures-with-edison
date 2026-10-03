@@ -72,6 +72,8 @@ ctest --test-dir build --output-on-failure
 - `tools/reference/otvdm.ps1 start|shot|dialogs|stop|unlock|click|rclick|down|up|move|type|run`: runs the original game under [winevdm](https://github.com/otya128/winevdm) as a visual reference.
   - `click`, `rclick`, `down`/`up` (hold the button), `move` and `type` post input to the game's window (the real cursor isn't moved); `run SCRIPT DIR` plays a script of those, `wait` and `shot` steps (see `tools/reference/*.txt`).
   - `tools/reference/screendiff.py PORT.bmp ORIGINAL.png OUT.png` compares a port capture (`--capture`) with a screenshot of the original.
+  - `tools/reference/memwatch.py find|peek|watch|dump EXE ...` reads the running original's memory: it finds the program's live data segment (DGROUP) in the otvdmw process by the executable's own static data, then evaluates expressions that follow near pointers, e.g. `vx=[[[5ffc+ae]+f77]+2]+62` (the Wild Science ball's x velocity). `watch` prints a line whenever the values change. Read-only. It works for EDISON, MALL and WINMAIN too (each one's automatic data segment).
+  - `tools/reference/tracecmp.py ORIGINAL.txt PORT.log` compares a `memwatch.py watch` trace with the port's log, state by state, ignoring timing.
   - `edison --hidden` runs with no window shown and the sound muted, for test runs in the background.
 
 #### Booting and cleaning up the original

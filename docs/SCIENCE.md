@@ -504,7 +504,15 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   a's direction, `f11_02f7` scaled to a length, `f11_043e` a cross product
   (a normalised), all through `f84_0000` (the angles' tables).
 - Tested: one shot (aim (180, 250), power 5) ends where the original's
-  does, the same pixel and frame. Not yet: the shadow (in the air the
+  does, the same pixel and frame, and every one of the 178 states
+  (centre, velocity) the original's ball went through on the way, read
+  from its memory (`tools/reference/memwatch.py watch WMAINSKP.EXE
+  "cx=[[[5ffc+ae]+f77]]+2" ... "vx=[[[5ffc+ae]+f77]+2]+62" ...`), is one
+  the port's went through (`SCI_DEBUG=1` logs them; `tracecmp.py`). Useful
+  addresses: the player object DS:5FFC, its room +AE; the room's gravity
+  +EFF / +F03 (longs), friction +F07, power +F0F, shots +F39, its ball
+  +F77 (the ball's +0: the motion part, sphere at +2; +2: the core,
+  velocity +62). Not yet: the shadow (in the air the
   original draws it on the ground below: a linked object, the ball's `+16`),
   holes, breaking, the glass's cracks, other balls (`f08_0d3e`), the push
   (`+4C`), whether the target is ever put back under the ball (a long

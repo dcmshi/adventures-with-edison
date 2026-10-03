@@ -344,7 +344,8 @@ void Science::tickRoom() {
         const Ball& b = ball_;
         const auto [bx, by] = objectCentre(b.cx - b.r, b.cy - b.r, b.cz - b.r, 2 * b.r + 1, 2 * b.r + 1, 2 * b.r + 1);
         logLine("t" + std::to_string(timerTicks_) + " sprite " + std::to_string(bx - 16) + "," + std::to_string(by - 10) + " f" +
-                std::to_string(b.drawFrame >> 1) + " c " + std::to_string(b.cx) + "," + std::to_string(b.cy) + "," + std::to_string(b.cz));
+                std::to_string(b.drawFrame >> 1) + " c " + std::to_string(b.cx) + "," + std::to_string(b.cy) + "," + std::to_string(b.cz) +
+                " v " + std::to_string(b.v[0]) + "," + std::to_string(b.v[1]) + "," + std::to_string(b.v[2]));
     }
     for (int c = 0; c < 2; ++c) {
         Column& col = columns_[c];
