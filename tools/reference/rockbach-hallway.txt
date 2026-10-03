@@ -1,0 +1,8 @@
+# Rock and Bach from its start to the hallway, as the returning player
+# "tester" (run after `otvdm.ps1 start WINMAIN.EXE`).
+wait 22
+click 320 200       # past the intro
+wait 7
+type tester|
+wait 6
+shot hallway-question.png
