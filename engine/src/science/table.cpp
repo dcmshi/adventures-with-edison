@@ -186,10 +186,12 @@ std::pair<int, int> Science::objectCentre(int x, int y, int z, int w, int d, int
 
 void Science::objectSprite(int cx, int cy, uint16_t id) {
     // f14_0d69 at 1:1: centred, colour 0 left out, and only when it lies
-    // wholly inside the clip (the view).
+    // wholly inside the clip ([1706]: the whole screen, as for the lines;
+    // only the view's part reaches the display, so a ball in a pit at the
+    // view's foot shows cut off by its edge).
     const Bitmap& bmp = ctx_.bitmap(id);
     const int x = cx - (bmp.width >> 1), y = cy - (bmp.height >> 1);
-    const Rect& v = table_.view;
+    const Rect v{0, 0, Screen::kWidth, Screen::kHeight};
     if (!inside(v, x, y) || !inside(v, x + bmp.width, y + bmp.height)) return;
     ctx_.screens.drawSprite(current(), bmp, x, y);
 }

@@ -325,7 +325,8 @@ Borland's `mov ax, ss; nop; inc bp` prologue): `f31_0783` is
   (`f25_0a51`); the rectangle (A.x, B.y, B.x - A.x + 2, A.y - B.y + 2)
   (`f27_16ae`) and its centre (half the width and height, shifted) is
   where its sprite is centred (`f14_0d69` at 1:1: colour 0 left out, and
-  skipped unless it lies wholly inside the clip).
+  skipped unless it lies wholly inside the clip, `[1706]`: the whole
+  screen, so a sprite past the view's edge is drawn, cut off by it).
   - A hole (type 8; `f61_011d` → `f28_00f3`, or `f28_0391` the second of
     a door when `e` isn't 0): `a` the room, `b` the wall (0 the left
     one), `c` big, `d` its height (-1: the face's under it, `f27_0903`).
@@ -509,8 +510,9 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   from its memory (`tools/reference/memwatch.py watch WMAINSKP.EXE
   "cx=[[[5ffc+ae]+f77]]+2" ... "vx=[[[5ffc+ae]+f77]+2]+62" ...`), is one
   the port's went through (`SCI_DEBUG=1` logs them; `tracecmp.py`). So do
-  full-power shots at the back wall and to the left, shots with ball types 2
-  and 4, and gravity at +4: the ball rises to the ceiling (z 289, above the
+  full-power shots at the back wall and to the left, shots with every ball
+  type, friction 16, shots into the sloped pit (down its slope to its
+  floor), and gravity at +4: the ball rises to the ceiling (z 289, above the
   view) and bounces there for good (in the original too, never settling),
   then a shot from there. A real-time click lands at a random point of such
   a bounce, so the port can hold its shot till the ball is in the state the
