@@ -233,8 +233,36 @@ Borland's `mov ax, ss; nop; inc bp` prologue): `f31_0783` is
   `f63_20e4`, tiled from the screen's corner, which an oblique projection
   allows: the floor's grid stays a repeating pattern on screen) and
   pattern fills (`f14_07a0`): segment 12's `f12_0ddf`, `f12_220d`,
-  `f12_2871`, `f12_2a09` (to map: which texture each face takes, and the
-  order).
+  `f12_2871`, `f12_2a09`.
+- **A box's fields** (`46h` bytes; the root made by `f12_0312(w, h)`, the
+  others by `f12_04a1(parent, rect, height)`): `+2` the parent (the root's
+  is a stand-in at `DS:116E`), `+4` the bottom rectangle (x, y, w, h, at
+  the parent's height), `+C` the top (clipped to the bottom), `+14` the
+  height (below the parent's: a pit), `+2E` / `+30` the grid's step (30,
+  the parent's; 0 when the top is narrower), `+32`-`+3A` the five faces
+  (types 1, 4, 5, 3, 2), `+3C` the faces' looks (`DS:8CCC` for none, else
+  five pointers, face types 1-5, `DS:926C` for none; `f12_0872` sets
+  them), `+3E`-`+44` which sides the camera sees (`f12_093b`: for a box
+  standing up `+3E` the left and `+40` the back, for a pit `+42` the right
+  and `+44` the front; from the projected corners).
+- **Drawing a box** (`f12_2a09`): the eight corners projected (top at
+  `+14`, bottom at the parent's height), then the faces back to front:
+  4 the back (y far), 2 the left (x near), 3 the right, 5 the front, 1 the
+  top. A face with no look of its own is filled with a texture: the back
+  and front `1005`, the sides `1006`, the top `100D`; for a pit, the right
+  side only where it isn't the parent's edge and the front only where it
+  isn't the parent's front. A look is a colour (`f14_07a0`, a solid fill)
+  or, with its third word 0, a picture at a point (`f14_1179`). The root
+  has only its top (`f12_2871`: `100D`, the projected corners with +1 on
+  the right). The textures use colours 80-8F, greys in `2002`'s palette.
+- **The grid**: unless `[11F2]` is set, a textured face whose side the
+  camera sees gets lines every 30 units in x (`f12_335e`) and y
+  (`f12_35c5`), each a pair, colour 84 one pixel left or up of colour 81,
+  split in halves (recursively) to follow only the face's own part
+  (`f34_02fa`, the face under a point).
+- **Redrawing a box** (`f12_220d`, from the redraw below) goes through
+  the same faces in the same order but only outlines what changed (the
+  polygons clipped by the library's `f83_0065`).
 - Segment 11 is rectangles (union `f11_08b7`, overlap `f11_0a26`, clamp
   a point `f11_0aea`, intersection `f11_0c12`).
 - **Redrawing** (the room's method 3, `f27_1e36`, for a changed
