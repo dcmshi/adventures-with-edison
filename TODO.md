@@ -52,7 +52,8 @@ scene objects and an event queue, floating point), so it goes in stages:
 - [x] The laboratory, room 501 (`f19_0a59`): Edison walks in, the name, "Do you wanna change the way I look?", the Character Enhancer, "Cool!"; `wscience.edi` and the players in `wscience.hs`. The name prompt matches the original pixel for pixel.
 - [x] The professor's first lesson (room 505, `f15_0fee`): the classroom (`2003`), his eight lines in bubbles (laid out and wrapped as `f15_31fa` and segment 23 do), the narration, MORE. The bubbles match the original pixel for pixel.
 - [x] All six lessons (rooms 505-510): their pictures, scripts (anchors, tails, widths, texts, narration) and the rooms they lead to. Only lesson 5 has been compared with the original so far.
-- [ ] The lessons' animations: Edison's head at his desk (`13AF`-`13B1`, `f16_010e`) and the professor's mouth (`f15_0bde`); the palette cycle (`f32_0e7f`, colours 70-7F); what lesson 10's end starts (`f31_001a`, then `31:1728`); then the arcade's menu (room 1).
+- [x] The lessons' animations (the professor and Edison, cycling sprites) and the colour cycle (70-7F every 8 ticks; the original only cycles on a 256-colour display, so not under winevdm). With the animations, lesson 5's frames match the original within 8 pixels (a bubble's right edge).
+- [ ] The lessons: the professor's click easter egg (`g15_0cb7`); what lesson 10's end starts (`f31_001a`, then `31:1728`); lessons 6-10 against the original; then the arcade's menu (room 1).
 - [x] `--room 501` (the lab) and `--room 505`-`510` (a lesson) to start there when testing.
 - [ ] The rooms (`S*.SRF`) and the table's physics: the ball, gravity, friction, ball types, power.
 - [ ] The arcade's menu table, the levels, high scores (`WSCIENCE.HS`), the lab, the credits.

@@ -115,6 +115,19 @@ on screen 1, up to 130 countdown ticks or a key or click, then `f20_0094`.
   67) three (Edison (100, 250) tail 0; the professor (352, 300)), 10
   (`2005`, no room: `[26CC]` = 1, then `f31_001a` and `31:1728`) four
   (anchors (530, 186), (216, 210) tail 1 width 150, (550, 146)).
+- Two animated objects in each (added before the bubbles, so under them):
+  the professor (`f15_0bde`: `13BB`, 3 frames over 50 ticks, at (500,
+  130); lesson 9 `f15_0f19`: `13C7`, 6, at (14, 210); 10 `f15_0e43`:
+  `13C1`, 6, at (540, 146)) and Edison (`13AF`, 3 over 100, at (96, 252);
+  9: `13B8` at (364, 272); 10: `13B2`, 6, at (202, 218)). Their x, y and
+  frame are generators (segment 16: `f16_0000` a constant, `f16_010e` a
+  cycle, frame = (tick mod period) x count / period, `f16_0281` up and
+  down), stepped each tick (`f15_01fa`, 50 a second); the sprite is the
+  frame's base + its value. Clicking the professor swaps his animation
+  (`g15_0cb7`).
+- The colour cycle: `f32_0e7f(70, 7F, 8)` registers colours 70-7F to turn
+  a step every 8 ticks (`f32_1113`, `f14_0148`), but only on a palette
+  display (`[61F9]`, from `GetDeviceCaps`).
 - The bubble (`g15_0467`, class `1B89`; drawn by its text's `f15_2a35`): a
   box the given width and as tall as the lines (font height each), placed
   by the tail (`f15_31fa`; `[1732]` = 2 here: left of and above the

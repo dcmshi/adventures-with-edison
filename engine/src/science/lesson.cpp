@@ -25,28 +25,38 @@ struct Step {
     int x, y, tail, width;
     uint16_t text, nextSound;
 };
+// The lessons' two animated objects (the professor: f15_0bde, f15_0f19,
+// f15_0e43; Edison: the builders' second child), each a sprite cycling
+// through `count` frames over `period` ticks (f16_010e: frame = (tick mod
+// period) x count / period) at a fixed place (f16_0000).
+struct Anim {
+    uint16_t sprite;
+    int count, period, x, y;
+};
 struct Lesson {
     uint16_t picture, firstSound;  // f15_076a's picture, the builder's [171A]
     int nextRoom;                  // +138: the room after (-1 none)
     std::vector<Step> steps;
+    Anim professor, edison;
 };
+constexpr Anim kProfessor{0x13BB, 3, 50, 0x1F4, 0x82}, kEdison{0x13AF, 3, 100, 0x60, 0xFC};
 const Lesson kLessons[6] = {
     {0x2003, 0x6169, 1,  // 5: f15_0fee
      {{0x1E0, 0xAE, 2, 200, 0x75F1, 0x616C}, {0x1E0, 0xAE, 2, 200, 0x75F4, 0x6173}, {0x1E0, 0xAE, 2, 200, 0x75FB, 0x6174},
       {0x21C, 0x7C, 2, 200, 0x75FC, 0x616D}, {0x1E0, 0xAE, 2, 230, 0x75F5, 0x6175}, {0x21C, 0x7C, 2, 200, 0x75FD, 0x6176},
-      {0x1E0, 0xAE, 2, 200, 0x75FE, 0x616E}, {0x21C, 0x7C, 2, 200, 0x75F6, 0}}},
+      {0x1E0, 0xAE, 2, 200, 0x75FE, 0x616E}, {0x21C, 0x7C, 2, 200, 0x75F6, 0}}, kProfessor, kEdison},
     {0x2004, 0x6177, 50,  // 6: f15_1524
      {{0x1E0, 0xAE, 2, 200, 0x75FF, 0x6178}, {0x21C, 0x7C, 2, 200, 0x7600, 0x6179}, {0x1E0, 0xAE, 2, 200, 0x7601, 0x617A},
-      {0x1E0, 0xAE, 2, 240, 0x7602, 0x617B}, {0x1E0, 0xAE, 2, 200, 0x7603, 0x6172}, {0x21C, 0x7C, 2, 200, 0x75FA, 0}}},
+      {0x1E0, 0xAE, 2, 240, 0x7602, 0x617B}, {0x1E0, 0xAE, 2, 200, 0x7603, 0x6172}, {0x21C, 0x7C, 2, 200, 0x75FA, 0}}, kProfessor, kEdison},
     {0x2003, 0x617C, 2,  // 7: f15_19d4
-     {{0x1E0, 0xAE, 2, 200, 0x7604, 0x617D}, {0x1E0, 0xAE, 2, 240, 0x7605, 0x6172}, {0x21C, 0x7C, 2, 200, 0x75FA, 0}}},
+     {{0x1E0, 0xAE, 2, 200, 0x7604, 0x617D}, {0x1E0, 0xAE, 2, 240, 0x7605, 0x6172}, {0x21C, 0x7C, 2, 200, 0x75FA, 0}}, kProfessor, kEdison},
     {0x2003, 0x617E, 57,  // 8: f15_1dbb
-     {{0x1E0, 0xAE, 2, 200, 0x7606, 0x617F}, {0x1E0, 0xAE, 2, 200, 0x7607, 0x618A}, {0xA6, 0x11A, 0, 200, 0x7612, 0}}},
+     {{0x1E0, 0xAE, 2, 200, 0x7606, 0x617F}, {0x1E0, 0xAE, 2, 200, 0x7607, 0x618A}, {0xA6, 0x11A, 0, 200, 0x7612, 0}}, kProfessor, kEdison},
     {0x2006, 0x6180, 67,  // 9: f15_21a2
-     {{0x64, 0xFA, 0, 200, 0x7608, 0x6181}, {0x160, 0x12C, 2, 200, 0x7609, 0x6182}, {0x64, 0xFA, 0, 200, 0x760A, 0}}},
+     {{0x64, 0xFA, 0, 200, 0x7608, 0x6181}, {0x160, 0x12C, 2, 200, 0x7609, 0x6182}, {0x64, 0xFA, 0, 200, 0x760A, 0}}, {0x13C7, 6, 50, 0x0E, 0xD2}, {0x13B8, 3, 100, 0x16C, 0x110}},
     {0x2005, 0x6183, -1,  // 10: f15_2591 (then f31_001a, f31_1728: not ported)
      {{0x212, 0xBA, 2, 200, 0x760B, 0x6184}, {0xD8, 0xD2, 1, 150, 0x760C, 0x6185}, {0x226, 0x92, 2, 200, 0x760D, 0x6189},
-      {0x212, 0xBA, 2, 200, 0x7611, 0}}},
+      {0x212, 0xBA, 2, 200, 0x7611, 0}}, {0x13C1, 6, 50, 0x21C, 0x92}, {0x13B2, 6, 100, 0xCA, 0xDA}},
 };
 
 }  // namespace
@@ -183,22 +193,65 @@ void Science::lessonStart(uint16_t picture) {
 }
 
 int Science::lesson(int n) {
-    // f38_0fb5 (n 5-10): the lesson's picture shown, its lines one by
-    // one, MORE going on; then the room it leads to (-1 none).
+    // f38_0fb5 (n 5-10): the lesson's picture shown, its two animations
+    // and its lines one by one, MORE going on; then the room it leads to
+    // (-1 none). The scene is drawn again from the clean picture (screen
+    // 3) whenever a frame changes: the animations, then the bubble.
     const Lesson& l = kLessons[n - 5];
     lessonStart(l.picture);
-    uint16_t pending = l.firstSound;
-    Bubble last{};
-    for (const Step& step : l.steps) {
-        // f15_0a70: the last bubble taken away.
+    const Anim anims[2] = {l.professor, l.edison};
+    const uint64_t start = ctx_.platform.milliseconds();
+    int shown[2] = {-1, -1};
+    const Step* current = nullptr;
+    std::string currentText;
+    auto compose = [&] {
         select(2);
-        if (last.w > 0) copyArea(3, 2, last.x, last.y, last.w, last.h);
-        last = bubble(step.x, step.y, step.width, step.tail, textResource(step.text));
+        copyArea(3, 2, 0, 0, Screen::kWidth, Screen::kHeight);
+        for (int i = 0; i < 2; ++i) drawLogo(anims[i].x, anims[i].y, static_cast<uint16_t>(anims[i].sprite + shown[i]));
+        if (current) bubble(current->x, current->y, current->width, current->tail, currentText);
         copyArea(2, 1, 0, 0, Screen::kWidth, Screen::kHeight);
         select(1);
+    };
+    auto tick = [&] {
+        // The game's ticks, 50 a second (f32_0777(50)).
+        const uint64_t ticks = (ctx_.platform.milliseconds() - start) / 20;
+        bool changed = false;
+        for (int i = 0; i < 2; ++i) {
+            const uint64_t period = static_cast<uint64_t>(anims[i].period);
+            const int frame = static_cast<int>((ticks % period) * static_cast<uint64_t>(anims[i].count) / period);
+            if (frame != shown[i]) shown[i] = frame, changed = true;
+        }
+        if (changed) compose();
+    };
+    // f32_0e7f(70, 7F, 8): colours 70-7F turn a step every 8 ticks
+    // (f32_1113, f14_0148: each takes the next one's colour). The original
+    // only does it on a palette display ([61F9]: 256 colours, as most
+    // were in 1995; not under winevdm on a true-colour desktop).
+    const Palette base = ctx_.displayPalette;
+    uint64_t turned = 0;
+    auto turn = [&] {
+        const uint64_t steps = (ctx_.platform.milliseconds() - start) / 20 / 8;
+        if (steps == turned) return;
+        turned = steps;
+        for (int i = 0x70; i <= 0x7F; ++i)
+            ctx_.displayPalette[i] = base[0x70 + static_cast<int>((static_cast<uint64_t>(i - 0x70) + steps) % 16)];
+    };
+    tick();
+    uint16_t pending = l.firstSound;
+    for (const Step& step : l.steps) {
+        // f15_0a70 / g15_0a1d: the last bubble goes, the new one comes.
+        current = &step;
+        currentText = textResource(step.text);
+        compose();
         if (pending) narration(pending, false);
         pending = step.nextSound;
-        waitMore();
+        int x, y;
+        for (;;) {
+            ctx_.pump();
+            tick();
+            turn();
+            if (ctx_.platform.takeClick(&x, &y) && x >= kMoreX && y >= kMoreY && x < kMoreX + kMoreW && y < kMoreY + kMoreH) break;
+        }
     }
     ctx_.platform.stopWav();
     return l.nextRoom;
