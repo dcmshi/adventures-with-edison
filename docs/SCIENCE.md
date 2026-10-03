@@ -398,3 +398,11 @@ restore an area, `f14_0000`-`f14_0384` palettes (fades, turning a range).
 
 `tools/reference/otvdm.ps1 start "WMAIN.EXE -A"` with the CD's `SCIENCE`
 WAVs copied to `data\` in the run folder (winevdm has no CD drive).
+
+To compare the arcade without the title, story, lab and lesson:
+`python tools/reference/wmain_skip.py` writes `WMAINSKP.EXE` into the run
+folder, a copy with the intro flag `[26CE]` cleared (it's 1 in DGROUP and
+nothing writes it): `f31_0025` skips the story, `f32_0319` the title, and
+the player's first event 9 goes to room 1 instead of 501. Then
+`otvdm.ps1 start "WMAINSKP.EXE -A"`: room 1 at rest about 8 seconds later.
+The port's equivalent is `--game science --room 1`.

@@ -53,6 +53,8 @@ public static class W {
   [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr h, uint m, IntPtr w, IntPtr l);
   [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h, uint m, IntPtr w, IntPtr l);
   [DllImport("user32.dll")] public static extern uint MapVirtualKey(uint c, uint t);
+  [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int c);
+  [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr h, IntPtr after, int x, int y, int cx, int cy, uint f);
   public static List<IntPtr> All() { var l = new List<IntPtr>(); EnumWindows((h, p) => { l.Add(h); return true; }, IntPtr.Zero); return l; }
   public static string Cls(IntPtr h) { var s = new StringBuilder(256); GetClassName(h, s, 256); return s.ToString(); }
   public static string Text(IntPtr h) { var s = new StringBuilder(256); GetWindowText(h, s, 256); return s.ToString(); }
@@ -76,7 +78,27 @@ function Enable-DisabledWindows {
     }
 }
 
-function MainWindow { GameWindows | Where-Object { [W]::Cls($_) -ne "#32770" } | Select-Object -First 1 }
+# The Artech library opens a black popup the size of the desktop behind the
+# game (class WinArtechBackDropWindow); it isn't needed for references. So
+# `start` hides it and keeps the game's own window on top (so shots, which
+# copy its rectangle from the screen, aren't covered). OTVDM_FULLSCREEN=1
+# keeps the backdrop.
+function Windowed {
+    for ($i = 0; $i -lt 40; $i++) {
+        $back = @(GameWindows | Where-Object { [W]::Cls($_) -like "*BackDrop*" })
+        $main = MainWindow
+        if ($main -and $back.Count) {
+            foreach ($b in $back) { [W]::ShowWindow($b, 0) | Out-Null }               # SW_HIDE
+            [W]::SetWindowPos($main, [IntPtr](-1), 0, 0, 0, 0, 0x13) | Out-Null       # HWND_TOPMOST, no move/size/activate
+            Write-Output "windowed (backdrop hidden, game on top)"
+            return
+        }
+        Start-Sleep -Milliseconds 250
+    }
+    Write-Output "no backdrop window found (left as it is)"
+}
+
+function MainWindow { GameWindows | Where-Object { [W]::Cls($_) -ne "#32770" -and [W]::Cls($_) -notlike "*BackDrop*" } | Select-Object -First 1 }
 function Post($h, $m, $w, $l) { [W]::PostMessage($h, $m, [IntPtr]$w, [IntPtr]$l) | Out-Null }
 
 function Click($x, $y, $right) {
@@ -120,6 +142,7 @@ switch ($Command) {
         $exe = if ($Arg) { $Arg } else { "EDISON.EXE" }
         Start-Process -FilePath $otvdm -ArgumentList $exe -WorkingDirectory $runDir
         Write-Output "started $exe"
+        if ($env:OTVDM_FULLSCREEN -ne "1") { Windowed }
     }
     "shot" { Shot $Arg }
     "click" { Click $Arg $Arg2 $false }
