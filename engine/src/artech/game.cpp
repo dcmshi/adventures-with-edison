@@ -54,7 +54,7 @@ void ArtechGame::scanPolygon(const std::vector<std::pair<int, int>>& pts, Plot p
     if (n < 3) return;
     int top = Screen::kHeight, bottom = -1;
     for (auto [x, y] : pts) top = std::min(top, y), bottom = std::max(bottom, y);
-    for (int y = std::max(top, 0); y <= std::min(bottom, Screen::kHeight - 1); ++y) {
+    for (int y = std::max(top, clip_.y0); y <= std::min(bottom, clip_.y1); ++y) {
         std::vector<int> xs;
         for (int k = 0; k < n; ++k) {
             auto [ax, ay] = pts[k];
@@ -64,7 +64,7 @@ void ArtechGame::scanPolygon(const std::vector<std::pair<int, int>>& pts, Plot p
         }
         std::sort(xs.begin(), xs.end());
         for (size_t k = 0; k + 1 < xs.size(); k += 2)
-            for (int x = std::max(xs[k], 0); x <= std::min(xs[k + 1], Screen::kWidth - 1); ++x) plot(x, y);
+            for (int x = std::max(xs[k], clip_.x0); x <= std::min(xs[k + 1], clip_.x1); ++x) plot(x, y);
     }
 }
 

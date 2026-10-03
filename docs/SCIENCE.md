@@ -207,22 +207,31 @@ Borland's `mov ax, ss; nop; inc bp` prologue): `f31_0783` is
   `room(parent, [1FEE] = 809, [1FF0] = 789, view)`, the view the player's
   play area (54, 6, 530 x 280). Camera fields: `+46` the angle (`0x2000`,
   45 degrees; `f25_07cb` takes its sine and cosine through segment 86 into
-  `+4C` / `+4E`, in 32767ths), `+48` / `+4A` the world's size, `+50`-`+56`
-  the view, `+58` / `+5A` the scroll (room 1: -[1FF2] = -279, 0; set by
-  `f25_0779`), `+5C` the view's bottom.
+  `+4C` / `+4E`, in 32767ths: 23170 and 23152, as the table isn't
+  symmetric), `+48` / `+4A` the world's size, `+50`-`+56` the view, `+58` /
+  `+5A` the scroll (room 1: -[1FF2] = -279, 0; set by `f25_0779`), `+5C` the
+  view's bottom row (285). The camera is also a box (`f12_0312`): the room
+  is the root of its own boxes.
 - **The projection** (`f25_0813`) is oblique: a point (x, y, height) is at
   screen x = x + y cos k + `+50` + `+58`, screen y = `+5C` + `+5A` -
-  (y sin k + height), with k = `[1F56]` / `[1F58]` = 5 / 10. So x is 1:1,
+  (y sin k + height), with k = `[1F56]` / `[1F58]` = 5 / 10 (each term
+  `y * cos * 5 / (10 * 32767)` in longs, truncated). So x is 1:1,
   depth is drawn at 0.354, and the world is wider than the view (room 1's
   walls cover what's left of x 269, which lands at the view's left edge).
   Angles of `0x4000` and more are the "left perspective case not
   implemented" (`f12_093b`).
-- **Drawing a room** (`f27_0e5b`): the room's method 0 (`f27_0ec5`)
-  draws the table on screen 2 (`f12_0d2f` makes the room the current
-  one; then the boxes; lines through `f14_15f1`, two points clamped,
-  `f11_0aea`); then the machine (`2002`, with the look) on screen 3, the
-  table copied into its window (the view rectangle, `+60`), and the whole
-  to the display. The room's method 4 then draws its own pictures on
+- **Drawing a room** (`f27_0e5b`, ported: `table.cpp`): the room's
+  method 0 (`f27_0ec5`) makes the room the current camera (`f12_0d2f`),
+  then on screen 3 draws the view's border in colour 0 and, through the
+  tree (`f12_38ad`, a box before its children), every box standing up
+  (`f12_2a09`), while for a pit it fills its mouth (`f12_10cd` case 6, the
+  bottom rectangle) with colour 0, and its front and right sides too
+  where they're the parent's edges (`f12_3835`); on screen 2 the pits
+  (`f12_39b5`); then screen 3 over screen 2 within the view, colour 0
+  showing what's under it (so the pits show through). Lines go through
+  `f14_15f1` (each end clamped into the clip, `f11_0aea`). Then the
+  machine (`2002`, with the look) on screen 3, screen 2's view copied into
+  its window (`+60`), and the whole to the display. The room's method 4 then draws its own pictures on
   screen 3 (room 1: the holes' labels, the logo, EXIT).
 - **Boxes** (the `.SRF` nodes, made by the room's method 1, `f27_12b6`,
   through `f25_057b`; class `f12_0312`, `116E`): bottom and top
@@ -242,9 +251,14 @@ Borland's `mov ax, ss; nop; inc bp` prologue): `f31_0783` is
   the parent's; 0 when the top is narrower), `+32`-`+3A` the five faces
   (types 1, 4, 5, 3, 2), `+3C` the faces' looks (`DS:8CCC` for none, else
   five pointers, face types 1-5, `DS:926C` for none; `f12_0872` sets
-  them), `+3E`-`+44` which sides the camera sees (`f12_093b`: for a box
-  standing up `+3E` the left and `+40` the back, for a pit `+42` the right
-  and `+44` the front; from the projected corners).
+  them), `+3E`-`+44` which sides the camera can't see (`f12_093b`, from
+  three projected corners: for a box standing up `+3E` the left, by the
+  slope of its edges, and `+40` the back; for a pit `+42` the right and
+  `+44` the front).
+- **Making a box** (`f12_3e0d`): the file's first rectangle within the
+  parent's top is the bottom (none if empty); the second is the top,
+  within the bottom, but only if its corner lies inside the bottom
+  (`f12_04a1`), else the top is the bottom.
 - **Drawing a box** (`f12_2a09`): the eight corners projected (top at
   `+14`, bottom at the parent's height), then the faces back to front:
   4 the back (y far), 2 the left (x near), 3 the right, 5 the front, 1 the
@@ -255,11 +269,16 @@ Borland's `mov ax, ss; nop; inc bp` prologue): `f31_0783` is
   or, with its third word 0, a picture at a point (`f14_1179`). The root
   has only its top (`f12_2871`: `100D`, the projected corners with +1 on
   the right). The textures use colours 80-8F, greys in `2002`'s palette.
-- **The grid**: unless `[11F2]` is set, a textured face whose side the
-  camera sees gets lines every 30 units in x (`f12_335e`) and y
-  (`f12_35c5`), each a pair, colour 84 one pixel left or up of colour 81,
-  split in halves (recursively) to follow only the face's own part
-  (`f34_02fa`, the face under a point).
+- **The grid**: unless `[11F2]` is set, from each grid point of the
+  bottom rectangle (multiples of the step) lines to the next in x
+  (`f12_335e`) and y (`f12_35c5`), each a pair, colour 84 one pixel left
+  (or up) of colour 81, at the heights under their ends (`f12_44f9`): a
+  segment whose far end is on the same face is drawn if that face is
+  textured and not hidden, else it's split in halves (recursively, the
+  second half on the face where it starts). The face under a point is
+  `f34_02fa` (the top, or a side by the corner's diagonals); the height on
+  a side runs from the box's at the top's edge to the parent's at the
+  bottom's (`f34_016a`, `f34_07ec`).
 - **Redrawing a box** (`f12_220d`, from the redraw below) goes through
   the same faces in the same order but only outlines what changed (the
   polygons clipped by the library's `f83_0065`).
@@ -283,13 +302,15 @@ A room reads `S<n>.SRF` (`f27_0ad8`: the name built at `DS:1FF4`, read
 through the run time's streams in segment 90). Text, in three parts:
 
 1. **The shape**: a tree of boxes (`f27_0d4a`, recursive). A box is two
-   rectangles `x y w h` (its bottom and its top, so sides can slope) and a
+   rectangles `x y w h` (its bottom and its top, so sides can slope; the
+   bottom is at the parent's height, the top at the box's) and a
    height; then `01` and a child box, as many as it has, and `02`. Each
    box is relative to its parent (its x, y and height are taken off) and is
    made by the room's method 1. The root is the floor, `0 0 809 789` (the
    world is 809 x 789). `S1.SRF` (the menu) is the floor, two walls 400 high
-   and a pit 50 deep whose bottom (660, 60, 149, 149) is smaller than its
-   top (570, 0, 239, 209).
+   and a pit 50 deep: (660, 60, 149, 149), with straight sides, since its
+   second rectangle (570, 0, 239, 209) doesn't start inside the first (see
+   making a box).
 2. **The objects**, `OBJn x y type a b c d e f` (segment 61, `f61_011d`
    and `f61_09bd`; rooms 0, 100 and 101 give only x and y), at most 24:
 

@@ -47,6 +47,10 @@ protected:
     // bmfill_poly: the polygon filled with a bitmap, tiled from the screen's
     // top left. (The display, screen 1, isn't allowed.)
     void fillPolygonWith(const std::vector<std::pair<int, int>>& points, uint16_t bitmap);
+    // The library's polygon clip (Wild Science's f83_0000): the polygons
+    // only fill inside it. The whole screen by default.
+    void setPolygonClip(int x, int y, int w, int h) { clip_ = {x, y, x + w - 1, y + h - 1}; }
+    void clearPolygonClip() { clip_ = {0, 0, Screen::kWidth - 1, Screen::kHeight - 1}; }
     void line(int x0, int y0, int x1, int y1, uint8_t colour);
     void frame(int x, int y, int w, int h, uint8_t colour);     // a rectangle's outline
     void text(int x, int y, const std::string& s, int colour);  // in font_
@@ -83,6 +87,7 @@ private:
         std::vector<uint8_t> pixels;
     };
     std::map<int, SavedArea> saved_;
+    struct { int x0, y0, x1, y1; } clip_ = {0, 0, Screen::kWidth - 1, Screen::kHeight - 1};
     int nextHandle_ = 1;
 };
 

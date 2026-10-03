@@ -46,6 +46,12 @@ void Science::run() {
     if (options_.music) ctx_.platform.setFmDriver(options_.cdDir + "/SADLIB.DLL");
     select(1);
     const int start = options_.startRoom;
+    if (start >= 1 && start <= 110) {
+        // (Testing: a room's table, as far as it's ported.)
+        showTable(start);
+        if (options_.music) ctx_.platform.setFmDriver(std::string());
+        return;
+    }
     if (start < 0) {
         title();
         story();

@@ -4,6 +4,12 @@
 #   otvdm.ps1 shot OUT.png       screenshot the game window only (no focus change)
 #   otvdm.ps1 dialogs            list open dialogs (error boxes) of the game
 #   otvdm.ps1 stop               close the game safely
+#   otvdm.ps1 unlock             re-enable windows left disabled (the game
+#                                must be closed): after a crash or a reboot
+#                                mid-run, terminals can stay uninteractable
+#                                till this (or stop) runs
+#   otvdm.ps1 unlock             re-enable windows the game left disabled
+#                                (after a crash or a kill; stop does this too)
 #   otvdm.ps1 click X Y          left click at game coordinates (rclick: right)
 #   otvdm.ps1 type TEXT          type TEXT ('|' is Enter; no Shift, so lower case)
 #   otvdm.ps1 run SCRIPT [DIR]   run a script of the commands above, one a line,
@@ -61,7 +67,9 @@ function Dialogs { GameWindows | Where-Object { [W]::Cls($_) -eq "#32770" } }
 function Enable-DisabledWindows {
     $gameIds = @(Game | ForEach-Object Id)
     foreach ($h in [W]::All()) {
-        if ([W]::IsWindowVisible($h) -and -not [W]::IsWindowEnabled($h) -and [W]::Cls($h) -ne "#32770" -and $gameIds -notcontains [W]::Pid($h)) {
+        # conpty's PseudoConsoleWindow and UWP frames are disabled normally
+        if ([W]::IsWindowVisible($h) -and -not [W]::IsWindowEnabled($h) -and $gameIds -notcontains [W]::Pid($h) -and
+            @("#32770", "PseudoConsoleWindow", "ApplicationFrameWindow") -notcontains [W]::Cls($h)) {
             [W]::EnableWindow($h, $true) | Out-Null
             Write-Output "re-enabled '$([W]::Text($h))' ($([W]::Cls($h)))"
         }
@@ -133,6 +141,11 @@ switch ($Command) {
             }
         }
         Write-Output "ran $Arg"
+    }
+    "unlock" {
+        if (Game) { Write-Output "the game is still running: use stop"; exit 1 }
+        $out = @(Enable-DisabledWindows)
+        if ($out) { $out } else { Write-Output "no disabled windows" }
     }
     "dialogs" { Dialogs | ForEach-Object { Write-Output "'$([W]::Text($_))'" } }
     "stop" {

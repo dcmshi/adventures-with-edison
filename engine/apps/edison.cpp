@@ -5,7 +5,7 @@
 //     -A  no FM music (as the original's -A)
 //     --game mystery   start Mystery at the Museums directly
 //     --game rockbach  start Rock and Bach Studio directly (--level N: straight to hallway spot N)
-//     --game science   start the Wild Science Arcade directly (--room 501: the lab; 505-510: a lesson)
+//     --game science   start the Wild Science Arcade directly (--room 501: the lab; 505-510: a lesson; 1-110: a room's table, still)
 //     --level N        (with --game mystery) skip setup and play level N (0-7)
 //     --puzzle K       (with --game mystery) play only puzzle K (0-15), at difficulty --level;
 //                      16 is the bonus maze, 17 the winning end of a game, 18 the losing one,

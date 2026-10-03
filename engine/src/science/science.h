@@ -1,7 +1,9 @@
 #pragma once
 
 #include <cstdint>
+#include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "artech/game.h"
@@ -77,6 +79,48 @@ private:
     void lessonStart(uint16_t picture);             // f15_076a
     int lesson(int n);                              // f38_0fb5 (5-10): the next room
 
+    // --- the arcade's table (segments 12, 25, 27, 34; table.cpp) ---
+    struct Rect {
+        int x = 0, y = 0, w = 0, h = 0;
+    };
+    // A box (f12_0312 / f12_04a1, class 116E): a node of the room's shape.
+    struct Box {
+        Box* parent = nullptr;          // +2 (the root's: none, height 0)
+        Rect bottom, top;               // +4 at the parent's height, +C at `height`
+        int height = 0;                 // +14
+        int stepX = 30, stepY = 30;     // +2E, +30: the grid
+        // +3E-+44 (f12_093b): sides the camera can't see. Standing up: the
+        // left and the back; a pit: the right and the front.
+        bool hideLeft = false, hideBack = false, hideRight = false, hideFront = false;
+        std::vector<std::unique_ptr<Box>> children;  // +16
+        int parentHeight() const { return parent ? parent->height : 0; }
+    };
+    // The room as its camera (segment 25) and the root of its boxes.
+    struct Table {
+        Box root;
+        Rect view;                      // +50: the play area
+        int scrollX = 0, scrollY = 0;   // +58, +5A
+        int bottom = 0;                 // +5C: the view's bottom row
+        int sin = 0, cos = 0;           // +4C, +4E: of the angle (+46), in 32767ths
+    };
+    static Rect intersect(const Rect& a, const Rect& b);  // f11_0c12
+    static bool inside(const Rect& r, int x, int y);
+    bool loadTable(int room);                       // f27_0ad8: S<n>.SRF's shape
+    std::pair<int, int> project(int x, int y, int h) const;  // f25_0813
+    void hiddenSides(Box& box) const;               // f12_093b
+    int faceAt(const Box& box, int x, int y) const;  // f34_02fa: 0 none, 1 top, 2-5 sides
+    int heightAt(const Box& box, int x, int y) const;  // f12_44f9 (f34_07ec)
+    void drawTable();                               // f27_0e5b (the room's method 0, f27_0ec5)
+    void drawBox(const Box& box);                   // f12_2a09
+    void drawStanding(const Box& box);              // f12_38ad: on screen 3, the pits cut out
+    void drawPits(const Box& box);                  // f12_39b5: on screen 2
+    void faceFill(std::vector<std::pair<int, int>> points, int look, bool texture);  // f12_0ddf
+    void tableLine(int x0, int y0, int x1, int y1, uint8_t colour);  // f14_15f1: ends clamped to the view
+    void gridX(const Box& box, int face, int x, int y, int end);  // f12_335e
+    void gridY(const Box& box, int face, int x, int y, int end);  // f12_35c5
+    bool gridOn(int face) const;
+    void showTable(int room);                       // for testing: the room still, till a click
+
     std::string dataString(uint16_t offset) const;  // DGROUP (segment 103)
 
     Options options_;
@@ -95,6 +139,8 @@ private:
     std::string playerName_;            // DS:8D22
     unsigned labFrame_ = 0;             // [1D40]
     bool looksConverted_ = false;       // [1D3E]: f19_0614 has run
+    Table table_;
+    bool gridFaces_[6] = {};            // [11F0] 1, [11EE] 2, [11EC] 3, [11E8] 4, [11EA] 5
 };
 
 }  // namespace edison
