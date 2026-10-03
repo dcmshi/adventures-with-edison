@@ -48,6 +48,72 @@ void ArtechGame::fillPolygonWith(const std::vector<std::pair<int, int>>& pts, ui
     });
 }
 
+void ArtechGame::fillPolygonStretched(const std::vector<std::pair<int, int>>& pts, uint16_t bitmap) {
+    const Bitmap& bmp = ctx_.bitmap(bitmap);
+    if (bmp.width <= 0 || bmp.height <= 0 || current_ == 1 || pts.size() < 3) return;
+    // f83_0065: cut to the clip, an edge of it at a time.
+    std::vector<std::pair<int, int>> poly(pts);
+    auto cut = [&](auto in, auto at) {
+        std::vector<std::pair<int, int>> out;
+        for (size_t k = 0; k < poly.size(); ++k) {
+            const auto p = poly[k], q = poly[(k + 1) % poly.size()];
+            if (in(p)) out.push_back(p);
+            if (in(p) != in(q)) out.push_back(at(p, q));
+        }
+        poly = std::move(out);
+    };
+    auto atX = [](int x) {
+        return [x](std::pair<int, int> p, std::pair<int, int> q) {
+            return std::pair<int, int>{x, p.second + (x - p.first) * (q.second - p.second) / (q.first - p.first)};
+        };
+    };
+    auto atY = [](int y) {
+        return [y](std::pair<int, int> p, std::pair<int, int> q) {
+            return std::pair<int, int>{p.first + (y - p.second) * (q.first - p.first) / (q.second - p.second), y};
+        };
+    };
+    cut([&](auto p) { return p.first >= clip_.x0; }, atX(clip_.x0));
+    if (!poly.empty()) cut([&](auto p) { return p.first <= clip_.x1; }, atX(clip_.x1));
+    if (!poly.empty()) cut([&](auto p) { return p.second >= clip_.y0; }, atY(clip_.y0));
+    if (!poly.empty()) cut([&](auto p) { return p.second <= clip_.y1; }, atY(clip_.y1));
+    if (poly.size() < 3) return;
+    // f81_0000: each row's leftmost and rightmost x along the edges.
+    int top = poly[0].second, bottom = top;
+    for (auto [x, y] : poly) top = std::min(top, y), bottom = std::max(bottom, y);
+    const int rows = bottom - top + 1;
+    std::vector<std::pair<int, int>> span(static_cast<size_t>(rows), {0x7FFF, 0});
+    for (size_t k = 0; k < poly.size(); ++k) {
+        const auto p = poly[k], q = poly[(k + 1) % poly.size()];
+        const int y0 = std::min(p.second, q.second), y1 = std::max(p.second, q.second);
+        for (int y = y0; y <= y1; ++y) {
+            const int x = p.second == q.second ? (y == p.second ? p.first : q.first)
+                                               : p.first + (y - p.second) * (q.first - p.first) / (q.second - p.second);
+            auto& s = span[static_cast<size_t>(y - top)];
+            s.first = std::min(s.first, x), s.second = std::max(s.second, x);
+            if (p.second == q.second) s.first = std::min({s.first, p.first, q.first}), s.second = std::max({s.second, p.first, q.first});
+        }
+    }
+    // f82_02f0: the stretch.
+    Screen& s = ctx_.screens[current_];
+    const uint32_t rowStep = (static_cast<uint32_t>(bmp.height / rows) << 16) |
+                             ((static_cast<uint32_t>(bmp.height % rows) << 16) / static_cast<uint32_t>(rows));
+    uint32_t row = 0;  // 16.16
+    for (int r = 0; r < rows; ++r, row += rowStep) {
+        const auto [left, right] = span[static_cast<size_t>(r)];
+        const int y = top + r;
+        if (left > right || y < 0 || y >= Screen::kHeight) continue;
+        const int len = right - left + 1;
+        const uint32_t colStep = (static_cast<uint32_t>(bmp.width / len) << 16) |
+                                 ((static_cast<uint32_t>(bmp.width % len) << 16) / static_cast<uint32_t>(len));
+        uint32_t col = 0;
+        const int srcRow = std::min(static_cast<int>(row >> 16), bmp.height - 1);
+        for (int x = left; x <= right; ++x, col += colStep)
+            if (x >= 0 && x < Screen::kWidth)
+                s.pixels[static_cast<size_t>(y) * Screen::kWidth + x] =
+                    bmp.at(std::min(static_cast<int>(col >> 16), bmp.width - 1), srcRow);
+    }
+}
+
 template <class Plot>
 void ArtechGame::scanPolygon(const std::vector<std::pair<int, int>>& pts, Plot plot) {
     const int n = static_cast<int>(pts.size());

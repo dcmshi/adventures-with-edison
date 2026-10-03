@@ -84,16 +84,17 @@ bool Science::loadTable(int room) {
     if (!in) return false;
     ShapeReader r(std::vector<char>(std::istreambuf_iterator<char>(in), {}));
     std::function<void(Box*)> read = [&](Box* parent) {
-        Rect first, second;
-        first.x = r.number(), first.y = r.number(), first.w = r.number(), first.h = r.number();
+        // The top first, then the bottom (f27_0d4a passes the second read
+        // as the bottom).
+        Rect second, first;
         second.x = r.number(), second.y = r.number(), second.w = r.number(), second.h = r.number();
+        first.x = r.number(), first.y = r.number(), first.w = r.number(), first.h = r.number();
         const int height = r.number();
         Box* box = &t.root;
         if (parent) {
-            // f12_3e0d: the first rectangle within the parent's top; none
-            // if that's empty. Then f12_04a1: that's the bottom, and the
-            // second the top, within the bottom, but only if its corner is
-            // inside the bottom (else the top is the bottom).
+            // f12_3e0d: the bottom within the parent's top; none if that's
+            // empty. Then f12_04a1: the top within the bottom, but only if
+            // its corner is inside the bottom (else the top is the bottom).
             const Rect bottom = intersect(first, parent->top);
             if (bottom.w == 0 || bottom.h == 0) {
                 box = nullptr;
@@ -207,8 +208,8 @@ int Science::heightAt(const Box& box, int x, int y) const {
 
 void Science::faceFill(std::vector<std::pair<int, int>> points, int look, bool texture) {
     // f12_0ddf: clipped to the view (f83_0065), then a bitmap fill
-    // (f63_20e4) or one colour (f14_07a0).
-    if (texture) fillPolygonWith(points, static_cast<uint16_t>(look));
+    // stretched onto it (f63_20e4) or one colour (f14_07a0).
+    if (texture) fillPolygonStretched(points, static_cast<uint16_t>(look));
     else fillPolygon(points, static_cast<uint8_t>(look));
 }
 

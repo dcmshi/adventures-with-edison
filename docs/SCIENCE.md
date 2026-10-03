@@ -239,10 +239,16 @@ Borland's `mov ax, ss; nop; inc bp` prologue): `f31_0783` is
   top, 2-5 the sides). The faces are the ball's height map:
   `f34_02fa` finds the face under a point and `f34_07ec` interpolates the
   height across a slope. They're drawn as textured polygons (bitmap fill,
-  `f63_20e4`, tiled from the screen's corner, which an oblique projection
-  allows: the floor's grid stays a repeating pattern on screen) and
-  pattern fills (`f14_07a0`): segment 12's `f12_0ddf`, `f12_220d`,
-  `f12_2871`, `f12_2a09`.
+  `f63_20e4`) and pattern fills (`f14_07a0`): segment 12's `f12_0ddf`,
+  `f12_220d`, `f12_2871`, `f12_2a09`. This build's bitmap fill doesn't
+  tile: it stretches the bitmap onto the polygon (cut to the clip first,
+  `f83_0065`; `f81_0000` each row's span; `f82_02f0`, 32-bit code that
+  `nedis.py` can't read: `ndisasm -b 32` can), the bitmap's rows over the
+  polygon's rows and each row over its span, in 16.16 steps; so each face
+  carries one whole gradient (the floor lighter towards the front). With
+  it room 1's walls and floor match the original exactly; the steep grid
+  lines still step differently (the library's line, `f63_1cd5`, isn't the
+  engine's Bresenham).
 - **A box's fields** (`46h` bytes; the root made by `f12_0312(w, h)`, the
   others by `f12_04a1(parent, rect, height)`): `+2` the parent (the root's
   is a stand-in at `DS:116E`), `+4` the bottom rectangle (x, y, w, h, at
@@ -255,8 +261,8 @@ Borland's `mov ax, ss; nop; inc bp` prologue): `f31_0783` is
   three projected corners: for a box standing up `+3E` the left, by the
   slope of its edges, and `+40` the back; for a pit `+42` the right and
   `+44` the front).
-- **Making a box** (`f12_3e0d`): the file's first rectangle within the
-  parent's top is the bottom (none if empty); the second is the top,
+- **Making a box** (`f12_3e0d`): the bottom (the file's second
+  rectangle) within the parent's top (none if empty); the top (the first)
   within the bottom, but only if its corner lies inside the bottom
   (`f12_04a1`), else the top is the bottom.
 - **Drawing a box** (`f12_2a09`): the eight corners projected (top at
@@ -302,15 +308,15 @@ A room reads `S<n>.SRF` (`f27_0ad8`: the name built at `DS:1FF4`, read
 through the run time's streams in segment 90). Text, in three parts:
 
 1. **The shape**: a tree of boxes (`f27_0d4a`, recursive). A box is two
-   rectangles `x y w h` (its bottom and its top, so sides can slope; the
-   bottom is at the parent's height, the top at the box's) and a
+   rectangles `x y w h` (its top, at the box's height, then its bottom, at
+   the parent's: `f27_0d4a` hands the second read over as the bottom; so
+   sides can slope) and a
    height; then `01` and a child box, as many as it has, and `02`. Each
    box is relative to its parent (its x, y and height are taken off) and is
    made by the room's method 1. The root is the floor, `0 0 809 789` (the
    world is 809 x 789). `S1.SRF` (the menu) is the floor, two walls 400 high
-   and a pit 50 deep: (660, 60, 149, 149), with straight sides, since its
-   second rectangle (570, 0, 239, 209) doesn't start inside the first (see
-   making a box).
+   and a pit 50 deep whose floor (660, 60, 149, 149) is smaller than its
+   mouth (570, 0, 239, 209): the ramp at the front and left down to EXIT.
 2. **The objects**, `OBJn x y type a b c d e f` (segment 61, `f61_011d`
    and `f61_09bd`; rooms 0, 100 and 101 give only x and y), at most 24:
 

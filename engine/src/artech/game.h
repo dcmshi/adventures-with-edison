@@ -47,6 +47,11 @@ protected:
     // bmfill_poly: the polygon filled with a bitmap, tiled from the screen's
     // top left. (The display, screen 1, isn't allowed.)
     void fillPolygonWith(const std::vector<std::pair<int, int>>& points, uint16_t bitmap);
+    // bmfill_poly as WMAIN.EXE's build of the library has it (f63_20e4 →
+    // f81_0000, f81_0210, f82_02f0): the polygon cut to the clip, then the
+    // bitmap stretched onto it, its rows over the polygon's rows and each
+    // row over that row's span (16.16 steps).
+    void fillPolygonStretched(const std::vector<std::pair<int, int>>& points, uint16_t bitmap);
     // The library's polygon clip (Wild Science's f83_0000): the polygons
     // only fill inside it. The whole screen by default.
     void setPolygonClip(int x, int y, int w, int h) { clip_ = {x, y, x + w - 1, y + h - 1}; }
