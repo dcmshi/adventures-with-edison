@@ -218,7 +218,7 @@ void Science::drawObjects() {
     // (f06_0877, kept at +F79): the ring's back 1042 under the ball, its
     // front 1043 over it ([1508]); the ball's first rolling frame 1016
     // (DS:1300).
-    // The target's position is its box's centre (moved there by f22_056e);
+    // The target's position is its box's centre (moved there by f08_056e);
     // made from the ball's sphere it starts with its corner there.
     // Once moved, its box sits a unit above the ground (as the original
     // shows: probably its sphere's radius rounded differently when set
@@ -226,7 +226,8 @@ void Science::drawObjects() {
     const int lift = targetMoved_ ? 1 : 0;
     const auto [tx, ty] = objectCentre(targetX_ - 10, targetY_ - 10, heightUnder(targetX_, targetY_) + lift, 20, 20, 10);
     objectSprite(tx + 1, ty, 0x1042);
-    const auto [bx, by] = objectCentre(ballX_ - 10, ballY_ - 10, ballZ_, 21, 21, 21);
+    const Ball& b = ball_;
+    const auto [bx, by] = objectCentre(b.cx - b.r, b.cy - b.r, b.cz - b.r, 2 * b.r + 1, 2 * b.r + 1, 2 * b.r + 1);
     // f13_01ce: its shadow first (1040, the radius less one below the
     // centre: with the linked object's +60 set and not [14E0]), then the
     // ball.
@@ -234,7 +235,7 @@ void Science::drawObjects() {
     // Its type's rolling frames (f07_04d5: DS:1348 Ice, 1330 Stone, 1300
     // Rubber, 1378 Iron, 1318 Glass, 1360 Magic), the first at rest.
     static const uint16_t kFrames[6] = {0x1348, 0x1330, 0x1300, 0x1378, 0x1318, 0x1360};
-    const uint16_t table = kFrames[std::clamp(panel_.ballType, 0, 5)];
+    const size_t table = kFrames[std::clamp(panel_.ballType, 0, 5)] + 2u * static_cast<size_t>(b.drawFrame >> 1);
     objectSprite(bx, by, static_cast<uint16_t>(data_[table] | data_[table + 1] << 8));
     objectSprite(tx + 1, ty, 0x1043);
 }
@@ -594,15 +595,21 @@ void Science::enterRoom(int room) {
         return;
     }
     score_ = 0, shots_ = 0;
+    currentRoom_ = room;
+    worldW_ = table_.root.bottom.w, worldD_ = table_.root.bottom.h;
+    applyPanelPhysics();
     // The ball (type 1, on the face under it) and its target, under it.
     hasBall_ = false;
     for (const Object& o : table_.objects)
         if (o.type == 1) {
             hasBall_ = true;
-            ballX_ = o.x, ballY_ = o.y;
+            // f06_0043: radius 10 on the face under the point.
+            ball_ = Ball{};
+            ball_.cx = o.x, ball_.cy = o.y;
+            ball_.cz = faceHeight(faceUnder(o.x, o.y), o.x, o.y) + ball_.r;
+            ball_.kind = panel_.ballType;
             targetX_ = o.x + 10, targetY_ = o.y + 10;
             targetMoved_ = false;
-            ballZ_ = heightUnder(o.x, o.y);
         }
     captured_ = Control::None;
     ballTypePressed_ = shootPressed_ = false;

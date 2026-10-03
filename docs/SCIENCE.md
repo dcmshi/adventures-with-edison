@@ -386,7 +386,7 @@ Borland's `mov ax, ss; nop; inc bp` prologue): `f31_0783` is
   the library's `atan2`, `f87_0804`, a 400h-word table at seg87:0000, and
   its sine, seg86:0000) and scaled 1, 5, 9, ... units long (`f11_02f7`),
   to the first point within 1 of the ground under it; none past depth
-  314h. The target is moved there (`f22_056e`: sound 6026 if it moved
+  314h. The target is moved there (`f08_056e`: sound 6026 if it moved
   far), sound 6023. The target's position is its box's centre (its box is
   20 x 20 x 10); made from the ball it starts with its corner at the
   ball's point, and once moved its box sits a unit above the ground.
@@ -409,7 +409,7 @@ Borland's `mov ax, ss; nop; inc bp` prologue): `f31_0783` is
     `f30_2730`): a press takes the mouse and the next state (`f30_28f1`),
     the first sprite shown while down. The ball type (`f30_2574`): Magic
     is skipped back to Ice; the names at `DS:22E2` (Ice, Stone, Rubber,
-    Iron, Glass, Magic); sound 6007; the ball's frames by type (`f07_04d5`:
+    Iron, Glass, Magic); sound 6007; the ball's frames by type (`f07_05bf`:
     `DS:1348`, `1330`, `1300`, `1378`, `1318`, `1360`).
   - The click areas: gravity (0, 300, 174 x 100), friction (174, 300, 104
     x 100), ball type (278, 300, 116 x 100), power (394, 300, 106 x 100),
@@ -428,6 +428,87 @@ Borland's `mov ax, ss; nop; inc bp` prologue): `f31_0783` is
 - With these, room 1's controls (aiming on the floor, the ramp and the
   walls, the ball types, the three sliders) match the original pixel for
   pixel; PUSH and the shot wait for the ball's physics.
+
+## The ball's physics (being ported: `physics.cpp`)
+
+Ghidra's `FUN_1038` is segment 8 (not 22): the physics core. Functions
+reached only through vtables are missing from `nedis.py`'s listing; the
+start-up initialisers too (`mov ax, ss; nop; push ds; mov ds, ax`, found by
+scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
+(the step), `seg7:1941` `[DFA]` / `[DFE]` = 9 / 9. 32-bit code (segments
+80-82) reads with `ndisasm -b 32`.
+
+- **The ball** (`f06_0043`): a core (segment 8, `f08_0066`; vtable `0D7A`,
+  its tick `f06_0312` → the motion part's `f07_077e`) and a motion part
+  (segment 7; the sphere at its `+2`: centre x, y, z and the radius 10;
+  `f07_04d5` sets the centre and the core's box, `+6E`, = centre - r, sides
+  2r + 1). Core fields: `+40` the last move, `+46` the kick (the shot,
+  `f08_13a2`), `+4C` another push (`f08_15d2`), `+52` its kind's record,
+  `+54` / `+56` the last object hit, `+5E` on the ground (starts 1), `+62`
+  the velocity, `+68` the move's remainders (50ths), `+7C` breaking.
+- **Kinds** (`f33_0003` at start-up, `DS:286C` + 26h each): `+1` the bounce
+  (Ice 4/10, Stone 4/10, Rubber 9/10, Iron 2/10, Glass 4/10, Magic 15/10),
+  `+11` 1 for Iron and Magic (magnetic?), `+21` fragility (Ice 20, Stone 4,
+  Glass 32), `+23` 100 or 1000; the mass (the core's `+34` / `+38`, from
+  `f07_05bf`): 5, 15, 5, 20, 5, 5.
+- **The room's values**: gravity `+EFF` / `+F03` (the slider: p = (-value
+  * 4 * 42) / (50 * 2), gravity p * -200 / 10: -120 at 1.0), friction
+  `+F07` / `+F0B` (value * 255 * 8 / 256, over 255), power `+F0F` (168 *
+  min(value * 63 / 16 (2000 at 16), 195)). `[27B0]` = 50 (the timer's rate,
+  `f32_0777`), `[27B2]` = 42.
+- **The shot** (`f27_27a3` → `f06_09a1` → `f07_0ca0`): at the target's box
+  middle; the kick = (target - the ball's foot) scaled to the power
+  (`f11_02f7`), z + 42 * 9000 / (mass * 50); for one tick (two at full
+  power, `[E02]` = 32760): the motion part's `+E` counts it down. Sound
+  6003; a shot more.
+- **The step** (`f08_1a42`, each tick): the acceleration (`f08_125c`: kick
+  + push, z + gravity); the face under the ball's foot (`f27_0903`) and
+  its normal (`f34_0a10`: flat (0, 0, 100), a slope (its rise, across its
+  width), normalised; `+15` its length, `+19` the cosine of its tilt). In
+  the air (or the acceleration away from the face): the velocity across
+  less 1/100. On the face: the acceleration along it (`f34_0b8a` for pure
+  gravity, `f34_0d40` the projection), the velocity along it if its part
+  across is 50 or more; friction against the motion: each axis back *
+  (|A - A0| summed) * +F07 / (|v| summed * +F0B), at least 1 when it isn't
+  0; an axis whose remainder plus -v is under friction * 10 / 100 stops.
+  Then v = (v * 100 + a * 10) / 100 within +-5000; the move (v + the
+  remainders) in 50ths; a long one (over r * 75 + 1) tried in such steps
+  and cut where it would first go under the ground. Then the room's
+  solid objects (mass at least 1, within 35 and touching: both told, their
+  `+34`; mass 2 or more: a bounce and `f08_0d3e`; 5 sub-steps at full
+  power); the world's sides (x, y; the near side can crack the glass,
+  `f27_0772`, when (|v along| / 50) * 50 / 42 >= 16; else the ceiling at
+  279): bounced (velocity across turned back, all of it times the kind's
+  bounce). The face where it lands: a wall (higher than the ball's
+  centre, another face): bounced in y if the face under the move in y alone
+  is that high, else in x (the others damped unless in rooms 14, 60, 64,
+  69, 91, `f08_1802`), and the step again (once, `[101E]`); onto another
+  face or landing: the velocity across the face (`f34_0e4c`) turned back
+  times the bounce (at most 3/5 landing), the room told (method `+24`:
+  nothing in the base room); else the move.
+- **The bounce's effect** (`f08_1843`, the player's ball): its hit (|v
+  along the normal| / 50 * 50 / 42) times its kind's fragility over 100h
+  breaks it (`+7C`); else, at most every 2 timer ticks, sound 6004, 6001
+  or 6002 by its speed / 100 / 2.
+- **The motion tick** (`f07_077e`): the step; the rolling frames (12, a
+  frame each time the squared move across adds up to 6, `+1A`; drawn
+  backwards going left or towards the front; sprite = its kind's table
+  [frame / 2]); the kick's countdown. Breaking (`+7C`): 6019 / 601A / 6028,
+  frames at `DS:12E8`, 13 ticks, then the ball lost.
+- **Holes**: the hole's core (vtable `2226`) is told when the player's ball
+  touches it (`f28_13fe`) and catches it (`f28_14a2`), animates 22 ticks
+  (`[212C]`, `f28_0cd5`), then its method `+20` (`f28_156a`: the room it
+  leads to) and the ball parked at (0, 0) height 400.
+- **The maths**: `f11_0000` a length (across by the cosine of its heading,
+  `f86_106d` 4096ths, then with z), `f11_01f2` normalise, `f11_0651` b along
+  a's direction, `f11_02f7` scaled to a length, `f11_043e` a cross product
+  (a normalised), all through `f84_0000` (the angles' tables).
+- Tested: one shot (aim (180, 250), power 5) ends where the original's
+  does, the same pixel and frame. Not yet: the shadow (in the air the
+  original draws it on the ground below: a linked object, the ball's `+16`),
+  holes, breaking, the glass's cracks, other balls (`f08_0d3e`), the push
+  (`+4C`), whether the target is ever put back under the ball (a long
+  session seemed to show it; the single shot didn't).
 
 ## The rooms (`S<n>.SRF`)
 

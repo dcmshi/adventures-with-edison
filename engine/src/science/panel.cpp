@@ -57,13 +57,18 @@ void Science::valueBox(int x, int y, int w, int h, const std::string& text) {
     textAt(x, y, text, 0x23);
 }
 
-void Science::drawPanel() {
-    // The panel's draw (f30_15f2, its method +40): screen 3 to screen 2 over
-    // it, its controls in the order they were added (f30_13e4), the walking
-    // figure (off the screen at rest), and the area to the display.
-    const Rect area{0, table_.view.y + table_.view.h, Screen::kWidth, Screen::kHeight - (table_.view.y + table_.view.h)};
+void Science::drawPanel(const Rect* changed) {
+    // The panel's draw (f30_15f2, its method +40) of an area (the whole of
+    // it, or what its controls marked changed, f29_0313): screen 3 to
+    // screen 2 over it, its controls in the order they were added
+    // (f30_13e4), the walking figure (off the screen at rest), and the area
+    // to the display.
+    const Rect whole{0, table_.view.y + table_.view.h, Screen::kWidth, Screen::kHeight - (table_.view.y + table_.view.h)};
+    const Rect area = changed ? intersect(*changed, whole) : whole;
+    if (area.w <= 0 || area.h <= 0) return;
     copyArea(3, 2, area.x, area.y, area.w, area.h);
     select(2);
+    setPolygonClip(area.x, area.y, area.w, area.h);
     const PanelState& p = panel_;
     // Gravity: its knob, its box (f30_39fc: -value / 4.0 as "%c%d.%d").
     drawKnob(0, p.gravity);
@@ -82,6 +87,7 @@ void Science::drawPanel() {
     valueBox(0x1C6, 0x172, 0x20, 0x10, std::to_string(p.power));
     // The shoot button (f30_2730: DS:231E, the first when down).
     panelSprite(0x1F0, 0x13B, shootPressed_ ? 0x11C0 : 0x11C1);
+    clearPolygonClip();
     copyArea(2, 1, area.x, area.y, area.w, area.h);
 }
 

@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 
 #include "science/science.h"
 
@@ -118,7 +119,6 @@ bool Science::sliderClick(Control c, const Mouse& m) {
     }
     captured_ = Control::None;  // f32_00cf
     sliderRepeats_ = 0;
-    panelDirty_ = true;
     return true;
 }
 
@@ -130,7 +130,67 @@ void Science::setSlider(Control c, int value) {
     if (c == Control::Gravity) panel_.gravity = std::clamp(value, -16, 4);
     else if (c == Control::Friction) panel_.friction = std::clamp(value, 0, 16);
     else panel_.power = std::clamp(value, 0, 16);
+    applyPanelPhysics();
+    // f29_0313: its sprite's rectangle (its first frame's size) and its box.
+    const uint16_t frame0 = c == Control::Gravity ? 0x1188 : c == Control::Friction ? 0x1191 : 0x119A;
+    const int x0 = c == Control::Gravity ? 0x50 : c == Control::Friction ? 0xC0 : 0x1A8;
+    const Bitmap& f = ctx_.bitmap(frame0);
+    markPanel({x0, 299, f.width, f.height});
+    const Rect box = c == Control::Gravity ? Rect{0x4A, 0x172, 0x28, 0x12} : c == Control::Friction ? Rect{200, 0x172, 0x20, 0x12} : Rect{0x1C6, 0x172, 0x20, 0x12};
+    markPanel(box);
+}
+
+void Science::markPanel(const Rect& r) {
+    // f29_0313: a changed rectangle of the panel, joined to the others.
+    if (!panelDirty_) {
+        panelDirtyRect_ = r;
+    } else {
+        const int x0 = std::min(panelDirtyRect_.x, r.x), y0 = std::min(panelDirtyRect_.y, r.y);
+        const int x1 = std::max(panelDirtyRect_.x + panelDirtyRect_.w, r.x + r.w);
+        const int y1 = std::max(panelDirtyRect_.y + panelDirtyRect_.h, r.y + r.h);
+        panelDirtyRect_ = {x0, y0, x1 - x0, y1 - y0};
+    }
     panelDirty_ = true;
+}
+
+void Science::markButton(Control c) {
+    if (c == Control::BallType) {
+        markPanel({0x124, 0x150, 80, 13});
+        markPanel({0x134, 0x140, 0x4C, 0x12});
+    } else {
+        markPanel({0x1F0, 0x13B, 79, 27});
+    }
+}
+
+void Science::applyPanelPhysics() {
+    // Gravity (f30_39fc → f27_108d): p = (-value * [2360] (4) * 42) /
+    // (50 * 2), the room's ratio p * -200 / 10. Friction (f30_3bb2): +F07 =
+    // value * +F0B (255) * 8 / 256. Power (f30_3739 → f27_26e3): value *
+    // (168 * 3 / 8) / 16 (2000 at the top), at most 7FFFh / 168, times 168.
+    const int16_t p = static_cast<int16_t>(static_cast<int16_t>(-panel_.gravity * 4 * kTimerK) / (kTimerRate * 2));
+    gravity_ = p * -200 / 10;
+    frictionDen_ = 255;
+    frictionNum_ = static_cast<int32_t>(panel_.friction) * frictionDen_ * 8 / 0x100;
+    const int unit = kTimerK * 200 / kTimerRate;  // 168
+    int speed = panel_.power >= 16 ? 2000 : static_cast<int16_t>(static_cast<int32_t>(panel_.power) * (unit * 3 / 8) / 0x10);
+    speed = std::min(speed, 0x7FFF / unit);
+    power_ = unit * speed;
+}
+
+void Science::shoot() {
+    // f27_27a3 → f06_09a1: with a ball and its target, at the target's
+    // middle (its box's x + w / 2, y + d / 2, its foot); sound 6003; a shot
+    // more.
+    if (!hasBall_) return;
+    const int z = heightUnder(targetX_, targetY_) + (targetMoved_ ? 1 : 0);
+    ballLaunch(targetX_, targetY_, z);
+    sound(0x6003);
+    ++shots_;
+    viewDirty_ = true;
+}
+
+void Science::crackGlass() {
+    // f27_0772: an impact mark on the glass (not yet).
 }
 
 bool Science::buttonClick(Control c, const Mouse& m) {
@@ -145,15 +205,15 @@ bool Science::buttonClick(Control c, const Mouse& m) {
             setBallType((panel_.ballType + 1) % 6);
         } else {
             shootPressed_ = true;
-            // f30_281d → f27_27a3: the shot (the physics isn't ported yet).
+            shoot();  // f30_281d → f27_27a3
         }
-        panelDirty_ = true;
+        markButton(c);
         return true;
     }
     if (!m.held) {
         captured_ = Control::None;
         ballTypePressed_ = shootPressed_ = false;
-        panelDirty_ = true;
+        markButton(c);
     }
     return false;
 }
@@ -162,8 +222,9 @@ void Science::setBallType(int type) {
     // f30_2574: Magic (5) goes back to Ice; the ball told (its +8); the
     // name in the box; sound 6007.
     panel_.ballType = type == 5 ? 0 : type;
+    ball_.kind = panel_.ballType;  // f07_05bf (its mass, its record)
     sound(0x6007);
-    panelDirty_ = true;
+    markButton(Control::BallType);
     viewDirty_ = true;  // the ball's look (f07_04d5)
 }
 
@@ -185,7 +246,7 @@ void Science::aim(const Mouse& m) {
     // f27_2d15: with the button held and a target, along the line of
     // sight from the point at depth 0 (direction (-100, 282, -100), steps
     // 1, 5, 9, ... long, f11_02f7) to where it meets the ground (within 1),
-    // and the target there (f22_056e: sound 6026 if it moved far), sound
+    // and the target there (f08_056e: sound 6026 if it moved far), sound
     // 6023. Past depth 314h, nothing.
     if (!m.held || !hasBall_) return;
     const Rect& v = table_.view;
@@ -276,6 +337,15 @@ void Science::tickRoom() {
     // a pushed ball goes up 6 a tick, sound 602A, till it's out: one ball
     // fewer, and the ball on the table (not yet)).
     ++panelTicks_;
+    ++timerTicks_;
+    if (hasBall_) ballTick();
+    if (hasBall_ && std::getenv("SCI_DEBUG")) {
+        // (Testing: where the ball's sprite is drawn, and which.)
+        const Ball& b = ball_;
+        const auto [bx, by] = objectCentre(b.cx - b.r, b.cy - b.r, b.cz - b.r, 2 * b.r + 1, 2 * b.r + 1, 2 * b.r + 1);
+        logLine("t" + std::to_string(timerTicks_) + " sprite " + std::to_string(bx - 16) + "," + std::to_string(by - 10) + " f" +
+                std::to_string(b.drawFrame >> 1) + " c " + std::to_string(b.cx) + "," + std::to_string(b.cy) + "," + std::to_string(b.cz));
+    }
     for (int c = 0; c < 2; ++c) {
         Column& col = columns_[c];
         if (!col.pushing || col.offset == 0) {
@@ -298,7 +368,7 @@ void Science::tickRoom() {
 
 void Science::flushRoom() {
     if (viewDirty_) redrawTable(table_.view), viewDirty_ = false;
-    if (panelDirty_) drawPanel(), panelDirty_ = false;
+    if (panelDirty_) drawPanel(&panelDirtyRect_), panelDirty_ = false;
     for (int c = 0; c < 2; ++c)
         if (columnDirty_[c]) drawColumn(c == 1), columnDirty_[c] = false;
 }

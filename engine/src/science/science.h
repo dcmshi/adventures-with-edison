@@ -135,9 +135,62 @@ private:
     bool panelSprite(int x, int y, uint16_t id);    // f14_1179
     void drawKnob(int kind, int value);             // 0 gravity, 1 friction, 2 power
     void valueBox(int x, int y, int w, int h, const std::string& text);  // f30_1af3
-    void drawPanel();                               // f30_15f2
+    void drawPanel(const Rect* changed = nullptr);  // f30_15f2
+    void markPanel(const Rect& r);                  // f29_0313
     void drawColumn(bool right);                    // f30_0599
     int borlandRand();                              // f01_3309
+    // --- the ball's physics (physics.cpp) ---
+    struct Face {
+        const Box* box = nullptr;
+        int type = 0;  // 0 none (the stand-in at DS:2950), 1 top, 2-5 sides
+        bool operator==(const Face& o) const { return box == o.box && type == o.type; }
+    };
+    // A kind of ball (f33_0003 at start-up: DS:286C Ice ... DS:292A Magic;
+    // the mass from f07_05bf).
+    struct BallKind {
+        int32_t bounceNum, bounceDen;  // +1, +5
+        int fragility;                 // +21: breaks above 100h / this
+        int mass;                      // the core's +34 / +38
+    };
+    struct Ball {
+        int cx = 0, cy = 0, cz = 0, r = 10;     // the sphere (the motion part's +2)
+        int16_t v[3] = {}, rem[3] = {}, disp[3] = {};  // +62, +68 (50ths), +40
+        int16_t kick[3] = {}, push[3] = {};     // +46 (the shot), +4C
+        bool onGround = true;                   // +5E
+        int lastHit = 0, hitFlag = 0;           // +56, +54
+        int state = 0;                          // +7C: 1.. breaking
+        int kind = 2;                           // its type record (+52)
+        int kickTicks = 0;                      // the motion part's +E
+        int32_t rollAcc = 0;                    // +A
+        int frame = 0, drawFrame = 0;           // +1A, +1C
+        int rollThreshold = 6;                  // +1E: r * r / 16 * 9 / 9
+    };
+    static constexpr int kTimerRate = 50, kTimerK = 42;  // [27B0] (f32_0777), [27B2]
+    static constexpr int kStepNum = 10, kStepDen = 100;  // [1010], [1014] (seg8:3A98)
+    static constexpr int kMaxPower = 32760;              // [E02]
+    int libCos4096(int angle) const;                // f86_106d
+    int32_t libLength(const int16_t v[3]) const;    // f11_0000
+    void libUnit(const int16_t v[3], int16_t out[3]) const;  // f84_0000
+    int16_t libDot(const int16_t a[3], const int16_t b[3]) const;  // f11_0651
+    void libScaleTo(int16_t v[3], int length) const;              // f11_02f7
+    void libCross(const int16_t a[3], const int16_t b[3], int16_t out[3]) const;  // f11_043e
+    Face faceUnder(int x, int y) const;             // f27_0903
+    int faceHeight(const Face& f, int x, int y) const;  // f34_07ec
+    void faceNormal(const Face& f, int16_t n[3], int32_t* length, int32_t* cosine) const;  // f34_0a10
+    void gravityAlongSlope(const Face& f, int32_t num, int32_t den, int16_t out[3]) const;  // f34_0b8a
+    void projectOnFace(const Face& f, const int16_t v[3], int16_t out[3]) const;  // f34_0d40
+    void acrossFace(const Face& f, const int16_t v[3], int16_t out[3]) const;     // f34_0e4c
+    void ballSetForce(const int16_t f[3]);          // f08_13a2
+    void ballMove(const int16_t d[3]);              // f08_0aab
+    bool ballDampsOthers() const;                   // f08_1802
+    void ballBounce(const int16_t normal[3], bool always);  // f08_1843
+    void ballStep();                                // f08_1a42
+    void ballTick();                                // f07_077e
+    void ballLaunch(int tx, int ty, int tz);        // f07_0ca0
+    void crackGlass();                              // f27_0772 (not yet)
+    void shoot();                                   // f27_27a3 → f06_09a1
+    void applyPanelPhysics();                       // the sliders' values to the room's
+
     // The library's angles (binary: 10000h a turn) and fixed-point vectors.
     int libAtan2(int adjacent, int opposite) const;                 // f87_0804
     std::pair<int, int> libSinCos(int angle) const;                 // f86_1000: (sin, cos) in 32767ths
@@ -165,6 +218,7 @@ private:
     void setBallType(int type);                     // f30_29cc → f30_2574
     void tickRoom();                                // the player's tick (f31_1c79)
     void flushRoom();                               // the areas marked changed, redrawn
+    void markButton(Control c);                     // a button's sprite (and the name box)
     void drawBox(const Box& box);                   // f12_2a09
     void drawStanding(const Box& box);              // f12_38ad: on screen 3, the pits cut out
     void drawPits(const Box& box);                  // f12_39b5: on screen 2
@@ -198,16 +252,28 @@ private:
     bool looksConverted_ = false;       // [1D3E]: f19_0614 has run
     Table table_;
     PanelState panel_;
+    Ball ball_;
+    static constexpr BallKind ballKinds_[6] = {
+        {4, 10, 20, 5}, {4, 10, 4, 15}, {9, 10, 0, 5}, {2, 10, 0, 20}, {4, 10, 32, 5}, {15, 10, 0, 5}};
+    int gravity_ = -200;                // the room's +EFF / +F03
+    int32_t frictionNum_ = 45, frictionDen_ = 255;  // +F07, +F0B
+    int power_ = 0;                     // +F0F
+    int worldW_ = 809, worldD_ = 789;   // [1018], [101A]
+    int currentRoom_ = 0;               // the player's +8E
+    int timerTicks_ = 0;                // [12F8:0002]
+    int lastBounceTick_ = 0;            // [100C]
+    int lastHitSound_ = 0;              // [100A]
+    int stepDepth_ = 0;                 // [101E]
     Control captured_ = Control::None;  // [27AC] / [27AE]: who has the mouse
     bool ballTypePressed_ = false, shootPressed_ = false;  // the buttons' +3A
     int sliderRepeats_ = 0;             // [2338]
     int panelTicks_ = 0;                // [8E4E]
     Column columns_[2];                 // +AA (left), +AC (right)
-    int ballX_ = 0, ballY_ = 0, ballZ_ = 0;  // the ball (its sphere's centre less the radius)
     bool hasBall_ = false;
     int targetX_ = 0, targetY_ = 0;     // its target (+F79)
     bool targetMoved_ = false;
     bool viewDirty_ = false, panelDirty_ = false, columnDirty_[2] = {};
+    Rect panelDirtyRect_;
     int leftBalls_ = 7, rightBalls_ = 0;  // the player's +BA, +BC
     uint32_t randSeed_ = 1;             // Borland's rand()
     long score_ = 0;                    // the room's +F35
