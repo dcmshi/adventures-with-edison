@@ -19,7 +19,8 @@ See `docs/ROCKBACH.md` for the map. Ported (`edison --game rockbach`,
 `--level N` goes straight to hallway result N): the intro and logo, the
 widgets (segment 34), the file dialogs (segments 22-23), the whole hallway
 and all eight activities. Each was checked with automated captures
-against the disassembly, not yet against the original.
+against the disassembly, and the parts below against the original under
+winevdm (`tools/reference/otvdm.ps1`, `screendiff.py`).
 
 - [x] The FM driver's other entry points and the song player (segment 20); the logo intro's band.
 - [x] The hallway: Edison's greeting, the player's name and looks (`user.yyy`, `ed.yyy`), the sign, the credits, the quit question.
@@ -28,13 +29,14 @@ against the disassembly, not yet against the original.
 - [x] The Studio's front room (`f04_112e`), band maker (`f14_10f4`) and song maker (`f15_1f84`); videos load, save and delete.
 - [x] The Studio's player (`f18_22a4`, with the credits `f04_08cc`).
 - [x] The Studio's video makers (`f26_1edc`, `f16_217c`, `f17_20f2`, through `f35_005a`) and their previews.
-- [x] The Studio checked against the original under winevdm: its front room, playback and video makers match.
-- [ ] Compare with the original:
-  - the hallway: a returning player's look only shows once a part is changed, the Yes/No buttons take the hair's colour, the look is lost after the credits (how the code reads);
-  - the Music Library's end-of-piece check waits for the driver to start the sounds (a port adjustment for a timing race);
-  - Sound FX: the handles vanish after LOAD until an effect is changed (how the code reads); the scroll bar's arrows repeat every 0.1 s (the original repeats every poll);
-  - the Drum Clinic's pointer snapping over the grid isn't ported;
-  - the video makers' "playing" light flips every 0.5 s (the original flips it every 13000 polls).
+- [x] Checked against the original (pixel for pixel, but for random choices and the original's stale window pixels, see `docs/ROCKBACH.md`): the hallway's look machine, a returning player and the credits; the Studio's front room, band maker, song maker, video makers, playback (scene for scene, to the end) and file dialogs; Sound FX's LOAD, list and effects; the jukebox's and Harmony Hall's screens.
+- [ ] Still to compare with the original:
+  - the Music Library's end-of-piece check waits for the driver to start the sounds (a port adjustment for a timing race); winevdm has no AdLib, so there the original thinks every piece is over at once;
+  - Sound FX's scroll bar arrows repeat every 0.1 s (the original repeats every poll);
+  - the video makers' "playing" light flips every 0.5 s (the original flips it every 13000 polls);
+  - the Drum Clinic: the kit buttons' colour 255 shows as the backdrop's grey (D7) in the original under winevdm, white in the port (`f19_0082` sets 255 to white but never sends 0 or 255 to the display; how winevdm's WinG ends up with the grey is unknown); the rest of its screen matches;
+  - the Instrument Room's waveform: the original reads the instruments' WAVs from the CD, which it can't find under winevdm (its waveform comes out flat at the bottom); the rest of its screen matches;
+  - the activities' other actions (only their first screens were compared).
 - [ ] Decode its real tempo (`fmplay` uses 128 for now).
 
 ## Wild Science Arcade

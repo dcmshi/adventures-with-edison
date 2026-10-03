@@ -32,15 +32,19 @@ RockBach::Widget RockBach::dialogButton(int x, int y, uint16_t pressed, uint16_t
 
 void RockBach::dialogColours() {
     // f27_0054: the 16 EGA colours' nearest entries in screen 2's palette
-    // (the table is B, G, R, compared byte for byte as the palette is
-    // stored).
+    // (the table is B, G, R, compared byte for byte with the palette's
+    // B, G, R: seg 63's entries are RGBQUAD order, f43_0186). The bytes
+    // are signed chars (cbw), so 0x80-0xFF count as negative: as the
+    // original, which makes EGA blue a bright green on some backdrops.
+    auto s = [](uint8_t v) { return static_cast<long>(static_cast<int8_t>(v)); };
     for (int i = 0; i < 16; ++i) {
         const uint8_t* t = &data_[0x2630 + 3 * i];
         int best = 0;
         long bestD = -1;
         for (int k = 0; k < 256; ++k) {
             const Rgb& p = ctx_.screens[2].palette[k];
-            const long d = (t[0] - p.r) * (t[0] - p.r) + (t[1] - p.g) * (t[1] - p.g) + (t[2] - p.b) * (t[2] - p.b);
+            const long db = s(t[0]) - s(p.b), dg = s(t[1]) - s(p.g), dr = s(t[2]) - s(p.r);
+            const long d = db * db + dg * dg + dr * dr;
             if (bestD < 0 || d < bestD) bestD = d, best = k;
         }
         dialogColour_[i] = static_cast<uint8_t>(best);
@@ -49,16 +53,16 @@ void RockBach::dialogColours() {
 
 void RockBach::bevelBox(int x, int y, int w, int h, bool pressed) {
     // f23_0ab8 (deep): a box with three-pixel edges.
-    const uint8_t face = pressed ? dialogColour_[1] : dialogColour_[7];
+    const uint8_t face = pressed ? dialogColour_[2] : dialogColour_[7];
     const uint8_t top = pressed ? dialogColour_[8] : dialogColour_[5], bottom = pressed ? dialogColour_[6] : dialogColour_[9];
     const uint8_t right = pressed ? dialogColour_[9] : dialogColour_[6], left = pressed ? dialogColour_[5] : dialogColour_[8];
+    // Each edge's three lines in turn (top, bottom, right, left), so the
+    // sides cut across the corners; the left one reaches a row further.
     fill(x, y, w, h, face);
-    for (int k = 0; k < 3; ++k) {
-        line(x, y + k, x + w - 1, y + k, top);
-        line(x, y + h - 1 - k, x + w - 1, y + h - 1 - k, bottom);
-        line(x + w - 1 - k, y + 1 + k, x + w - 1 - k, y + h - 2 - k, right);
-        line(x + k, y + 1 + k, x + k, y + h - 2 - k, left);
-    }
+    for (int k = 0; k < 3; ++k) line(x, y + k, x + w - 1, y + k, top);
+    for (int k = 0; k < 3; ++k) line(x, y + h - 1 - k, x + w - 1, y + h - 1 - k, bottom);
+    for (int k = 0; k < 3; ++k) line(x + w - 1 - k, y + 1 + k, x + w - 1 - k, y + h - 2 - k, right);
+    for (int k = 0; k < 3; ++k) line(x + k, y + 1 + k, x + k, y + h - 1 - k, left);
 }
 
 std::vector<std::string> RockBach::listFiles(const std::string& dir, const std::string& ext) {
@@ -127,7 +131,7 @@ bool RockBach::fileList(int x, int y, const std::string& dir, bool cd, const std
         dialogColours();
         drawLogo(x, y, 0x22FE);
         font_->draw(ctx_.screens[2], x + (pw - tw) / 2, y + 0xC, title, dialogColour_[6]);
-        font_->draw(ctx_.screens[2], x + (pw - tw) / 2 - 1, y + 0xB, title, dialogColour_[0]);
+        font_->draw(ctx_.screens[2], x + (pw - tw) / 2 - 1, y + 0xB, title, dialogColour_[1]);
         drawLogo(w[0].x0 + 2, w[0].y0 + 2, 0x22FA);  // f22_049e
         for (int i = 0; i < slots && top + i < count; ++i) {
             const Widget& s = w[1 + i];
@@ -137,7 +141,7 @@ bool RockBach::fileList(int x, int y, const std::string& dir, bool cd, const std
                         name, 0xFF);
         }
         drawLogo(x + 0x32, y + 0x20, cd ? 0x22F8 : 0x22F9);
-        copyArea(2, 1, x, y, pw, ph);
+        copyKeyed(2, 1, x, y, pw, ph);  // f37_0320: colour 0 (the icons' shadows) shows what was there
         drawBar(false, false);
         select(1);
     };
@@ -216,10 +220,10 @@ bool RockBach::loadDialog(int x, int y, const std::string& ext, std::string* out
             select(2);
             drawLogo(x, y, 0x22FE);
             font_->draw(ctx_.screens[2], x + (pw - tw) / 2, y + 0x14, title, dialogColour_[6]);
-            font_->draw(ctx_.screens[2], x + (pw - tw) / 2 - 1, y + 0x13, title, dialogColour_[0]);
+            font_->draw(ctx_.screens[2], x + (pw - tw) / 2 - 1, y + 0x13, title, dialogColour_[1]);
             static const uint16_t kPictures[3] = {0x22FA, 0x22F8, 0x22F9};
             for (int i = 0; i < 3; ++i) ctx_.screens.drawSprite(2, ctx_.bitmap(kPictures[i]), rects[i][0], rects[i][1]);
-            copyArea(2, 1, x, y, pw, ph);
+            copyKeyed(2, 1, x, y, pw, ph);  // f37_0320
             select(1);
             redraw = false;
         }

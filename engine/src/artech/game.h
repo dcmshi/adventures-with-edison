@@ -51,6 +51,8 @@ protected:
     void frame(int x, int y, int w, int h, uint8_t colour);     // a rectangle's outline
     void text(int x, int y, const std::string& s, int colour);  // in font_
     void copyArea(int src, int dst, int x, int y, int w, int h) { ctx_.screens.copyArea(src, dst, x, y, w, h); }
+    // The same, leaving colour 0 out (f37_0320: what's on dst shows through).
+    void copyKeyed(int src, int dst, int x, int y, int w, int h) { ctx_.screens.copyArea(src, dst, x, y, w, h, true); }
     // duplicate_area: a rectangle to another position (possibly another screen).
     void duplicateArea(int src, int dst, int sx, int sy, int w, int h, int dx, int dy);
     int saveArea(int x, int y, int w, int h);                   // a handle

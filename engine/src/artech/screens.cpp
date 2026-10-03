@@ -4,7 +4,7 @@
 
 namespace edison {
 
-void Screens::copyArea(int src, int dst, int x, int y, int w, int h) {
+void Screens::copyArea(int src, int dst, int x, int y, int w, int h, bool keyed) {
     const int x0 = std::max(x, 0), y0 = std::max(y, 0);
     const int x1 = std::min(x + w, Screen::kWidth), y1 = std::min(y + h, Screen::kHeight);
     if (x0 >= x1 || y0 >= y1 || src == dst) return;
@@ -12,7 +12,12 @@ void Screens::copyArea(int src, int dst, int x, int y, int w, int h) {
     auto& to = screens_[dst].pixels;
     for (int row = y0; row < y1; ++row) {
         const size_t at = static_cast<size_t>(row) * Screen::kWidth + x0;
-        std::copy(from.begin() + at, from.begin() + at + (x1 - x0), to.begin() + at);
+        if (!keyed) {
+            std::copy(from.begin() + at, from.begin() + at + (x1 - x0), to.begin() + at);
+            continue;
+        }
+        for (size_t i = at; i < at + static_cast<size_t>(x1 - x0); ++i)
+            if (from[i] != 0) to[i] = from[i];
     }
 }
 

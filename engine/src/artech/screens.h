@@ -37,8 +37,9 @@ public:
     Screen& operator[](int n) { return screens_[n]; }
     const Screen& operator[](int n) const { return screens_[n]; }
 
-    // copy_area(src, dst, x, y, w, h): same position in both surfaces, clipped.
-    void copyArea(int src, int dst, int x, int y, int w, int h);
+    // copy_area(src, dst, x, y, w, h): same position in both surfaces, clipped;
+    // keyed leaves colour 0 out (Rock and Bach's f37_0320).
+    void copyArea(int src, int dst, int x, int y, int w, int h, bool keyed = false);
     void copyAll(int src, int dst) { screens_[dst].pixels = screens_[src].pixels; }
     // show_logo: draws a bitmap with colour 0 transparent, clipped.
     // Colour 0 is transparent unless `opaque` (show_logo vs show_Clogo).

@@ -374,15 +374,17 @@ void RockBach::lookColours(int which) {
     static const uint16_t kTables[4] = {0x223E, 0x2286, 0x22CE, 0x232E};
     static const int kCount[4] = {3, 3, 4, 3}, kFirst[4] = {0xE1, 0xE4, 0xE7, 0xEB};
     if (lookTables_[0].empty()) {
-        // f24_0c0c: the tables are 6-bit B, G, R; only the first 0x18
-        // colours of each are made 8-bit R, G, B (so the last two choices
-        // of the third part stay as they are: as in the original).
+        // f24_0c0c: the tables are 6-bit R, G, B; only the first 0x18
+        // colours of each are made 8-bit and reversed into the palettes'
+        // B, G, R (seg 63's entries go to the RGBQUADs as they are,
+        // f43_0186), so the last two choices of the third part stay as
+        // they are: as in the original.
         for (int t = 0; t < 4; ++t)
             for (int k = 0; k < 8 * kCount[t]; ++k) {
                 const uint8_t* p = &data_[kTables[t] + 3 * k];
-                lookTables_[t].push_back(k < 0x18 ? Rgb{static_cast<uint8_t>(p[2] << 2), static_cast<uint8_t>(p[1] << 2),
-                                                        static_cast<uint8_t>(p[0] << 2)}
-                                                  : Rgb{p[0], p[1], p[2]});
+                lookTables_[t].push_back(k < 0x18 ? Rgb{static_cast<uint8_t>(p[0] << 2), static_cast<uint8_t>(p[1] << 2),
+                                                        static_cast<uint8_t>(p[2] << 2)}
+                                                  : Rgb{p[2], p[1], p[0]});
             }
     }
     auto part = [&](int t) {
