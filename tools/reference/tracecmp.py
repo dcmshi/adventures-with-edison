@@ -12,7 +12,9 @@ Science Arcade's ball, as `SCI_DEBUG=1` logs it: " c x,y,z v vx,vy,vz").
 memwatch reads while the game runs, so it can catch a state in the middle
 of an update (the ball's velocity is stored before it moves, and changed
 again by a bounce); such a read counts as matching when its first half
-(here the centre) is that of one of the next port states.
+(here the centre) is that of one of the next port states. It can also see
+a state the port only passed through within a tick (so never logged): one
+the next state goes on from, nearby in the port's, counts too.
 """
 import argparse
 import re
@@ -44,18 +46,31 @@ def main():
     h = args.split
     j = 0
     bad = 0
+    window = 64
+    passing = 0
     for i, state in enumerate(original):
-        if state in port[j:]:
+        near = port[j:j + window]
+        if state in near:
             j = port.index(state, j)
             continue
         # Caught mid-update: the same first half as a port state just
         # ahead, its second half already (or not yet) changed.
         if any(port[k][:h] == state[:h] for k in range(j, min(j + 3, len(port)))):
             continue
+        # A state the port went through within a tick (so never logged),
+        # seen in passing: the next one follows on nearby.
+        if i + 1 < len(original) and original[i + 1] in near:
+            passing += 1
+            if passing <= 10:
+                print(f"original #{i} {state}: taken as passed through in a tick")
+            continue
+        if state in port[j:]:
+            j = port.index(state, j)
+            continue
         bad += 1
         if bad <= 10:
             print(f"original #{i} {state}: not in the port after #{j} ({port[j:j + 2]})")
-    print(f"unmatched {bad} of {len(original)}")
+    print(f"unmatched {bad} of {len(original)}" + (f" ({passing} taken as passed through)" if passing else ""))
 
 
 if __name__ == "__main__":

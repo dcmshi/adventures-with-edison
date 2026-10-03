@@ -296,7 +296,35 @@ void Science::ballStep() {
     for (int k = 0; k < 3; ++k) q[k] = w(d[k] / 50), b.rem[k] = w(d[k] % 50), b.disp[k] = q[k];
     for (int k = 0; k < 3; ++k) b.v[k] = nv[k];  // +2C (f08_1371)
     int16_t P[3] = {w(bottom[0] + q[0]), w(bottom[1] + q[1]), w(bottom[2] + q[2])};
-    // (The room's other solid objects: none in room 1 yet, f08_0d3e.)
+    // The room's other objects (its list +18E, those whose +34 / +38 isn't
+    // 0): one the new centre is within 35 of on each axis and within the
+    // two radii of. A solid one (2 and up: other balls, not yet) bounces
+    // it (f08_0d3e) and ends the step; a soft one, a hole (1), takes it
+    // (its +34, f28_13fe: an idle hole swallows the player's ball,
+    // f28_14a5) and the ball's move, remainder and kick are cleared (the
+    // step goes on with its own copy of the move).
+    if (!b.hidden)
+        for (Object& o : table_.objects) {
+            if (o.type != 8) continue;
+            int s[4];
+            holeSphere(o, s);
+            const int dx = s[0] - (b.cx + q[0]), dy = s[1] - (b.cy + q[1]), dz = s[2] - (b.cz + q[2]);
+            if (dx >= 35 || dx <= -35 || dy >= 35 || dy <= -35 || dz >= 35 || dz <= -35) continue;
+            const int64_t rr = static_cast<int64_t>(b.r + s[3]) * (b.r + s[3]);
+            if (static_cast<int64_t>(dx) * dx + static_cast<int64_t>(dy) * dy + static_cast<int64_t>(dz) * dz > rr) continue;
+            if (!o.swallow && !o.leaving && !o.spit) {
+                // f28_14a5: the ball stopped (f07_0ead → f08_0721) and
+                // hidden with its shadow (f07_03be); the room busy (+F6F).
+                for (int k = 0; k < 3; ++k) b.v[k] = 0, b.kick[k] = 0, b.push[k] = 0;
+                b.kickTicks = 0;
+                b.hidden = true, shadowShown_ = false;
+                o.swallow = 1, o.spit = 0, o.swallowDone = false;
+                if (std::getenv("SCI_DEBUG")) logLine("hole " + std::to_string(o.args[0]) + " takes the ball at t" + std::to_string(timerTicks_));
+                roomBusy_ = true;
+                viewDirty_ = true;
+            }
+            for (int k = 0; k < 3; ++k) b.disp[k] = 0, b.rem[k] = 0, b.kick[k] = 0;
+        }
     if (!q[0] && !q[1] && !q[2]) {
         if (stepDepth_) --stepDepth_;
         return;
@@ -406,7 +434,28 @@ void Science::ballTick() {
     // tick.
     Ball& b = ball_;
     ballStep();
-    if (b.state != 0) return;  // (breaking: not yet)
+    if (b.state != 0) {
+        // Breaking (+7C), on the room's even ticks ([FFE]): first its sound
+        // (6019 glass, else 601A; 6028 with +28 set, not ported), then 13
+        // frames (+1A, its +22 table: f13_01ce); then it's gone (+7C 0) and,
+        // the player's ball, lost (f31_0504).
+        if (roomTicks_ % 2 != 0) return;
+        if (b.state == 1) {
+            sound(b.kind == 4 ? 0x6019 : 0x601A);
+            b.frame = 0, b.state = 2;
+        } else {
+            if (++b.frame > 13) b.frame = 0;
+            if (++b.state > 13) {
+                b.state = 0, b.frame = 0, b.drawFrame = 0;
+                viewDirty_ = true;
+                ballLost();
+                return;
+            }
+        }
+        b.drawFrame = b.frame;
+        viewDirty_ = true;
+        return;
+    }
     b.rollAcc += static_cast<int16_t>(static_cast<int32_t>(b.disp[0]) * b.disp[0] + static_cast<int32_t>(b.disp[1]) * b.disp[1]);
     if (b.rollAcc > b.rollThreshold) {
         b.frame = b.frame + 1 > 11 ? 0 : b.frame + 1;

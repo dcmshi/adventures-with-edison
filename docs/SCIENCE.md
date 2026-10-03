@@ -521,11 +521,93 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   addresses: the player object DS:5FFC, its room +AE; the room's gravity
   +EFF / +F03 (longs), friction +F07, power +F0F, shots +F39, its ball
   +F77 (the ball's +0: the motion part, sphere at +2; +2: the core,
-  velocity +62). Not yet: the shadow (in the air the
-  original draws it on the ground below: a linked object, the ball's `+16`),
-  holes, breaking, the glass's cracks, other balls (`f08_0d3e`), the push
-  (`+4C`), whether the target is ever put back under the ball (a long
-  session seemed to show it; the single shot didn't).
+  velocity +62). Not yet: other balls (`f08_0d3e`, with the room's
+  solid objects), the push (`+4C`).
+
+## The room's tick, the objects on screen (ported: `play.cpp`, `table.cpp`)
+
+- **The tick** (`f27_2434`, the room's method 5): each object's method 0,
+  the room's list (`+18E`, count `+190`) **from its end**: in room 1 the
+  pit's hole, the target, the shadow, the ball, then the other holes. So
+  the target and the shadow see where the ball was. Then `[FFE]` (a long,
+  the room ticks from the program's start, back to 0 past 1000) counts
+  one; every 20 the glass's marks grow.
+- **The target** (`f06_0aa8`): the ball still when its speed (`f11_0000`)
+  is at most 100 or it hasn't moved since the last tick; otherwise the
+  target is hidden (its drawable's `+60`, which means hidden everywhere).
+- **The shadow** is an object of its own (`f07_12d6`, a box 2r+1 square, 2
+  high; tick `f07_15ba`, drawn by `f13_04ab`): when the ball moved, shown
+  if its bottom is 2 or more off the ground under it, at (x, y, ground + 1)
+  (its box's centre projected); hidden, the ball draws `1040` under itself
+  (`f13_01ce`: the radius less one below its centre; not while `[14E0]`).
+- **The painter's order** (`f27_1af3` → `f27_19d9` → `f35_0744`, drawn by
+  `f27_1d2f`): the drawables (`+1AD`, 0x17 bytes: `+8` the object, `+A`
+  its kind, 1 for the table's own boxes) compared pairwise into a 48 x 48
+  "in front of" matrix (`+5FD`); then in the list's order each with
+  nothing in front of it is drawn after everything behind it. Two objects:
+  none if their rectangles don't meet or they're apart along the
+  projection's slant; else apart along y (nearer in front), x (further
+  right in front) or z (higher in front); a hole (kind 3, the loader's
+  `+2A`) by the centres across its wall (`+24`: 0 the left one); else
+  along the thinnest side of their common box (z first on a tie, then
+  y). The table's boxes aren't in the port's list (it draws the table
+  under every object; enough while no standing box hides one).
+- Sprites are clipped to `[1706]`, the whole screen: only the view's part
+  is copied to the display, so one past the view's edge shows cut off.
+- Checked against the original: a shot's frames, the ball at the
+  ceiling, in the pit, swallowed by a hole, breaking, all pixel for pixel.
+
+## Holes, rooms, losing the ball (ported: `holes.cpp`, `science.cpp`)
+
+- **A hole** (`f28_00f3`; type 8; methods: tick `f28_0671`, draw
+  `f28_0d82`, `+1C` hit `f28_13fe`, `+20` `f28_156a`, `+28` swallow
+  `f28_14a2`, `+2C` spit `f28_1442`): its sphere (`+2`) its box's centre a
+  unit lower, radius r / 2. The ball's step (`f08_1a42`) looks through the
+  room's objects whose `+34 / +38` isn't 0 (holes 1, the ball 5): within
+  35 on each axis and the two radii of the ball's centre after its move.
+  A soft one (under 2) takes it: an idle hole stops and hides the ball
+  (`f07_0ead`, `f07_03be`), the room busy (`+F6F`); the ball's move,
+  remainder and kick are cleared (the step goes on with its own copy).
+- **The swallow** (`+21`): a frame a tick, `[212C]` = 22 ticks; frame `+21 *
+  5 / 22 + 1` (1-5), the sprite from `DS:20FC` (small) or `DS:2114` (big),
+  6 a wall, frames 1-4 plus the ball's type's offset (`f28_0cd5`: 29
+  sprites a type). Then the room's method 8 (`f28_156a`): room 1's
+  (`f41_02a4`) asks for EXIT (504) and the passwords of levels 4 and 5
+  (508 "electric", 509 "wildway"; wrong: spat out, mode 2); others go
+  to `f27_2530`: spat out (mode 0) if it leads to this room, a door within
+  the room (0, 100-500) passes it on, else event 9 to that room.
+- **Spitting out** (`+23`, `f28_1445`): the frames backwards (only one in
+  modes 1 and 2); then mode 2 puts the ball back (`f27_287d`), 0 shoots it
+  50 out of the wall (`f27_27a3`, no shot counted), 1 a door's.
+- **Event 9** (`f31_0783`): rooms 1-100 tables (the new room's own class,
+  segments 41-60: its pictures and objects); 501 the lab, then room 1 when
+  it came from there (else lesson 5); 502 the high scores, 503 the credits
+  (both then back); 504 quits; 505-510 the lessons. The player's ball
+  counts (`+BA`, `+BC`) stay (7 and 0 for a new game, `f31_1b48`). Object
+  type 3 (`f61_09bd` → `f06_0348`) is the player's ball too, with a
+  segment 5 part.
+- **Breaking** (`+7C`, set by `f08_1843` on a hard hit): in the ball's
+  tick (`f07_077e`), on even `[FFE]`: sound 6019 (glass) or 601A, then 13
+  frames (`+1A`) from its type's table (`+22`: `DS:13E4` Ice, `13BA`
+  Stone, `1390` Rubber, `1438` Iron, `1462` Glass, `140E` Magic; 6 bytes,
+  the sprite first), drawn alone; then the player's ball is lost.
+- **Lost** (`f31_0504`): put back (`f27_287d`), then away (on the ground at
+  0, 0: z 410 in room 1) and hidden; shots 0; the left column's PUSH
+  ready if it has balls, else the right's; else the high scores (502).
+- **PUSH** (`f30_0496`, then `f30_02d8`): the column's top ball rises 6 a
+  tick; out, the ball is made again, shown at the column's top (x 289 or
+  799, y 0, bottom 250 or 140) and slid (`f27_293b`) to the room's place
+  (`+F73`, `+F75`, on the ground) 2 a step on each axis, the room drawn
+  each step, nothing else running (about half a millisecond a step under
+  winevdm: the whole slide some 60 ms).
+- **The glass** (`f27_0772`, from the near wall's bounce at 16 or more):
+  sound 6019; a mark (one of five: `+F3D` rectangles, `+F65` stages) at the
+  ball's rectangle's corner, the size of `1164`; every 20 room ticks a
+  stage more, to 3; drawn after the score boxes as `1163 +` the stage (2
+  at most).
+- Traced against the original (`memwatch.py`): a ball into a hole, a glass
+  ball breaking, the PUSH slide, step by step; their frames pixel for
+  pixel.
 
 ## The rooms (`S<n>.SRF`)
 

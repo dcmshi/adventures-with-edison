@@ -67,11 +67,50 @@ void Science::run() {
     }
     // Room 501 goes on to the first lesson (f31_0783); the others come
     // from the arcade's holes.
-    if (start < 0 || start == 501) lesson(5);  // room 505, then room 1
-    else if (start >= 505 && start <= 510) lesson(start - 500);
-    // (The arcade's rooms aren't ported yet.)
-    logLine("Wild Science Arcade: the arcade isn't ported yet; back to the menu.");
+    int room = -1;
+    if (start < 0 || start == 501) room = lesson(5);  // room 505, then room 1
+    else if (start >= 505 && start <= 510) room = lesson(start - 500);
+    if (room > 0) arcade(room);
     if (options_.music) ctx_.platform.setFmDriver(std::string());
+}
+
+void Science::arcade(int room) {
+    // f31_0783, event 9: rooms 1-100 are tables (the old one's objects
+    // go; its columns' counts stay the player's); 501 the lab's name
+    // (f38_06dd), then room 1 again when it came from there (else the
+    // first lesson); 502 the high scores (segment 40), 503 the credits
+    // (f38_0eb9), neither ported: back to the room it came from (the
+    // original goes back to room 1 fresh from there, or to the old room
+    // with the ball spat out of its hole, mode 2); 504 leaves (event 3);
+    // 505-510 the professor's lessons (f38_0fb5), each leading on.
+    int from = 0;  // the player's +90: the last table
+    while (room > 0) {
+        if (room <= 110) {
+            from = room;
+            room = playRoom(room);
+            continue;
+        }
+        switch (room) {
+        case 501:
+            lab();
+            room = from == 1 ? 1 : 505;
+            break;
+        case 502:
+        case 503:
+            logLine(std::string("Wild Science Arcade: the ") + (room == 502 ? "high scores aren't" : "credits aren't") + " ported yet");
+            room = from > 0 ? from : 1;
+            break;
+        case 504:
+            return;
+        default:
+            if (room >= 505 && room <= 510) {
+                room = lesson(room - 500);
+                break;
+            }
+            logLine("Wild Science Arcade: room " + std::to_string(room) + " isn't ported");
+            return;
+        }
+    }
 }
 
 // --- the framework's helpers ------------------------------------------------

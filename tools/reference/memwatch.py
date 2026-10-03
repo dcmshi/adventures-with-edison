@@ -252,10 +252,18 @@ def main():
         print("ms " + " ".join(n for n, _ in exprs))
     start = time.perf_counter()
     last = None
+    failed = 0
     while time.perf_counter() - start < args.seconds:
         mem = proc.read(base, 0x10000)
-        if mem is None:
-            break
+        if mem is None or len(mem) < 0x10000:
+            # A read can fail now and then while the game runs; only a run
+            # of failures (the game gone) ends the watch.
+            failed += 1
+            if failed > 1000:
+                break
+            time.sleep(args.every / 1000)
+            continue
+        failed = 0
         values = []
         for _, e in exprs:
             try:

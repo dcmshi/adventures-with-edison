@@ -196,50 +196,194 @@ void Science::objectSprite(int cx, int cy, uint16_t id) {
     ctx_.screens.drawSprite(current(), bmp, x, y);
 }
 
+namespace {
+
+constexpr int kHoleTicks = 22;  // [212C]
+
+// A drawable of the room's list (+1AD, 0x17 bytes each): its box (x, y, z,
+// w, d, h; at its object's +6E), its rectangle on the screen, its kind (the
+// object's +2A: 3 a hole, whose +24 is its wall) and how it's drawn.
+struct Drawable {
+    struct Area {
+        int x, y, w, h;
+    };
+    int box[6];
+    Area rect;
+    int kind = 0, wall = 0;
+    std::function<void()> draw;
+};
+
+bool spans(int a, int aw, int c, int cw) {
+    // f25_0000 / 00a9 / 0157: the ranges [a, a + aw - 1] and [c, ...] meet.
+    if (aw == 0 || cw == 0) return false;
+    const int ce = c + cw - 1, ae = a + aw - 1;
+    return (c <= a && a <= ce) || (c <= ae && ae <= ce) || (a <= c && ce <= ae);
+}
+
+// f35_0744 for two objects (not table boxes): 0 when a is in front of c
+// (drawn after it), 2 when it's behind, 1 when they don't overlap.
+int depthOrder(const Drawable& a, const Drawable& c) {
+    const Drawable::Area& A = a.rect;
+    const Drawable::Area& B = c.rect;
+    // f11_0a26: the rectangles meet.
+    if (B.x + B.w - 1 < A.x || A.x + A.w - 1 < B.x || !(A.y <= B.y + B.h - 1 && B.y <= A.y + A.h - 1)) return 1;
+    // Apart along the projection's slant.
+    const int aBottom = A.y + A.h - 1, bBottom = B.y + B.h - 1;
+    if ((aBottom - a.box[5]) - bBottom > (B.x + c.box[3]) - A.x) return 1;
+    if ((bBottom - c.box[5]) - aBottom > (A.x + a.box[3]) - B.x) return 1;
+    // Apart along an axis: the nearer (smaller y), the further right, the
+    // higher in front.
+    if (!spans(a.box[1], a.box[4], c.box[1], c.box[4])) return a.box[1] <= c.box[1] ? 0 : 2;
+    if (!spans(a.box[0], a.box[3], c.box[0], c.box[3])) return c.box[0] <= a.box[0] ? 0 : 2;
+    if (!spans(a.box[2], a.box[5], c.box[2], c.box[5])) return c.box[2] <= a.box[2] ? 0 : 2;
+    // A hole: by the centres across its wall.
+    if (a.kind == 3) {
+        if (a.wall == 0) return (a.box[3] >> 1) + a.box[0] <= (c.box[3] >> 1) + c.box[0] ? 2 : 0;
+        return (c.box[4] >> 1) + c.box[1] <= (a.box[4] >> 1) + a.box[1] ? 2 : 0;
+    }
+    if (c.kind == 3) {
+        if (c.wall == 0) return (c.box[3] >> 1) + c.box[0] <= (a.box[3] >> 1) + a.box[0] ? 0 : 2;
+        return (a.box[4] >> 1) + a.box[1] <= (c.box[4] >> 1) + c.box[1] ? 0 : 2;
+    }
+    // f11_0edd: their common box; along its thinnest side (z first on a
+    // tie, then y).
+    const int w = std::min(a.box[0] + a.box[3], c.box[0] + c.box[3]) - std::max(a.box[0], c.box[0]);
+    const int d = std::min(a.box[1] + a.box[4], c.box[1] + c.box[4]) - std::max(a.box[1], c.box[1]);
+    const int h = std::min(a.box[2] + a.box[5], c.box[2] + c.box[5]) - std::max(a.box[2], c.box[2]);
+    if (d < w ? h <= d : h <= w) return c.box[2] <= a.box[2] ? 0 : 2;
+    if (d < w) return a.box[1] <= c.box[1] ? 0 : 2;
+    return c.box[0] <= a.box[0] ? 0 : 2;
+}
+
+}  // namespace
+
+Science::Rect Science::objectRect(int x, int y, int z, int w, int d, int h) const {
+    // f25_0a51 / f27_16ae: the near bottom and far top corners projected.
+    const auto a = project(x, y, z);
+    const auto b = project(x + w - 1, y + d - 1, z + h - 1);
+    return {a.first, b.second, b.first - a.first + 2, a.second - b.second + 2};
+}
+
 void Science::drawObjects() {
-    // The drawables (+1AD) in the redraw, at rest. (The painter's order of
-    // f27_19d9 isn't ported: room 1's objects don't overlap at rest but for
-    // the ball over its target's back half.)
+    // f27_1e36: the room's drawables (+1AD) in the painter's order: each
+    // pair compared (f27_1af3 → f27_19d9 → f35_0744) into "drawn after"
+    // (+5FD, 48 x 48); then, in the list's order, each with nothing in
+    // front of it is drawn after (f27_1d2f) all those behind it, then any
+    // left. The table's own boxes (type 1) aren't in it here: the port
+    // draws the table under all the objects (enough while no standing box
+    // hides one).
+    auto area = [](const Rect& r) { return Drawable::Area{r.x, r.y, r.w, r.h}; };
+    std::vector<Drawable> list;
     for (const Object& o : table_.objects) {
         if (o.type == 8) {
             // A hole (f28_00f3, g28_0003, drawn by f28_0d82): a = the room
             // it leads to, b = its wall (0 the left one), c = big, d = its
-            // height (-1: the face's under it). Frame 0 at rest.
+            // height (-1: the face's under it). Frame 0 at rest. Its box is
+            // a cube of side 2r, r to the left on the left wall.
             const int wall = o.args[1], big = o.args[2] != 0;
             const int r = big ? 17 : 11;
             const int z = o.args[3] != -1 ? o.args[3] : heightUnder(o.x, o.y);
-            auto [cx, cy] = objectCentre(o.x - (wall == 0 ? r : 0), o.y, z, 2 * r, 2 * r, 2 * r);
-            uint16_t id;  // DS:20FC (small), DS:2114 (big), by the wall
-            if (!big) id = wall == 0 ? 0x1247 : 0x1245, cy -= wall == 0 ? 3 : 0;
-            else id = wall == 0 ? 0x124B : 0x1249, cy += wall == 0 ? 0 : 3;
-            objectSprite(cx, cy, id);
+            const int x = o.x - (wall == 0 ? r : 0);
+            Drawable dr{{x, o.y, z, 2 * r, 2 * r, 2 * r}, area(objectRect(x, o.y, z, 2 * r, 2 * r, 2 * r)), 3, wall, {}};
+            // Its frame (f28_0d82): 0 at rest; swallowing (+21) 1-5 as it
+            // counts, spitting (+23) 5-1. The sprites by size and wall
+            // (DS:20FC small, DS:2114 big; 6 a wall); frames 1-4 show the
+            // ball, by its type (f28_0cd5: 29 sprites a type).
+            int frame = 0;
+            if (o.swallow) frame = std::min(static_cast<int>(static_cast<unsigned>(o.swallow) * 5 / kHoleTicks) + 1, 5);
+            else if (o.spit) frame = std::clamp(6 - (static_cast<int>(static_cast<unsigned>(o.spit) * 5 / kHoleTicks) + 1), 1, 5);
+            static const int kTypeOffset[6] = {4, 5, 0, 1, 2, 3};
+            const int typeOffset = kTypeOffset[std::clamp(panel_.ballType, 0, 5)] * 0x1D;
+            dr.draw = [this, x, y = o.y, z, r, wall, big, frame, typeOffset] {
+                auto [cx, cy] = objectCentre(x, y, z, 2 * r, 2 * r, 2 * r);
+                const size_t at = (big ? 0x2114u : 0x20FCu) + 2u * static_cast<size_t>((wall ? 6 : 0) + frame);
+                uint16_t id = static_cast<uint16_t>(data_[at] | data_[at + 1] << 8);
+                if (frame > 0 && frame < 5) id = static_cast<uint16_t>(id + typeOffset);
+                if (!big) cy -= wall == 0 ? 3 : 0;
+                else cy += wall == 0 ? 0 : 3;
+                objectSprite(cx, cy, id);
+            };
+            list.push_back(dr);
+        } else if ((o.type == 1 || o.type == 3) && hasBall_) {
+            // The ball (f06_0043, radius 10; kind 1), then its shadow
+            // object and its target.
+            const Ball& b = ball_;
+            const int s = 2 * b.r + 1;
+            Drawable ball{{b.cx - b.r, b.cy - b.r, b.cz - b.r, s, s, s}, area(objectRect(b.cx - b.r, b.cy - b.r, b.cz - b.r, s, s, s)), 1, 0, {}};
+            ball.draw = [this] {
+                const Ball& b = ball_;
+                if (b.hidden) return;
+                if (b.state != 0) {
+                    // Breaking (f13_01ce, +7C): its type's frames (+22: DS:13E4
+                    // Ice, 13BA Stone, 1390 Rubber, 1438 Iron, 1462 Glass, 140E
+                    // Magic; 6 bytes each, the sprite first), no shadow.
+                    static const uint16_t kBreak[6] = {0x13E4, 0x13BA, 0x1390, 0x1438, 0x1462, 0x140E};
+                    const size_t at = kBreak[std::clamp(b.kind, 0, 5)] + 6u * static_cast<size_t>(b.drawFrame >> 1);
+                    const auto [bx, by] = objectCentre(b.cx - b.r, b.cy - b.r, b.cz - b.r, 2 * b.r + 1, 2 * b.r + 1, 2 * b.r + 1);
+                    objectSprite(bx, by, static_cast<uint16_t>(data_[at] | data_[at + 1] << 8));
+                    return;
+                }
+                const auto [bx, by] = objectCentre(b.cx - b.r, b.cy - b.r, b.cz - b.r, 2 * b.r + 1, 2 * b.r + 1, 2 * b.r + 1);
+                // f13_01ce: its shadow first (1040, the radius less one
+                // below the centre: while the shadow object, its +16, is
+                // hidden (its +60), and not [14E0]), then the ball in its
+                // type's rolling frames (f07_04d5: DS:1348 Ice, 1330 Stone,
+                // 1300 Rubber, 1378 Iron, 1318 Glass, 1360 Magic).
+                if (!shadowShown_ && !noShadow_) objectSprite(bx, by + b.r - 1, 0x1040);
+                static const uint16_t kFrames[6] = {0x1348, 0x1330, 0x1300, 0x1378, 0x1318, 0x1360};
+                const size_t table = kFrames[std::clamp(panel_.ballType, 0, 5)] + 2u * static_cast<size_t>(b.drawFrame >> 1);
+                objectSprite(bx, by, static_cast<uint16_t>(data_[table] | data_[table + 1] << 8));
+            };
+            list.push_back(ball);
+            // The shadow object (f07_12d6; drawn by f13_04ab): 1040 at its
+            // box's centre projected, (x, y, ground + 1).
+            const int sx = shadowX_ - b.r, sy = shadowY_ - b.r;
+            Drawable shadow{{sx, sy, shadowZ_, s, s, 2}, area(objectRect(sx, sy, shadowZ_, s, s, 2)), 0, 0, {}};
+            shadow.draw = [this] {
+                if (!shadowShown_) return;
+                const auto [x, y] = project(shadowX_, shadowY_, shadowZ_);
+                objectSprite(x, y, 0x1040);
+            };
+            list.push_back(shadow);
+            // The target (f06_0877, kept at +F79), hidden while the ball
+            // moves (f06_0aa8): the ring's back 1042 here, its front 1043
+            // over everything ([1508]). Its position is its box's centre;
+            // once moved, its box sits a unit above the ground (as the
+            // original shows).
+            const int tz = heightUnder(targetX_, targetY_) + (targetMoved_ ? 1 : 0);
+            Drawable target{{targetX_ - 10, targetY_ - 10, tz, 20, 20, 10}, area(objectRect(targetX_ - 10, targetY_ - 10, tz, 20, 20, 10)), 0, 0, {}};
+            target.draw = [this, tz] {
+                if (ballMoving_) return;
+                const auto [tx, ty] = objectCentre(targetX_ - 10, targetY_ - 10, tz, 20, 20, 10);
+                objectSprite(tx + 1, ty, 0x1042);
+            };
+            list.push_back(target);
         }
     }
-    if (!hasBall_) return;
-    // The ball (f06_0043, radius 10) on the face under it, and its target
-    // (f06_0877, kept at +F79): the ring's back 1042 under the ball, its
-    // front 1043 over it ([1508]); the ball's first rolling frame 1016
-    // (DS:1300).
-    // The target's position is its box's centre (moved there by f08_056e);
-    // made from the ball's sphere it starts with its corner there.
-    // Once moved, its box sits a unit above the ground (as the original
-    // shows: probably its sphere's radius rounded differently when set
-    // and when read back).
-    const int lift = targetMoved_ ? 1 : 0;
-    const auto [tx, ty] = objectCentre(targetX_ - 10, targetY_ - 10, heightUnder(targetX_, targetY_) + lift, 20, 20, 10);
-    objectSprite(tx + 1, ty, 0x1042);
-    const Ball& b = ball_;
-    const auto [bx, by] = objectCentre(b.cx - b.r, b.cy - b.r, b.cz - b.r, 2 * b.r + 1, 2 * b.r + 1, 2 * b.r + 1);
-    // f13_01ce: its shadow first (1040, the radius less one below the
-    // centre: with the linked object's +60 set and not [14E0]), then the
-    // ball.
-    objectSprite(bx, by + 10 - 1, 0x1040);
-    // Its type's rolling frames (f07_04d5: DS:1348 Ice, 1330 Stone, 1300
-    // Rubber, 1378 Iron, 1318 Glass, 1360 Magic), the first at rest.
-    static const uint16_t kFrames[6] = {0x1348, 0x1330, 0x1300, 0x1378, 0x1318, 0x1360};
-    const size_t table = kFrames[std::clamp(panel_.ballType, 0, 5)] + 2u * static_cast<size_t>(b.drawFrame >> 1);
-    objectSprite(bx, by, static_cast<uint16_t>(data_[table] | data_[table + 1] << 8));
-    objectSprite(tx + 1, ty, 0x1043);
+    const size_t n = list.size();
+    std::vector<uint8_t> after(n * n, 0);  // after[i * n + j]: i is drawn after j
+    std::vector<bool> free(n, true), drawn(n, false);
+    for (size_t i = 0; i < n; ++i)
+        for (size_t j = i + 1; j < n; ++j) {
+            const int o = depthOrder(list[i], list[j]);
+            if (o == 0) after[i * n + j] = 1, after[j * n + i] = 0, free[j] = false;
+            else if (o == 2) after[j * n + i] = 1, after[i * n + j] = 0, free[i] = false;
+        }
+    std::function<void(size_t)> draw = [&](size_t i) {
+        drawn[i] = true;
+        for (size_t j = 0; j < n; ++j)
+            if (j != i && after[i * n + j] && !drawn[j]) draw(j);
+        list[i].draw();
+    };
+    for (size_t i = 0; i < n; ++i)
+        if (free[i]) draw(i);
+    for (size_t i = 0; i < n; ++i)
+        if (!drawn[i]) draw(i);
+    if (hasBall_ && !ballMoving_) {
+        const int tz = heightUnder(targetX_, targetY_) + (targetMoved_ ? 1 : 0);
+        const auto [tx, ty] = objectCentre(targetX_ - 10, targetY_ - 10, tz, 20, 20, 10);
+        objectSprite(tx + 1, ty, 0x1043);
+    }
 }
 
 std::pair<int, int> Science::project(int x, int y, int h) const {
@@ -577,6 +721,10 @@ void Science::redrawTable(const Rect& area) {
         drawLogo(58, 8, 0x1425);
         textAt(58 + 3, 8 + 3, dataString(0x2040) + std::to_string(shots_), 0x10);
     }
+    // The glass's marks (+F65, +F3D): sprite 1163 + the stage (2 at most).
+    for (int i = 0; i < 5; ++i)
+        if (crackStage_[i] != 0 && intersect(a, crackRect_[i]).w > 0 && intersect(a, crackRect_[i]).h > 0)
+            drawLogo(crackRect_[i].x, crackRect_[i].y, static_cast<uint16_t>(0x1163 + std::min(crackStage_[i], 2)));
     const Screen& three = ctx_.screens[3];
     for (int y = a.y; y < a.y + a.h; ++y)
         for (int x = a.x; x < a.x + a.w; ++x) {
@@ -603,37 +751,44 @@ void Science::enterRoom(int room) {
     // The ball (type 1, on the face under it) and its target, under it.
     hasBall_ = false;
     for (const Object& o : table_.objects)
-        if (o.type == 1) {
+        if (o.type == 1 || o.type == 3) {
+            // (Type 3, f61_09bd → f06_0348: the player's ball with a
+            // segment 5 part as well, not ported: as type 1.)
             hasBall_ = true;
             // f06_0043: radius 10 on the face under the point.
             ball_ = Ball{};
             ball_.cx = o.x, ball_.cy = o.y;
             ball_.cz = faceHeight(faceUnder(o.x, o.y), o.x, o.y) + ball_.r;
             ball_.kind = panel_.ballType;
+            ball_.startX = o.x, ball_.startY = o.y;
             targetX_ = o.x + 10, targetY_ = o.y + 10;
             targetMoved_ = false;
+            ballMoving_ = false, shadowShown_ = false;
+            lastCentre_[0] = ball_.cx, lastCentre_[1] = ball_.cy, lastCentre_[2] = ball_.cz;
+            for (int i = 0; i < 3; ++i) shadowSeen_[i] = lastCentre_[i];
         }
     captured_ = Control::None;
     ballTypePressed_ = shootPressed_ = false;
+    roomBusy_ = false, exitRoom_ = 0, exitHole_ = -1;
+    for (int i = 0; i < 5; ++i) crackStage_[i] = 0;
     columns_[0] = columns_[1] = Column{};
     drawTable();
     roomPictures(room);
     toDisplay(3);
     redrawTable({0, 0, Screen::kWidth, Screen::kHeight});
     // The player's objects (f31_27de: +A4 the panel, +AA and +AC the
-    // columns, their method +40); a new room starts with 7 balls on the
-    // left and none on the right (+BA, +BC).
-    leftBalls_ = 7, rightBalls_ = 0;
+    // columns, their method +40); the columns keep the player's counts
+    // (+BA, +BC: 7 and 0 for a new game, f31_1b48).
     drawPanel();
     drawColumn(false);
     drawColumn(true);
 }
 
 void Science::showTable(int room) {
-    // For testing (--room 1): the room, played till Escape.
+    // For testing (--room 1): the rooms from there, played till Escape.
     loadLook();
     looksConverted_ = true;
-    playRoom(room);
+    arcade(room);
 }
 
 }  // namespace edison

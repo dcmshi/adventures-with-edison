@@ -12,7 +12,9 @@
 
 namespace edison {
 
-void Science::playRoom(int room) {
+int Science::playRoom(int room) {
+    // The room built, then the game's loop till a hole sends the ball to
+    // another room (event 9: that room) or Escape (-1).
     enterRoom(room);
     Mouse last;
     ctx_.platform.mouse(&last.x, &last.y, &last.held);
@@ -20,7 +22,8 @@ void Science::playRoom(int room) {
     uint64_t next = ctx_.platform.milliseconds() + 20;
     for (;;) {
         ctx_.pump();
-        if (escapePressed()) return;
+        if (escapePressed()) return -1;
+        if (exitRoom_) return exitRoom_;
         // f32_09a0: an event when the button is down or was pressed since
         // the last ([6EC5]), or the mouse moved, or (with it up) the last
         // event had a press. So a button let go without the mouse moving,
@@ -182,7 +185,7 @@ void Science::shoot() {
     // f27_27a3 → f06_09a1: with a ball and its target, at the target's
     // middle (its box's x + w / 2, y + d / 2, its foot); sound 6003; a shot
     // more.
-    if (!hasBall_) return;
+    if (!hasBall_ || ball_.hidden) return;  // (not while a hole has it)
     if (const char* when = std::getenv("SCI_SHOOT_WHEN")) {
         // (Testing: the shot held till the ball is in this state, "cx,cy,cz,
         // vx,vy,vz", the original's when its shot came, so a trace taken
@@ -201,7 +204,19 @@ void Science::shoot() {
 }
 
 void Science::crackGlass() {
-    // f27_0772: an impact mark on the glass (not yet).
+    // f27_0772: sound 6019; a mark on the glass (the room's five, +F3D
+    // rectangles and +F65 stages: the first free one, else the first) at
+    // the ball's rectangle's corner, the size of sprite 1164, at stage 1.
+    sound(0x6019);
+    int slot = 0;
+    while (slot < 5 && crackStage_[slot] != 0) ++slot;
+    if (slot == 5) slot = 0;
+    const Ball& b = ball_;
+    const Rect r = objectRect(b.cx - b.r, b.cy - b.r, b.cz - b.r, 2 * b.r + 1, 2 * b.r + 1, 2 * b.r + 1);
+    const Bitmap& mark = ctx_.bitmap(0x1164);
+    crackStage_[slot] = 1;
+    crackRect_[slot] = {r.x, r.y, mark.width, mark.height};
+    viewDirty_ = true;
 }
 
 bool Science::buttonClick(Control c, const Mouse& m) {
@@ -343,13 +358,29 @@ void Science::libNormalize(const int v[3], int out[3]) const {
 }
 
 void Science::tickRoom() {
-    // f31_1c79: the room's tick (its objects; the physics isn't ported
-    // yet), the panel's (f30_1430: [8E4E] counts), the columns' (f30_02d8:
-    // a pushed ball goes up 6 a tick, sound 602A, till it's out: one ball
-    // fewer, and the ball on the table (not yet)).
+    // f31_1c79: the room's tick (f27_2434), the panel's (f30_1430: [8E4E]
+    // counts), the columns' (f30_02d8: a pushed ball goes up 6 a tick,
+    // sound 602A, till it's out: one ball fewer, and the ball dropped on
+    // the table, f27_293b).
     ++panelTicks_;
     ++timerTicks_;
-    if (hasBall_) ballTick();
+    // f27_2434: each object's tick (method 0), the list (+18E) from its
+    // end: so the ball's target and shadow see where the ball was, and
+    // the holes before it in the list come after it.
+    for (size_t i = table_.objects.size(); i-- > 0;) {
+        Object& o = table_.objects[i];
+        if (o.type == 8) holeTick(o);
+        else if ((o.type == 1 || o.type == 3) && hasBall_) {
+            targetTick();
+            shadowTick();
+            ballTick();
+        }
+        if (exitRoom_) return;
+    }
+    // [FFE]: the room ticks, from 0 past 1000; every 20 the glass's cracks
+    // grow (f27_2434: +F65, up to 3).
+    if (++roomTicks_ % 20 == 0) growCracks();
+    if (roomTicks_ > 1000) roomTicks_ = 0;
     if (hasBall_ && std::getenv("SCI_DEBUG")) {
         // (Testing: where the ball's sprite is drawn, and which.)
         const Ball& b = ball_;
@@ -375,7 +406,36 @@ void Science::tickRoom() {
         if (c) rightBalls_ = std::max(rightBalls_ - 1, 0);
         else leftBalls_ = std::max(leftBalls_ - 1, 0);
         col.ballOut = true;
+        if (hasBall_) dropBall(c == 1);
     }
+}
+
+void Science::shadowTick() {
+    // f07_15ba: the shadow object follows the ball (when it moved): shown
+    // on the ground below it (x, y, ground + 1) while its bottom is 2 or
+    // more above it.
+    const Ball& b = ball_;
+    if (b.hidden || (b.cx == shadowSeen_[0] && b.cy == shadowSeen_[1] && b.cz == shadowSeen_[2])) return;
+    shadowSeen_[0] = b.cx, shadowSeen_[1] = b.cy, shadowSeen_[2] = b.cz;
+    const int ground = heightUnder(b.cx, b.cy);
+    const int above = b.cz - b.r - ground;
+    const bool shown = !(above > -2 && above < 2);
+    if (shown || shown != shadowShown_) viewDirty_ = true;
+    shadowShown_ = shown;
+    shadowX_ = b.cx, shadowY_ = b.cy, shadowZ_ = ground + 1;
+}
+
+void Science::targetTick() {
+    // f06_0aa8: the ball still when slow (|speed| <= 100) or not moved
+    // since the last tick; the target shown only then (its +60); a change
+    // redraws.
+    const Ball& b = ball_;
+    const int32_t speed = libLength(b.v);
+    bool still = (speed < 0 ? -speed : speed) <= 100;
+    if (b.cx == lastCentre_[0] && b.cy == lastCentre_[1] && b.cz == lastCentre_[2]) still = true;
+    lastCentre_[0] = b.cx, lastCentre_[1] = b.cy, lastCentre_[2] = b.cz;
+    if (ballMoving_ == still) viewDirty_ = true;
+    ballMoving_ = !still;
 }
 
 void Science::flushRoom() {

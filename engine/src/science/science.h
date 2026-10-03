@@ -99,6 +99,11 @@ private:
     struct Object {
         int x = 0, y = 0, type = 0;
         int args[6] = {};
+        // A hole's state (f28_00f3): swallowing the ball (+21, counting
+        // ticks; +27 done), spitting it out (+23; +29 done; +1F how), and
+        // the ball still leaving it (+25).
+        int swallow = 0, spit = 0, spitMode = 0;
+        bool swallowDone = false, spitDone = false, leaving = false;
     };
     // The room as its camera (segment 25) and the root of its boxes.
     struct Table {
@@ -119,6 +124,7 @@ private:
     void drawTable();                               // f27_0e5b (the room's method 0, f27_0ec5)
     int heightUnder(int x, int y) const;            // f27_0903 + f34_07ec
     std::pair<int, int> objectCentre(int x, int y, int z, int w, int d, int h) const;  // f25_0a51
+    Rect objectRect(int x, int y, int z, int w, int d, int h) const;               // f27_16ae
     void objectSprite(int cx, int cy, uint16_t id);  // f14_0d69 at 1:1
     void drawObjects();                             // the drawables at rest
     void roomPictures(int room);                    // the room's method 4 (room 1: f41_0126)
@@ -164,6 +170,8 @@ private:
         int32_t rollAcc = 0;                    // +A
         int frame = 0, drawFrame = 0;           // +1A, +1C
         int rollThreshold = 6;                  // +1E: r * r / 16 * 9 / 9
+        bool hidden = false;                    // its drawable's +60 (in a hole)
+        int startX = 0, startY = 0;             // where the room put it (f27_287d puts it back)
     };
     static constexpr int kTimerRate = 50, kTimerK = 42;  // [27B0] (f32_0777), [27B2]
     static constexpr int kStepNum = 10, kStepDen = 100;  // [1010], [1014] (seg8:3A98)
@@ -208,7 +216,29 @@ private:
         bool click = false;      // the event's +9 ([6EC5]: pressed since the last)
         bool held = false;       // [6EC4]
     };
-    void playRoom(int room);                        // the arcade's loop (f32_0c1d) in a room
+    int playRoom(int room);                         // the arcade's loop (f32_0c1d) in a room: the next room
+    void arcade(int room);                          // event 9 from room to room (f31_0783)
+    // The holes (f28_00f3): the sphere the ball meets, a tick (f28_0671),
+    // the room's word on a swallowed ball (+20: f28_156a → the room's
+    // method 8, f27_2530 or room 1's f41_02a4), spitting it out (+2C,
+    // f28_1445), the ball put back (f27_287d).
+    void holeSphere(const Object& o, int out[4]) const;
+    void holeTick(Object& o);
+    void holeEntered(Object& o);
+    void spitBall(Object& o, int mode);
+    void ballToStart();
+    void shadowTick();                              // f07_15ba
+    void targetTick();                              // f06_0aa8
+    void growCracks();                              // f27_2434's every 20 ticks
+    void ballLost();                                // f31_0504
+    void dropBall(bool right);                      // f30_02d8 → f27_293b
+    bool noShadow_ = false;      // [14E0]: the ball's shadow not drawn (while one drops)
+    int roomTicks_ = 0;          // [FFE]: the room ticks (to 1000)
+    int crackStage_[5] = {};     // the room's glass marks: +F65 stages, +F3D rectangles
+    Rect crackRect_[5];
+    bool roomBusy_ = false;      // the room's +F6F: a hole has the ball
+    int exitRoom_ = 0;           // event 9's room, when a hole sends the ball on
+    int exitHole_ = -1;          // and the hole (its +3), to spit the ball out of on coming back
     void mouseEvent(const Mouse& m);                // f31_241a (event 7)
     bool sliderClick(Control c, const Mouse& m);    // f30_306a
     bool buttonClick(Control c, const Mouse& m);    // f30_28f1
@@ -273,6 +303,18 @@ private:
     bool hasBall_ = false;
     int targetX_ = 0, targetY_ = 0;     // its target (+F79)
     bool targetMoved_ = false;
+    // The target's watch on the ball (f06_0aa8): moving (its +60) while the
+    // ball's speed is over 100 and its centre changed since the last tick;
+    // the ring is hidden then, and the shadow drawn on the ground below.
+    bool ballMoving_ = false;
+    // The ball's shadow object (f07_12d6, a 2r+1 square box 2 high; its
+    // tick f07_15ba): shown on the ground below while the ball's bottom is
+    // 2 or more above it, at (x, y, ground + 1); hidden, the ball draws its
+    // own under it (f13_01ce).
+    bool shadowShown_ = false;
+    int shadowX_ = 0, shadowY_ = 0, shadowZ_ = 0;
+    int16_t shadowSeen_[3] = {0, 0, 0};  // the ball's centre it last saw
+    int16_t lastCentre_[3] = {0, 0, 0};
     bool viewDirty_ = false, panelDirty_ = false, columnDirty_[2] = {};
     Rect panelDirtyRect_;
     int leftBalls_ = 7, rightBalls_ = 0;  // the player's +BA, +BC
