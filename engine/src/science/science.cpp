@@ -47,8 +47,9 @@ void Science::run() {
     select(1);
     title();
     story();
-    // (The lab and the arcade aren't ported yet.)
-    logLine("Wild Science Arcade: the lab and the arcade aren't ported yet; back to the menu.");
+    lab();  // room 501
+    // (The professor's lesson, room 505, and the arcade aren't ported yet.)
+    logLine("Wild Science Arcade: the lesson and the arcade aren't ported yet; back to the menu.");
     if (options_.music) ctx_.platform.setFmDriver(std::string());
 }
 
@@ -122,13 +123,13 @@ void Science::waitNarration() {
     while (ctx_.platform.wavPlaying()) ctx_.pump();
 }
 
-bool Science::waitTicks(int ticks) {
+bool Science::waitTicks(int ticks, bool interruptible) {
     // [9558] (a key) and [6EC5] (a button) end it.
     const uint64_t end = ctx_.platform.milliseconds() + static_cast<uint64_t>(ticks) * 20;
     int x, y;
     while (ctx_.platform.milliseconds() < end) {
         ctx_.pump();
-        if (ctx_.platform.takeClick(&x, &y) || ctx_.platform.takeKey() != 0) return true;
+        if (interruptible && (ctx_.platform.takeClick(&x, &y) || ctx_.platform.takeKey() != 0)) return true;
     }
     return false;
 }

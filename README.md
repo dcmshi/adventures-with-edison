@@ -33,7 +33,7 @@ cmake --build build
 
 ### Launcher
 
-`edison` is the native version of EDISON.EXE: the opening, the main menu and Mystery at the Museums (the whole game), with FM music and sound effects. Rock and Bach is ported; Wild Science Arcade has started (`--game science`: its title and story). Open items are tracked in [TODO.md](TODO.md).
+`edison` is the native version of EDISON.EXE: the opening, the main menu and Mystery at the Museums (the whole game), with FM music and sound effects. Rock and Bach is ported; Wild Science Arcade has started (`--game science`: its title, story and laboratory). Open items are tracked in [TODO.md](TODO.md).
 
 ```sh
 build/engine/edison original/cd/DSK3        # -O skips the opening, -A turns FM music off
@@ -72,6 +72,7 @@ ctest --test-dir build --output-on-failure
 - `tools/reference/otvdm.ps1 start|shot|dialogs|stop|click|rclick|type|run`: runs the original game under [winevdm](https://github.com/otya128/winevdm) as a visual reference.
   - `click`, `rclick` and `type` post input to the game's window (the real cursor isn't moved); `run SCRIPT DIR` plays a script of those, `wait` and `shot` steps (see `tools/reference/*.txt`).
   - `tools/reference/screendiff.py PORT.bmp ORIGINAL.png OUT.png` compares a port capture (`--capture`) with a screenshot of the original.
+  - `edison --hidden` runs with no window shown and the sound muted, for test runs in the background.
   - Always stop it with `stop`, never by killing `otvdmw`. The game's error boxes can disable an unrelated window (such as your terminal), which stays disabled if the game is killed while the box is open.
   - `stop` closes dialogs first and then re-enables any disabled windows.
   - **Symptom:** a window that chimes when clicked and ignores all input is disabled, not frozen. `EnableWindow(hwnd, TRUE)` fixes it.

@@ -18,6 +18,7 @@
 //     --drag T X0 Y0 X1 Y1 MS   press at X0, Y0 at T, move to X1, Y1 over MS, release
 //     --type T TEXT       type TEXT at T milliseconds ('|' is Enter; repeatable)
 //     --quit-after MS     close after MS milliseconds
+//     --hidden            no window shown and the sound muted (test runs in the background)
 //
 // The folder defaults to original/cd/DSK3 (needs EDISON.EXE, SHELL.D01 and
 // CADLIB.DLL from the CD). Mystery at the Museums is ported; picking one of
@@ -57,6 +58,7 @@ struct Automation {
     struct Typed { uint64_t at; std::string text; };  // '|' types Enter
     std::vector<Typed> typed;
     uint64_t quitAfter = 0;
+    bool hidden = false;  // --hidden: no window shown, sound muted (for test runs in the background)
 };
 
 class SdlPlatform : public edison::Platform {
@@ -67,12 +69,13 @@ public:
     bool open(bool music, std::string* error) {
         music_ = music;
         if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO)) return fail(error, "SDL_Init");
-        if (!SDL_CreateWindowAndRenderer("Adventures with Edison", 1280, 800, SDL_WINDOW_RESIZABLE,
+        const SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE | (automation.hidden ? SDL_WINDOW_HIDDEN : 0);
+        if (!SDL_CreateWindowAndRenderer("Adventures with Edison", 1280, 800, flags,
                                          &window_, &renderer_))
             return fail(error, "SDL_CreateWindowAndRenderer");
         SDL_SetRenderLogicalPresentation(renderer_, edison::Screen::kWidth, edison::Screen::kHeight,
                                          SDL_LOGICAL_PRESENTATION_LETTERBOX);
-        SDL_SetRenderVSync(renderer_, 1);
+        SDL_SetRenderVSync(renderer_, automation.hidden ? 0 : 1);
         SDL_StartTextInput(window_);
         texture_ = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_XRGB8888, SDL_TEXTUREACCESS_STREAMING,
                                      edison::Screen::kWidth, edison::Screen::kHeight);
@@ -412,6 +415,8 @@ int main(int argc, char** argv) {
         } else if (a == "--type" && i + 2 < argc) {
             const uint64_t at = std::strtoull(argv[++i], nullptr, 10);
             automation.typed.push_back({at, argv[++i]});
+        } else if (a == "--hidden") {
+            automation.hidden = true;
         } else if (a == "--quit-after" && i + 1 < argc) {
             automation.quitAfter = std::strtoull(argv[++i], nullptr, 10);
         } else if (a == "--puzzle" && i + 1 < argc) {

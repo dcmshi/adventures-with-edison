@@ -48,8 +48,9 @@ scene objects and an event queue, floating point), so it goes in stages:
 - [x] Map the library layers (segment 14 over 63-83) and the framework: the game and player objects, the events, the room dispatcher (110 rooms and the special ones).
 - [ ] Map the room base class (segment 27: the `.SRF` rooms, the table's drawing) and the object classes (segments 2-8, 15, 28-30), the physics (11, 24-26).
 - [x] `edison --game science` (and the main menu's Wild Science): the archive, the title and the story (`f38_0718`) with narration; both pixel-identical to the original.
-- [ ] The title's FM sound: the port's FM driver doesn't take `SADLIB.DLL` yet ("not an Artech ADLIB-family driver").
-- [ ] The laboratory: the name, the Character Enhancer, the professor's lesson.
+- [ ] The FM music: `SADLIB.DLL` is a different driver from the ADLIB family (none of their code patterns), so it needs its own emulation; till then the game has no FM music.
+- [x] The laboratory, room 501 (`f19_0a59`): Edison walks in, the name, "Do you wanna change the way I look?", the Character Enhancer, "Cool!"; `wscience.edi` and the players in `wscience.hs`. The name prompt matches the original pixel for pixel.
+- [ ] The professor's lesson (room 505, `f38_0fb5`), then the arcade's menu (room 1).
 - [ ] The rooms (`S*.SRF`) and the table's physics: the ball, gravity, friction, ball types, power.
 - [ ] The arcade's menu table, the levels, high scores (`WSCIENCE.HS`), the lab, the credits.
 - [ ] Compare with the original under winevdm as each part lands.

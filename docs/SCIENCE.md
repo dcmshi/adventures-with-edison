@@ -67,6 +67,32 @@ Bit 1 of the held-keys bitmap (`DS:9560`, Escape) skips the rest.
 The title before it (`f32_0319`): FM sound `0D` (`SADLIB`), picture `2000`
 on screen 1, up to 130 countdown ticks or a key or click, then `f20_0094`.
 
+## The laboratory (room 501, `f19_0a59`, ported: `lab.cpp`)
+
+- `wscience.edi`: the last look, four numbers each followed by `" 
+"`;
+  `wscience.hs`: `HSFILE ` then lines ` name score a b hair face shirt
+  trousers 
+` (up to 50; the game's folder, else the CD's).
+- Picture `2001`; the look into screen 1's palette (`f19_06bc`; the first
+  time it also turns the 6-bit tables into 8-bit colours, `f19_0614`).
+- Edison's walk (`f19_0335`, the frames at `DS:1C5A`: picture, x, y + E6,
+  w, h, delay / 2 ticks): 0 in, 2 a turn, 3 to the machine (drawn: `1428` at
+  (300, 86), `1429` at (146, 70)), 1 away ("Cool!" at frame 16, bubble
+  `142C`, sound `600C`). Meanwhile the burner and the flask
+  (`f19_0f6f`: `13A0`/`13A1`, `13A2`+k).
+- The name (`f19_0249`): bubble `142B`, "Hi! I'm Edison.  What's your name?"
+  (colour 0E), sound `600E`, the mouth (`f19_0541`, `5010`-`5013`), then 8
+  letters with a caret (`f19_0003`); none is "Player"; it's put in lower
+  case with a capital first letter. A player already in `wscience.hs` (the
+  first 8 letters, any case) gets their look.
+- "Do you wanna change the way / I look?" (bubble `142D`, sound `6014`) is
+  asked of everyone, and Edison goes to the machine anyway.
+- The Character Enhancer (`f19_0976`, the buttons of segment 18): the panel
+  `seg95:0032` (300, 134); buttons `seg95:0000` (the four parts, DONE); a
+  click takes the part's next choice (0-7, `f19_07fa`) with its colours at
+  once; DONE shows `142A`. Sounds by id are WAVs in `GRAFX.DAT` (`f36_007e`).
+
 ## The segments
 
 | Segments | What |

@@ -39,12 +39,30 @@ private:
     void waitNarration();                           // while [92BC]
     // A wait of `ticks` 50ths of a second (f32_07aa, the 50 Hz counter
     // [12F8:0002] that f32_0777(50) starts); a click or key ends it.
-    bool waitTicks(int ticks);
+    bool waitTicks(int ticks, bool interruptible = true);
     bool escapePressed();                           // bit 1 of the keys held (DS:9560)
 
     // --- the opening (segments 32 and 38) ---
     void title();                                   // f32_0319 with [26CE] set
     void story();                                   // f38_0718
+
+    // --- the lab, room 501 (segment 19, lab.cpp) ---
+    void lab();                                     // f19_0a59
+    void waitCountdown(int ticks);                  // [95F2], 10 a second
+    void textAt(int x, int y, const std::string& s, int colour);  // f76_0021
+    void sound(uint16_t id);                        // f32_13f2: a WAV in GRAFX.DAT
+    Rgb lookColour(int part, int choice, int k) const;
+    void applyLook();                               // f19_06bc
+    void mouth(int talks);                          // f19_0541
+    void labBackground();                           // f19_0f6f
+    void walk(int mode);                            // f19_0335
+    std::string enterName(int x, int y, int maxLength, int width, int colour);  // f19_0003
+    void askName();                                 // f19_0249
+    void characterEnhancer();                       // f19_0976
+    void loadPlayers();                             // f19_115a: wscience.hs
+    void savePlayers() const;                       // f21_0447
+    void loadLook();                                // wscience.edi
+    void saveLook() const;
 
     std::string dataString(uint16_t offset) const;  // DGROUP (segment 103)
 
@@ -54,6 +72,15 @@ private:
     std::vector<uint8_t> strings_;     // segment 97: the sounds' names
     std::vector<uint8_t> looks_;       // segment 95: the look's colour tables
     uint8_t look_[4] = {};             // DS:1C56: hair, face, shirt, trousers
+    struct PlayerEntry {
+        std::string name;
+        long score = 0;
+        int a = 0, b = 0;
+        int look[4] = {};
+    };
+    std::vector<PlayerEntry> players_;  // the high scores (and looks), wscience.hs
+    std::string playerName_;            // DS:8D22
+    unsigned labFrame_ = 0;             // [1D40]
 };
 
 }  // namespace edison
