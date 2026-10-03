@@ -46,6 +46,8 @@ add_library(edison_core
     src/science/lab.cpp
     src/science/lesson.cpp
     src/science/table.cpp
+    src/science/panel.cpp
+    src/science/play.cpp
     src/mystery/editor.cpp
     src/mystery/end.cpp
     src/mystery/three.cpp

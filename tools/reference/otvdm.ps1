@@ -11,6 +11,8 @@
 #   otvdm.ps1 unlock             re-enable windows the game left disabled
 #                                (after a crash or a kill; stop does this too)
 #   otvdm.ps1 click X Y          left click at game coordinates (rclick: right)
+#   otvdm.ps1 down X Y / up X Y  press / release the left button there (to hold it)
+#   otvdm.ps1 move X Y           move the mouse there (button up)
 #   otvdm.ps1 type TEXT          type TEXT ('|' is Enter; no Shift, so lower case)
 #   otvdm.ps1 run SCRIPT [DIR]   run a script of the commands above, one a line,
 #                                plus `wait SECONDS`; shots go to DIR; # comments
@@ -111,6 +113,14 @@ function Click($x, $y, $right) {
     Post $h $up 0 $xy
 }
 
+function Button($x, $y, $down) {
+    $h = MainWindow
+    if (-not $h) { Write-Output "no game window"; return }
+    $xy = ([int]$y -shl 16) -bor ([int]$x -band 0xFFFF)
+    Post $h 0x200 ($(if ($down) { 1 } else { 0 })) $xy; Start-Sleep -Milliseconds 30
+    if ($down) { Post $h 0x201 1 $xy } else { Post $h 0x202 0 $xy }
+}
+
 function TypeText($text) {
     $h = MainWindow
     if (-not $h) { Write-Output "no game window"; return }
@@ -147,6 +157,9 @@ switch ($Command) {
     "shot" { Shot $Arg }
     "click" { Click $Arg $Arg2 $false }
     "rclick" { Click $Arg $Arg2 $true }
+    "move" { $h = MainWindow; if ($h) { Post $h 0x200 0 (([int]$Arg2 -shl 16) -bor ([int]$Arg -band 0xFFFF)) } }
+    "down" { Button $Arg $Arg2 $true }
+    "up" { Button $Arg $Arg2 $false }
     "type" { TypeText $Arg }
     "run" {
         $dir = if ($Arg2) { $Arg2 } else { "." }
@@ -158,6 +171,9 @@ switch ($Command) {
                 "wait" { Start-Sleep -Milliseconds ([double]$a * 1000) }
                 "click" { $p = $a -split '\s+'; Click $p[0] $p[1] $false }
                 "rclick" { $p = $a -split '\s+'; Click $p[0] $p[1] $true }
+                "move" { $p = $a -split '\s+'; $h = MainWindow; if ($h) { Post $h 0x200 0 (([int]$p[1] -shl 16) -bor ([int]$p[0] -band 0xFFFF)) } }
+                "down" { $p = $a -split '\s+'; Button $p[0] $p[1] $true }
+                "up" { $p = $a -split '\s+'; Button $p[0] $p[1] $false }
                 "type" { TypeText $a }
                 "shot" { Shot (Join-Path $dir $a) | Out-Null }
                 default { Write-Output "unknown step: $line" }

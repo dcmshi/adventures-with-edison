@@ -133,12 +133,30 @@ bool Science::loadTable(int room) {
 
     // The objects (f61_011d): OBJn x y type a b c d e f, then PANEL.
     t.objects.clear();
-    for (std::string w = r.word(); w.rfind("OBJ", 0) == 0; w = r.word()) {
+    std::string w = r.word();
+    for (; w.rfind("OBJ", 0) == 0; w = r.word()) {
         Object o;
         o.x = r.number(), o.y = r.number(), o.type = r.number();
         for (int& v : o.args) v = r.number();
         t.objects.push_back(o);
     }
+    // PANEL: (flags, value) for gravity, friction, power and the ball type
+    // (f61_0f76, read in that order); none: all 0.
+    panel_ = PanelState{};
+    if (w == "PANEL") {
+        panel_.gravityFlags = r.number(), panel_.gravity = r.number();
+        panel_.frictionFlags = r.number(), panel_.friction = r.number();
+        panel_.powerFlags = r.number(), panel_.power = r.number();
+        panel_.ballTypeFlags = r.number(), panel_.ballType = r.number();
+    } else {
+        panel_ = {0, 0, 0, 0};
+    }
+    // f30_3339 keeps each within its slider's range; the ball type is taken
+    // mod 6 (f30_29cc).
+    panel_.gravity = std::clamp(panel_.gravity, -16, 4);
+    panel_.friction = std::clamp(panel_.friction, 0, 16);
+    panel_.power = std::clamp(panel_.power, 0, 16);
+    panel_.ballType = ((panel_.ballType % 6) + 6) % 6;
     return true;
 }
 
@@ -180,7 +198,6 @@ void Science::drawObjects() {
     // The drawables (+1AD) in the redraw, at rest. (The painter's order of
     // f27_19d9 isn't ported: room 1's objects don't overlap at rest but for
     // the ball over its target's back half.)
-    const Object* ball = nullptr;
     for (const Object& o : table_.objects) {
         if (o.type == 8) {
             // A hole (f28_00f3, g28_0003, drawn by f28_0d82): a = the room
@@ -194,24 +211,31 @@ void Science::drawObjects() {
             if (!big) id = wall == 0 ? 0x1247 : 0x1245, cy -= wall == 0 ? 3 : 0;
             else id = wall == 0 ? 0x124B : 0x1249, cy += wall == 0 ? 0 : 3;
             objectSprite(cx, cy, id);
-        } else if (o.type == 1) {
-            ball = &o;
         }
     }
-    if (!ball) return;
+    if (!hasBall_) return;
     // The ball (f06_0043, radius 10) on the face under it, and its target
     // (f06_0877, kept at +F79): the ring's back 1042 under the ball, its
     // front 1043 over it ([1508]); the ball's first rolling frame 1016
     // (DS:1300).
-    const int z = heightUnder(ball->x, ball->y);
-    const auto [tx, ty] = objectCentre(ball->x, ball->y, z, 20, 20, 10);
+    // The target's position is its box's centre (moved there by f22_056e);
+    // made from the ball's sphere it starts with its corner there.
+    // Once moved, its box sits a unit above the ground (as the original
+    // shows: probably its sphere's radius rounded differently when set
+    // and when read back).
+    const int lift = targetMoved_ ? 1 : 0;
+    const auto [tx, ty] = objectCentre(targetX_ - 10, targetY_ - 10, heightUnder(targetX_, targetY_) + lift, 20, 20, 10);
     objectSprite(tx + 1, ty, 0x1042);
-    const auto [bx, by] = objectCentre(ball->x - 10, ball->y - 10, z, 21, 21, 21);
+    const auto [bx, by] = objectCentre(ballX_ - 10, ballY_ - 10, ballZ_, 21, 21, 21);
     // f13_01ce: its shadow first (1040, the radius less one below the
     // centre: with the linked object's +60 set and not [14E0]), then the
     // ball.
     objectSprite(bx, by + 10 - 1, 0x1040);
-    objectSprite(bx, by, 0x1016);
+    // Its type's rolling frames (f07_04d5: DS:1348 Ice, 1330 Stone, 1300
+    // Rubber, 1378 Iron, 1318 Glass, 1360 Magic), the first at rest.
+    static const uint16_t kFrames[6] = {0x1348, 0x1330, 0x1300, 0x1378, 0x1318, 0x1360};
+    const uint16_t table = kFrames[std::clamp(panel_.ballType, 0, 5)];
+    objectSprite(bx, by, static_cast<uint16_t>(data_[table] | data_[table + 1] << 8));
     objectSprite(tx + 1, ty, 0x1043);
 }
 
@@ -570,24 +594,37 @@ void Science::enterRoom(int room) {
         return;
     }
     score_ = 0, shots_ = 0;
+    // The ball (type 1, on the face under it) and its target, under it.
+    hasBall_ = false;
+    for (const Object& o : table_.objects)
+        if (o.type == 1) {
+            hasBall_ = true;
+            ballX_ = o.x, ballY_ = o.y;
+            targetX_ = o.x + 10, targetY_ = o.y + 10;
+            targetMoved_ = false;
+            ballZ_ = heightUnder(o.x, o.y);
+        }
+    captured_ = Control::None;
+    ballTypePressed_ = shootPressed_ = false;
+    columns_[0] = columns_[1] = Column{};
     drawTable();
     roomPictures(room);
     toDisplay(3);
     redrawTable({0, 0, Screen::kWidth, Screen::kHeight});
+    // The player's objects (f31_27de: +A4 the panel, +AA and +AC the
+    // columns, their method +40); a new room starts with 7 balls on the
+    // left and none on the right (+BA, +BC).
+    leftBalls_ = 7, rightBalls_ = 0;
+    drawPanel();
+    drawColumn(false);
+    drawColumn(true);
 }
 
 void Science::showTable(int room) {
-    // For testing (--room 1): the room as the original first shows it
-    // (not yet its objects or panel), till a click.
+    // For testing (--room 1): the room, played till Escape.
     loadLook();
     looksConverted_ = true;
-    enterRoom(room);
-    select(1);
-    int x, y;
-    for (;;) {
-        ctx_.pump();
-        if (ctx_.platform.takeClick(&x, &y)) return;
-    }
+    playRoom(room);
 }
 
 }  // namespace edison

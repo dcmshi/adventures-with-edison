@@ -24,6 +24,8 @@ bool Science::load(const Options& options, std::string* error) {
     data_ = exe.segment(103);
     strings_ = exe.segment(97);
     looks_ = exe.segment(95);
+    sines_ = exe.segment(86);
+    atans_ = exe.segment(87);
     std::copy_n(data_.begin() + 0x1C56, 4, look_);
     if (dataString(0x2766) != "Player") {
         if (error) *error = "WMAIN.EXE: unexpected data segment";

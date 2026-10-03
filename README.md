@@ -69,8 +69,8 @@ ctest --test-dir build --output-on-failure
   - Imports from the CD's DLLs are named, and functions found by `nedis.py` are added.
   - Needs [Ghidra](https://github.com/NationalSecurityAgency/ghidra) 12 and a JDK 21. It expects them in `D:/tools`; otherwise set `GHIDRA` and `JAVA_HOME`.
 - `tools/scripts.py`: decompiles the menu scripts (see `docs/GAME.md`).
-- `tools/reference/otvdm.ps1 start|shot|dialogs|stop|unlock|click|rclick|type|run`: runs the original game under [winevdm](https://github.com/otya128/winevdm) as a visual reference.
-  - `click`, `rclick` and `type` post input to the game's window (the real cursor isn't moved); `run SCRIPT DIR` plays a script of those, `wait` and `shot` steps (see `tools/reference/*.txt`).
+- `tools/reference/otvdm.ps1 start|shot|dialogs|stop|unlock|click|rclick|down|up|move|type|run`: runs the original game under [winevdm](https://github.com/otya128/winevdm) as a visual reference.
+  - `click`, `rclick`, `down`/`up` (hold the button), `move` and `type` post input to the game's window (the real cursor isn't moved); `run SCRIPT DIR` plays a script of those, `wait` and `shot` steps (see `tools/reference/*.txt`).
   - `tools/reference/screendiff.py PORT.bmp ORIGINAL.png OUT.png` compares a port capture (`--capture`) with a screenshot of the original.
   - `edison --hidden` runs with no window shown and the sound muted, for test runs in the background.
 

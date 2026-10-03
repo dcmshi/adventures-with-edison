@@ -124,6 +124,47 @@ private:
     void roomPictures(int room);                    // the room's method 4 (room 1: f41_0126)
     void redrawTable(const Rect& area);             // f27_1e36, the room's method 3
     void enterRoom(int room);                       // f31_0783 for rooms 1-100
+
+    // --- the controls (segment 30; panel.cpp) ---
+    // A room's PANEL line (f61_0f76): four (flags, value) pairs; flags 1
+    // locks the control, 2 hides it (f30_2081, f30_2097).
+    struct PanelState {
+        int gravity = -4, friction = 4, power = 5, ballType = 2;
+        int gravityFlags = 0, frictionFlags = 0, powerFlags = 0, ballTypeFlags = 0;
+    };
+    bool panelSprite(int x, int y, uint16_t id);    // f14_1179
+    void drawKnob(int kind, int value);             // 0 gravity, 1 friction, 2 power
+    void valueBox(int x, int y, int w, int h, const std::string& text);  // f30_1af3
+    void drawPanel();                               // f30_15f2
+    void drawColumn(bool right);                    // f30_0599
+    int borlandRand();                              // f01_3309
+    // The library's angles (binary: 10000h a turn) and fixed-point vectors.
+    int libAtan2(int adjacent, int opposite) const;                 // f87_0804
+    std::pair<int, int> libSinCos(int angle) const;                 // f86_1000: (sin, cos) in 32767ths
+    void libNormalize(const int v[3], int out[3]) const;            // f84_0000: in 7FFEhs
+
+    // --- playing a room (the player's methods, f31; the room's, f27) ---
+    enum class Control { None, Gravity, Friction, Power, BallType, Shoot };
+    struct Column {
+        bool ballOut = true;     // +132: its ball is on the table (f30_017c: 1)
+        bool pushing = false;    // +134
+        int offset = 0;          // +138: the top ball pushed up so far
+    };
+    struct Mouse {
+        int x = 0, y = 0;
+        bool click = false;      // the event's +9 ([6EC5]: pressed since the last)
+        bool held = false;       // [6EC4]
+    };
+    void playRoom(int room);                        // the arcade's loop (f32_0c1d) in a room
+    void mouseEvent(const Mouse& m);                // f31_241a (event 7)
+    bool sliderClick(Control c, const Mouse& m);    // f30_306a
+    bool buttonClick(Control c, const Mouse& m);    // f30_28f1
+    void columnClick(bool right, const Mouse& m);   // f30_0496
+    void aim(const Mouse& m);                       // f27_2d15
+    void setSlider(Control c, int value);           // f30_3339 and the kind's +28
+    void setBallType(int type);                     // f30_29cc → f30_2574
+    void tickRoom();                                // the player's tick (f31_1c79)
+    void flushRoom();                               // the areas marked changed, redrawn
     void drawBox(const Box& box);                   // f12_2a09
     void drawStanding(const Box& box);              // f12_38ad: on screen 3, the pits cut out
     void drawPits(const Box& box);                  // f12_39b5: on screen 2
@@ -142,6 +183,8 @@ private:
     std::vector<uint8_t> data_;        // DGROUP
     std::vector<uint8_t> strings_;     // segment 97: the sounds' names
     std::vector<uint8_t> looks_;       // segment 95: the look's colour tables
+    std::vector<uint8_t> sines_;       // segment 86: the sine table
+    std::vector<uint8_t> atans_;       // segment 87: the arctangent table
     uint8_t look_[4] = {};             // DS:1C56: hair, face, shirt, trousers
     struct PlayerEntry {
         std::string name;
@@ -154,6 +197,19 @@ private:
     unsigned labFrame_ = 0;             // [1D40]
     bool looksConverted_ = false;       // [1D3E]: f19_0614 has run
     Table table_;
+    PanelState panel_;
+    Control captured_ = Control::None;  // [27AC] / [27AE]: who has the mouse
+    bool ballTypePressed_ = false, shootPressed_ = false;  // the buttons' +3A
+    int sliderRepeats_ = 0;             // [2338]
+    int panelTicks_ = 0;                // [8E4E]
+    Column columns_[2];                 // +AA (left), +AC (right)
+    int ballX_ = 0, ballY_ = 0, ballZ_ = 0;  // the ball (its sphere's centre less the radius)
+    bool hasBall_ = false;
+    int targetX_ = 0, targetY_ = 0;     // its target (+F79)
+    bool targetMoved_ = false;
+    bool viewDirty_ = false, panelDirty_ = false, columnDirty_[2] = {};
+    int leftBalls_ = 7, rightBalls_ = 0;  // the player's +BA, +BC
+    uint32_t randSeed_ = 1;             // Borland's rand()
     long score_ = 0;                    // the room's +F35
     int shots_ = 0;                     // +F39
     bool gridFaces_[6] = {};            // [11F0] 1, [11EE] 2, [11EC] 3, [11E8] 4, [11EA] 5

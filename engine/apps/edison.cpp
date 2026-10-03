@@ -15,6 +15,7 @@
 //     --capture DIR MS    save the display to DIR/NNNNN.bmp every MS milliseconds
 //     --click T X Y       click at game coordinates X, Y at T milliseconds (repeatable)
 //     --rclick T X Y      the same with the right button
+//     --move T X Y        move the mouse to X, Y at T milliseconds (its button up)
 //     --drag T X0 Y0 X1 Y1 MS   press at X0, Y0 at T, move to X1, Y1 over MS, release
 //     --type T TEXT       type TEXT at T milliseconds ('|' is Enter; repeatable)
 //     --quit-after MS     close after MS milliseconds
@@ -51,7 +52,7 @@ struct Automation {
     std::string captureDir;
     uint64_t captureEvery = 0;
     struct Click { uint64_t at; int x, y; };
-    std::vector<Click> clicks, rightClicks;
+    std::vector<Click> clicks, rightClicks, moves;  // moves: the mouse there, its button up
     // Press at (x0, y0), move to (x1, y1) over `ms`, release.
     struct Drag { uint64_t at; int x0, y0, x1, y1; uint64_t ms; bool started = false, done = false; };
     std::vector<Drag> drags;
@@ -141,6 +142,16 @@ public:
             if (!autoDown_) d.done = true;
             dragging_ = true;
         }
+        // (After the drags: a move at a drag's end isn't undone by it.)
+        for (auto& c : automation.moves)
+            if (c.at && now >= c.at) {
+                autoMouse_ = true;
+                dragging_ = true;
+                autoDown_ = false;
+                autoX_ = c.x;
+                autoY_ = c.y;
+                c.at = 0;
+            }
         SDL_Event e;
         while (SDL_PollEvent(&e)) {
             if (e.type == SDL_EVENT_QUIT) return false;
@@ -400,6 +411,10 @@ int main(int argc, char** argv) {
             const uint64_t at = std::strtoull(argv[++i], nullptr, 10);
             const int x = std::atoi(argv[++i]);
             automation.rightClicks.push_back({at, x, std::atoi(argv[++i])});
+        } else if (a == "--move" && i + 3 < argc) {
+            const uint64_t at = std::strtoull(argv[++i], nullptr, 10);
+            const int x = std::atoi(argv[++i]);
+            automation.moves.push_back({at, x, std::atoi(argv[++i])});
         } else if (a == "--click" && i + 3 < argc) {
             const uint64_t at = std::strtoull(argv[++i], nullptr, 10);
             const int x = std::atoi(argv[++i]);

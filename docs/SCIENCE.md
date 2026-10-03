@@ -355,6 +355,80 @@ Borland's `mov ax, ss; nop; inc bp` prologue): `f31_0783` is
   controls and the side columns (the player's `+A4`, `+AA`, `+AC`) aren't
   ported yet.
 
+## Playing a room (ported: `play.cpp`, `panel.cpp`)
+
+- **The loop** (`f32_0c1d`): each pass runs `f32_09a0`, which posts a tick
+  (event 4) when the 50 Hz timer's flag is set (`[12F8:0000]`, from the
+  multimedia timer: the rate is `f32_076c`'s 50), and a mouse event (7)
+  when the button is down (`[6EC4]`), or was pressed since the last
+  (`[6EC5]`), or the mouse moved, or the last event had a press (`[27D2]`)
+  and the button is up. So a button let go without moving the mouse after
+  an event that only had it held isn't seen at all: the control keeps the
+  mouse (a quick scripted click leaves the ball type's button down in the
+  original too). The event: x, y, the last x, y, and the press at `+9`.
+- **The player's tick** (`f31_1c79`): the game objects, then the room's
+  tick (method 5, `f27_2434`: its objects' ticks, the impact marks aged
+  every 20 ticks, the changed areas redrawn, `f29_0380`), the panel's
+  (`f30_1430`: counts `[8E4E]`, the walking figure), `+A8`, the columns'
+  (`f30_02d8`).
+- **The mouse** (`f31_241a`): to the control that has it (`[27AC]`,
+  `[27AE]`), else by place: the room within the view (method 6,
+  `f27_2d15`: its clickable objects, then aiming), the panel (`f30_1879`:
+  the first control whose area has the point, not locked), `+A8`, the
+  columns (`f30_0496`).
+- **Keys** (`f31_1d70`): M (the menu) and Q (quit) ask first; P pauses;
+  S and two digits go to that room (1-110); s turns the sounds off or on;
+  the others go to the room (method 7: `r` takes the ball back) and the
+  panel.
+- **Aiming** (`f27_2d15`, with the button held): from the point at depth 0
+  under the pointer (x = mouse x - 54 + 279, height = 285 - mouse y) along
+  the line of sight (-100, 282, -100), normalised (`f84_0000`: through
+  the library's `atan2`, `f87_0804`, a 400h-word table at seg87:0000, and
+  its sine, seg86:0000) and scaled 1, 5, 9, ... units long (`f11_02f7`),
+  to the first point within 1 of the ground under it; none past depth
+  314h. The target is moved there (`f22_056e`: sound 6026 if it moved
+  far), sound 6023. The target's position is its box's centre (its box is
+  20 x 20 x 10); made from the ball it starts with its corner at the
+  ball's point, and once moved its box sits a unit above the ground.
+- **The panel** (`f30_1268`, its controls from the PANEL line by
+  `f61_0f76`, drawn by `f30_15f2` over the area under the view):
+  - Sliders (`f30_2eb7`; gravity `f30_37f1` (-16 to 4), friction
+    `f30_3a88` (0 to 16), power `f30_360f` (0 to 16)): only a knob is drawn
+    (`117C`, `117D`, `117E`), on a slant: off = (value - min) * (h - 19) /
+    (max - min) up from its rectangle's foot, x + 4 + off / 2 (gravity),
+    x + 6 + off / 3 (friction), x + w / 4 - off / 2 (power); the rectangle
+    is the kind's first frame's (`DS:234E`, `2362`, `233A`). A press takes
+    the mouse (`f30_306a`); while held, every 2 panel ticks (7 after the
+    first step) a step towards the pointer (up when it's above the line
+    h - index * h / 9 + y - 1, `f30_2fdf`; sounds 602A up, 6029 down).
+    Gravity's box shows -value / 4.0; the others the value.
+  - Value boxes (`f30_2aa7`): the box joined with the text's extent
+    (font 103 is 18 rows) in colour 0, the text a pixel right in colour 16,
+    then in colour 23.
+  - Buttons (`f30_283c`; the ball type `f30_244e`, the shoot button
+    `f30_2730`): a press takes the mouse and the next state (`f30_28f1`),
+    the first sprite shown while down. The ball type (`f30_2574`): Magic
+    is skipped back to Ice; the names at `DS:22E2` (Ice, Stone, Rubber,
+    Iron, Glass, Magic); sound 6007; the ball's frames by type (`f07_04d5`:
+    `DS:1348`, `1330`, `1300`, `1378`, `1318`, `1360`).
+  - The click areas: gravity (0, 300, 174 x 100), friction (174, 300, 104
+    x 100), ball type (278, 300, 116 x 100), power (394, 300, 106 x 100),
+    shoot (500, 300, 140 x 100).
+- **The columns** (`f30_0000` left, `f30_0860` right): the tube (`140E`,
+  `140F`), its balls every 24 rows from the bottom in random rolling
+  frames (Borland's `rand`: they change with every redraw), PUSH (`1421`,
+  `1422`). The player starts a room with 7 balls on the left and none on
+  the right (`+BA`, `+BC`); a column starts with its ball out (`+132`),
+  so PUSH (`f30_0496`) only works once the ball's been lost (the player
+  then clears the left's, or the right's when the left is empty, or it's
+  the high scores: room 502); pushing raises the top ball 6 a tick (sound
+  602A) till it's out (`f30_02d8`): one ball fewer, and the ball dropped
+  onto the table at the side (x = [1FF2] + 10, height 250 on the left;
+  [1FEE] - 10, 140 on the right).
+- With these, room 1's controls (aiming on the floor, the ramp and the
+  walls, the ball types, the three sliders) match the original pixel for
+  pixel; PUSH and the shot wait for the ball's physics.
+
 ## The rooms (`S<n>.SRF`)
 
 A room reads `S<n>.SRF` (`f27_0ad8`: the name built at `DS:1FF4`, read
