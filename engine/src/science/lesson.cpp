@@ -1,5 +1,5 @@
 // WMAIN.EXE segment 15: the professor's lessons (rooms 505-510,
-// f38_0fb5), so far the first (f15_0fee, room 505).
+// f38_0fb5): their scripts and bubbles.
 
 #include "science/science.h"
 
@@ -16,17 +16,37 @@ constexpr uint16_t kTop = 1, kBottom = 2, kRight = 3, kLeft = 4;
 // The MORE button (f15_0fee: the lesson's rectangle).
 constexpr int kMoreX = 0x210, kMoreY = 0x172, kMoreW = 0x58, kMoreH = 0x18;
 
-// Lesson 5's script (g15_1260): the bubble's anchor ([1724] or [172A]),
-// width, text and the narration the next bubble plays; the first bubble
-// plays WSA1521 (f15_0fee's [171A]).
+// The lessons' scripts (each class's +44 runner: g15_1260, g15_1796,
+// g15_1c46, g15_202d, g15_23b9, g15_27ca): a bubble each step, at an
+// anchor with its tail, the width, the text and the narration the next
+// bubble plays. The anchors: A (1E0, AE) and B (21C, 7C) by the
+// professor, C (A6, 11A) by Edison, the others lessons 9 and 10's own.
 struct Step {
-    int x, y, width;
+    int x, y, tail, width;
     uint16_t text, nextSound;
 };
-constexpr Step kLesson5[8] = {
-    {0x1E0, 0xAE, 200, 0x75F1, 0x616C}, {0x1E0, 0xAE, 200, 0x75F4, 0x6173}, {0x1E0, 0xAE, 200, 0x75FB, 0x6174},
-    {0x21C, 0x7C, 200, 0x75FC, 0x616D}, {0x1E0, 0xAE, 230, 0x75F5, 0x6175}, {0x21C, 0x7C, 200, 0x75FD, 0x6176},
-    {0x1E0, 0xAE, 200, 0x75FE, 0x616E}, {0x21C, 0x7C, 200, 0x75F6, 0},
+struct Lesson {
+    uint16_t picture, firstSound;  // f15_076a's picture, the builder's [171A]
+    int nextRoom;                  // +138: the room after (-1 none)
+    std::vector<Step> steps;
+};
+const Lesson kLessons[6] = {
+    {0x2003, 0x6169, 1,  // 5: f15_0fee
+     {{0x1E0, 0xAE, 2, 200, 0x75F1, 0x616C}, {0x1E0, 0xAE, 2, 200, 0x75F4, 0x6173}, {0x1E0, 0xAE, 2, 200, 0x75FB, 0x6174},
+      {0x21C, 0x7C, 2, 200, 0x75FC, 0x616D}, {0x1E0, 0xAE, 2, 230, 0x75F5, 0x6175}, {0x21C, 0x7C, 2, 200, 0x75FD, 0x6176},
+      {0x1E0, 0xAE, 2, 200, 0x75FE, 0x616E}, {0x21C, 0x7C, 2, 200, 0x75F6, 0}}},
+    {0x2004, 0x6177, 50,  // 6: f15_1524
+     {{0x1E0, 0xAE, 2, 200, 0x75FF, 0x6178}, {0x21C, 0x7C, 2, 200, 0x7600, 0x6179}, {0x1E0, 0xAE, 2, 200, 0x7601, 0x617A},
+      {0x1E0, 0xAE, 2, 240, 0x7602, 0x617B}, {0x1E0, 0xAE, 2, 200, 0x7603, 0x6172}, {0x21C, 0x7C, 2, 200, 0x75FA, 0}}},
+    {0x2003, 0x617C, 2,  // 7: f15_19d4
+     {{0x1E0, 0xAE, 2, 200, 0x7604, 0x617D}, {0x1E0, 0xAE, 2, 240, 0x7605, 0x6172}, {0x21C, 0x7C, 2, 200, 0x75FA, 0}}},
+    {0x2003, 0x617E, 57,  // 8: f15_1dbb
+     {{0x1E0, 0xAE, 2, 200, 0x7606, 0x617F}, {0x1E0, 0xAE, 2, 200, 0x7607, 0x618A}, {0xA6, 0x11A, 0, 200, 0x7612, 0}}},
+    {0x2006, 0x6180, 67,  // 9: f15_21a2
+     {{0x64, 0xFA, 0, 200, 0x7608, 0x6181}, {0x160, 0x12C, 2, 200, 0x7609, 0x6182}, {0x64, 0xFA, 0, 200, 0x760A, 0}}},
+    {0x2005, 0x6183, -1,  // 10: f15_2591 (then f31_001a, f31_1728: not ported)
+     {{0x212, 0xBA, 2, 200, 0x760B, 0x6184}, {0xD8, 0xD2, 1, 150, 0x760C, 0x6185}, {0x226, 0x92, 2, 200, 0x760D, 0x6189},
+      {0x212, 0xBA, 2, 200, 0x7611, 0}}},
 };
 
 }  // namespace
@@ -162,17 +182,18 @@ void Science::lessonStart(uint16_t picture) {
     applyLook();
 }
 
-int Science::lesson5() {
-    // f15_0fee: the lab with the blackboard (2003), then the professor's
-    // eight lines; MORE goes on; at the end, room 1.
-    lessonStart(0x2003);
-    uint16_t pending = 0x6169;  // WSA1521
+int Science::lesson(int n) {
+    // f38_0fb5 (n 5-10): the lesson's picture shown, its lines one by
+    // one, MORE going on; then the room it leads to (-1 none).
+    const Lesson& l = kLessons[n - 5];
+    lessonStart(l.picture);
+    uint16_t pending = l.firstSound;
     Bubble last{};
-    for (const Step& step : kLesson5) {
+    for (const Step& step : l.steps) {
         // f15_0a70: the last bubble taken away.
         select(2);
         if (last.w > 0) copyArea(3, 2, last.x, last.y, last.w, last.h);
-        last = bubble(step.x, step.y, step.width, 2, textResource(step.text));
+        last = bubble(step.x, step.y, step.width, step.tail, textResource(step.text));
         copyArea(2, 1, 0, 0, Screen::kWidth, Screen::kHeight);
         select(1);
         if (pending) narration(pending, false);
@@ -180,7 +201,7 @@ int Science::lesson5() {
         waitMore();
     }
     ctx_.platform.stopWav();
-    return 1;
+    return l.nextRoom;
 }
 
 }  // namespace edison

@@ -51,14 +51,16 @@ void Science::run() {
         story();
     }
     if (start < 0 || start == 501) lab();  // room 501
-    if (start == 505) {
+    if (start >= 505 && start <= 510) {
         // (Testing: the look and name as the lab would leave them.)
         loadLook();
         looksConverted_ = true;
         playerName_ = dataString(0x1D6F);  // "Player"
     }
-    // Room 501 goes on to the first lesson (f31_0783).
-    if (start < 0 || start == 501 || start == 505) lesson5();  // room 505, then room 1
+    // Room 501 goes on to the first lesson (f31_0783); the others come
+    // from the arcade's holes.
+    if (start < 0 || start == 501) lesson(5);  // room 505, then room 1
+    else if (start >= 505 && start <= 510) lesson(start - 500);
     // (The arcade's rooms aren't ported yet.)
     logLine("Wild Science Arcade: the arcade isn't ported yet; back to the menu.");
     if (options_.music) ctx_.platform.setFmDriver(std::string());

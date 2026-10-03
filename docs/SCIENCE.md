@@ -109,6 +109,12 @@ on screen 1, up to 130 countdown ticks or a key or click, then `f20_0094`.
   the first, WSA1521, is queued by the builder). Lesson 5: anchors (480,
   174) and (540, 124), width 200 (230 once), texts `75F1`, `75F4`, `75FB`,
   `75FC`, `75F5`, `75FD`, `75FE`, `75F6` (one-line text resources).
+- The other scripts (from their runners' jump tables): lesson 6 (`2004`,
+  then room 50) six lines, 7 (`2003`, room 2) three, 8 (`2003`, room 57)
+  three (the last Edison's: anchor (166, 282), tail 0), 9 (`2006`, room
+  67) three (Edison (100, 250) tail 0; the professor (352, 300)), 10
+  (`2005`, no room: `[26CC]` = 1, then `f31_001a` and `31:1728`) four
+  (anchors (530, 186), (216, 210) tail 1 width 150, (550, 146)).
 - The bubble (`g15_0467`, class `1B89`; drawn by its text's `f15_2a35`): a
   box the given width and as tall as the lines (font height each), placed
   by the tail (`f15_31fa`; `[1732]` = 2 here: left of and above the

@@ -16,7 +16,7 @@ public:
         std::string cdDir;              // the CD's DSK3 folder (WMAIN.EXE, GRAFX.DAT, S*.SRF)
         bool music = true;              // not -A
         std::string saveDir = "save";   // wscience.edi, wscience.hs
-        int startRoom = -1;             // for testing: 501 the lab, 505 the first lesson
+        int startRoom = -1;             // for testing: 501 the lab, 505-510 the lessons
     };
 
     explicit Science(Platform& platform) : ArtechGame(platform) {}
@@ -75,7 +75,7 @@ private:
     std::string textResource(uint16_t id);
     bool waitMore();
     void lessonStart(uint16_t picture);             // f15_076a
-    int lesson5();                                  // f15_0fee: the next room
+    int lesson(int n);                              // f38_0fb5 (5-10): the next room
 
     std::string dataString(uint16_t offset) const;  // DGROUP (segment 103)
 
