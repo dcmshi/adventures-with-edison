@@ -105,6 +105,39 @@ Borland's `mov ax, ss; nop; inc bp` prologue): `f31_0783` is
   most in segments 2-8 (the table's objects), 15 (the lessons' pictures and
   buttons) and 28-30.
 
+## The rooms (`S<n>.SRF`)
+
+A room reads `S<n>.SRF` (`f27_0ad8`: the name built at `DS:1FF4`, read
+through the run time's streams in segment 90). Text, in three parts:
+
+1. **The shape**: a tree of boxes (`f27_0d4a`, recursive). A box is two
+   rectangles `x y w h` (its bottom and its top, so sides can slope) and a
+   height; then `01` and a child box, as many as it has, and `02`. Each
+   box is relative to its parent (its x, y and height are taken off) and is
+   made by the room's method 1. The root is the floor, `0 0 809 789` (the
+   world is 809 x 789). `S1.SRF` (the menu) is the floor, two walls 400 high
+   and a pit 50 deep whose bottom (660, 60, 149, 149) is smaller than its
+   top (570, 0, 239, 209).
+2. **The objects**, `OBJn x y type a b c d e f` (segment 61, `f61_011d`
+   and `f61_09bd`; rooms 0, 100 and 101 give only x and y), at most 24:
+
+   | Type | Made by | In the rooms | Notes |
+   |---|---|---|---|
+   | 0 | `f07_0000` | 9 | |
+   | 1 | `f06_0043` (+ `f07_0456`) | 37 | the ball (only one: "can't init more than one player") |
+   | 2-6, 15 | `f05_11c1`, `f05_1749` (3, 4), `f05_210d`, `f05_26f7`, `f05_233e` | 50 (3), 11, 21, 46, 53 | |
+   | 7 | `f04_01a1`, `03eb`, `0835`, `05b8` (by a sub-kind) | 69 | |
+   | 8 | `f28_00f3` / `f28_0391` | 263 | a hole: `a` is the room it leads to (in `S1`: 502 high scores, 501 lab, 503 credits, 31, 21, 508, 509, 504 EXIT) |
+   | 9, 10 | `f03_002c` / `f02_0be1` | 4, 267 | |
+   | 11 | `f03_0865` | 9 | `a` up to 10000 |
+   | 12, 13, 14 | `f02_00c2`, `f02_05f2`, `f02_1234` | 2, 9, 6 | |
+   | 16 | `f07_17f2` | 9 | |
+   | other | `f28_15a1` | | |
+
+3. **`PANEL a b c d e f g h END`** (`f61_0000`): eight numbers for the
+   controls under the table (85 different ones over 108 rooms;
+   `0 0 0 0 0 0 0 0` in 21).
+
 ## The Artech library (segments 63-83)
 
 The same library as WINMAIN's (see `ROCKBACH.md`), laid out differently:
