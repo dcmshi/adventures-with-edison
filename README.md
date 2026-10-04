@@ -67,7 +67,7 @@ ctest --test-dir build --output-on-failure
 - `tools/nedis.py FILE.EXE`: whole-program disassembly with Windows imports named, cross-segment calls resolved and string references shown. It writes `extracted/disasm/<exe>.asm`, plus `<exe>.funcs.txt`, a one-line-per-function summary to grep.
 - `tools/ghidra/decompile.sh FILE.EXE ...`: headless Ghidra decompilation to `extracted/ghidra/<exe>.c`.
   - Imports from the CD's DLLs are named, and functions found by `nedis.py` are added.
-  - Needs [Ghidra](https://github.com/NationalSecurityAgency/ghidra) 12 and a JDK 21. It expects them in `D:/tools`; otherwise set `GHIDRA` and `JAVA_HOME`.
+  - Needs [Ghidra](https://github.com/NationalSecurityAgency/ghidra) 12 and a JDK 21. Set `GHIDRA` to its folder, and `JAVA_HOME` unless `java` is on the PATH.
 - `tools/scripts.py`: decompiles the menu scripts (see `docs/GAME.md`).
 - `tools/reference/otvdm.ps1 start|shot|dialogs|stop|unlock|click|rclick|down|up|move|type|run`: runs the original game under [winevdm](https://github.com/otya128/winevdm) as a visual reference.
   - `click`, `rclick`, `down`/`up` (hold the button), `move` and `type` post input to the game's window (the real cursor isn't moved); `run SCRIPT DIR` plays a script of those, `wait` and `shot` steps (see `tools/reference/*.txt`).

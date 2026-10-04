@@ -5,9 +5,10 @@ lesson (f31_0025, f32_0319 and the start in f31's method 0, which sends
 "go to room 1" instead of 501). It's for comparisons only: the CD's file is
 left as it is.
 
-Usage: python tools/reference/wmain_skip.py [RUN DIR]   (default D:/tools/edison-run)
+Usage: python tools/reference/wmain_skip.py [RUN DIR]   (default $EDISON_RUN)
 then:  tools/reference/otvdm.ps1 start "WMAINSKP.EXE -A"
 """
+import os
 import struct
 import sys
 from pathlib import Path
@@ -19,7 +20,12 @@ FLAG = 0x26CE
 
 
 def main():
-    run = Path(sys.argv[1] if len(sys.argv) > 1 else "D:/tools/edison-run")
+    if len(sys.argv) > 1:
+        run = Path(sys.argv[1])
+    elif os.environ.get("EDISON_RUN"):
+        run = Path(os.environ["EDISON_RUN"])
+    else:
+        sys.exit("give the folder with the game files, or set EDISON_RUN")
     exe = NEFile(run / "WMAIN.EXE")
     seg = exe.segments[103 - 1]
     at = seg["offset"] + FLAG

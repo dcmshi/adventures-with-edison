@@ -4,7 +4,8 @@ Wild Science Arcade checks against the original under winevdm
 (`tools/reference/otvdm.ps1`, `memwatch.py`, `tracecmp.py`). Their
 outputs go to `build/scratch/` (ignored). They read the game's files from
 `$EDISON_RUN` (as `otvdm.ps1` does; `WMAINSKP.EXE` from
-`tools/reference/wmain_skip.py` goes there too).
+`tools/reference/wmain_skip.py` goes there too), and run winevdm from
+`$OTVDM` (its `otvdmw.exe`, unless it's on the PATH).
 
 - `trace.sh NAME "ms x y hold;..." [ms]`: the same presses (times from the
   room's start) in the port (`SCI_DEBUG` log) and in the original

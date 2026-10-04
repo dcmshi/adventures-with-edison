@@ -18,7 +18,7 @@ static data (its longer strings), so no addresses have to be known.
         save the whole of DGROUP (64 KB) to FILE
 
 EXE is the program's file (its DGROUP's initial bytes are read from it):
-for example D:/tools/edison-run/WMAIN.EXE.
+for example $EDISON_RUN/WMAIN.EXE.
 
 Expressions read DGROUP: `[x]` is the word at DS:x (unsigned), so pointers
 can be followed; a prefix picks how the final address is read: `w:` a

@@ -30,13 +30,12 @@
 # So `stop` closes dialogs first, asks the game to close, only then kills
 # it, and finally re-enables any disabled top-level window it finds.
 #
-# Needs winevdm in D:\tools\otvdm (set $env:OTVDM otherwise) and a folder
-# with the game files and the WinG DLLs ($env:EDISON_RUN, default
-# D:\tools\edison-run).
+# `start` needs winevdm's otvdmw.exe ($env:OTVDM, or on the PATH) and a
+# folder with the game files and the WinG DLLs ($env:EDISON_RUN).
 param([Parameter(Mandatory)][string]$Command, [string]$Arg, [string]$Arg2)
 
-$otvdm = if ($env:OTVDM) { $env:OTVDM } else { "D:\tools\otvdm\otvdm-v0.9.0\otvdmw.exe" }
-$runDir = if ($env:EDISON_RUN) { $env:EDISON_RUN } else { "D:\tools\edison-run" }
+$otvdm = if ($env:OTVDM) { $env:OTVDM } else { (Get-Command otvdmw.exe -ErrorAction SilentlyContinue).Source }
+$runDir = $env:EDISON_RUN
 
 Add-Type -AssemblyName System.Drawing
 Add-Type @"
@@ -150,6 +149,8 @@ function Shot($out) {
 switch ($Command) {
     "start" {
         $exe = if ($Arg) { $Arg } else { "EDISON.EXE" }
+        if (-not $otvdm) { throw "set OTVDM to winevdm's otvdmw.exe (or put it on the PATH)" }
+        if (-not $runDir) { throw "set EDISON_RUN to the folder with the game files" }
         Start-Process -FilePath $otvdm -ArgumentList $exe -WorkingDirectory $runDir
         Write-Output "started $exe"
         if ($env:OTVDM_FULLSCREEN -ne "1") { Windowed }

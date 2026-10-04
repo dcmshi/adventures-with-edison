@@ -1,11 +1,11 @@
 #!/bin/sh
 # Decompiles game executables with Ghidra (headless) into extracted/ghidra/<name>.c.
-# Needs Ghidra and a JDK 21; set GHIDRA and JAVA_HOME if they're not in D:/tools.
+# Needs Ghidra (set GHIDRA to its folder) and a JDK 21 (JAVA_HOME, or java on
+# the PATH).
 # Usage: tools/ghidra/decompile.sh original/cd/DSK3/EDISON.EXE [...]
 set -e
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
-GHIDRA=${GHIDRA:-/d/tools/ghidra_12.1.4_PUBLIC}
-export JAVA_HOME=${JAVA_HOME:-D:/tools/jdk-21.0.12.1+1}
+GHIDRA=${GHIDRA:?set GHIDRA to the Ghidra folder}
 native() { if command -v cygpath >/dev/null; then cygpath -w "$1"; else echo "$1"; fi; }
 headless() {
     if [ -f "$GHIDRA/support/analyzeHeadless.bat" ]; then
