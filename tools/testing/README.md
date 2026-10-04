@@ -19,3 +19,6 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
 - `dis.sh SEG OFF [LINES] [BITS]`, `fn.sh SEL_OFF...` (a function from
   Ghidra's `extracted/ghidra/wmain.c`), `thunks.py SEG OFF...` (where
   method-table thunks jump): reading WMAIN.EXE.
+- `roompics.py [--cpp | --config]`: every table room's pictures (its
+  method 4) and its builder's settings, from Ghidra's output and a dump of
+  the original's data segment (`--dump`, default `build/scratch/dg1.bin`).

@@ -104,6 +104,13 @@ private:
         // the ball still leaving it (+25).
         int swallow = 0, spit = 0, spitMode = 0;
         bool swallowDone = false, spitDone = false, leaving = false;
+        // A target (type 10, f03_002c; c its kind, b its points): hit (+12,
+        // counting), scored (+14, counting), its frame (+18) of a sequence
+        // (+16: DS offset, 0 its kind's idle frames) of +1A frames; its
+        // drawables' creation number (+1E: the animations' phase); live
+        // (its +34 / +38 not 0) and shown.
+        int kind = 0, points = 0, hit = 0, scored = 0, frame = 0, frames = 0, sequence = 0, id = 0;
+        bool live = false, shown = true;
     };
     // The room as its camera (segment 25) and the root of its boxes.
     struct Table {
@@ -320,6 +327,16 @@ private:
     int leftBalls_ = 7, rightBalls_ = 0;  // the player's +BA, +BC
     uint32_t randSeed_ = 1;             // Borland's rand()
     long score_ = 0;                    // the room's +F35
+    long totalScore_ = 0;               // [BD8]: the game's (0 for a new game)
+    int targetsHit_ = 0, targets_ = 0;  // [308], [30A]: the room's targets
+    bool shotBonus_ = false;            // [30C]: the targets' points by the shots (+F8D)
+    uint8_t targetBonus_[6] = {};       // +F8D: by the shots (128ths)
+    long completionBonus_ = 1500;       // +F7B (and +F87 by the shots: the room's end)
+    uint8_t completionShare_[6] = {};
+    void pointTick(Object& o);          // f03_0207: a point target's tick
+    void pointHit(Object& o);           // f03_0593: hit by the ball
+    void addScore(long points);         // f06_0208
+    void roomConfig(int room);          // the builder's [30C], +F7B, +F8D, +F87
     int shots_ = 0;                     // +F39
     bool gridFaces_[6] = {};            // [11F0] 1, [11EE] 2, [11EC] 3, [11E8] 4, [11EA] 5
 };

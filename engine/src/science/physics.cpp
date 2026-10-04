@@ -305,14 +305,21 @@ void Science::ballStep() {
     // step goes on with its own copy of the move).
     if (!b.hidden)
         for (Object& o : table_.objects) {
-            if (o.type != 8) continue;
             int s[4];
-            holeSphere(o, s);
+            if (o.type == 8) holeSphere(o, s);
+            else if (o.type == 10 && o.live) {
+                // A point target's sphere: its box's centre a unit lower,
+                // radius 13 (f03_002c's f07_1082).
+                const int g = heightUnder(o.x, o.y);
+                s[0] = o.x + 13, s[1] = o.y + 13, s[2] = g + 12, s[3] = 13;
+            } else continue;
             const int dx = s[0] - (b.cx + q[0]), dy = s[1] - (b.cy + q[1]), dz = s[2] - (b.cz + q[2]);
             if (dx >= 35 || dx <= -35 || dy >= 35 || dy <= -35 || dz >= 35 || dz <= -35) continue;
             const int64_t rr = static_cast<int64_t>(b.r + s[3]) * (b.r + s[3]);
             if (static_cast<int64_t>(dx) * dx + static_cast<int64_t>(dy) * dy + static_cast<int64_t>(dz) * dz > rr) continue;
-            if (!o.swallow && !o.leaving && !o.spit) {
+            if (o.type == 10) {
+                pointHit(o);
+            } else if (!o.swallow && !o.leaving && !o.spit) {
                 // f28_14a5: the ball stopped (f07_0ead → f08_0721) and
                 // hidden with its shadow (f07_03be); the room busy (+F6F).
                 for (int k = 0; k < 3; ++k) b.v[k] = 0, b.kick[k] = 0, b.push[k] = 0;

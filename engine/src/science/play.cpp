@@ -370,6 +370,7 @@ void Science::tickRoom() {
     for (size_t i = table_.objects.size(); i-- > 0;) {
         Object& o = table_.objects[i];
         if (o.type == 8) holeTick(o);
+        else if (o.type == 10 && o.args[2] != 6) pointTick(o);
         else if ((o.type == 1 || o.type == 3) && hasBall_) {
             targetTick();
             shadowTick();

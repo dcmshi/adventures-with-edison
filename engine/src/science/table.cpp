@@ -304,6 +304,29 @@ void Science::drawObjects() {
                 objectSprite(cx, cy, id);
             };
             list.push_back(dr);
+        } else if (o.type == 10 && o.args[2] != 6) {
+            // A point target (drawn by f13_0bb1): its box a 26 cube on the
+            // ground at its corner (8 bigger each way once hit); idle its
+            // kind's frames (DS:15CE + 24 a kind), hit its sequence, scored
+            // its points (1236 + hundreds - 1).
+            const int g = heightUnder(o.x, o.y), grow = o.hit ? 8 : 0;
+            const int bx = o.x - grow, by = o.y - grow, bz = g - grow, side = 26 + 2 * grow;
+            Drawable dr{{bx, by, bz, side, side, side}, area(objectRect(bx, by, bz, side, side, side)), 0, 0, {}};
+            dr.draw = [this, &o, bx, by, bz, side] {
+                if (!o.shown) return;
+                const auto [cx, cy] = objectCentre(bx, by, bz, side, side, side);
+                const int frame = std::max(o.frame, 0);
+                size_t at;
+                uint16_t id;
+                if (o.scored) {
+                    id = static_cast<uint16_t>(0x1236 + std::clamp(o.points / 100 - 1, 0, 9));
+                } else {
+                    at = o.sequence ? static_cast<size_t>(o.sequence) + 2u * frame : 0x15CEu + 0x18u * o.kind + 2u * frame;
+                    id = static_cast<uint16_t>(data_[at] | data_[at + 1] << 8);
+                }
+                objectSprite(cx, cy, id);
+            };
+            list.push_back(dr);
         } else if ((o.type == 1 || o.type == 3) && hasBall_) {
             // The ball (f06_0043, radius 10; kind 1), then its shadow
             // object and its target.
@@ -682,19 +705,102 @@ void Science::drawTable() {
 
 void Science::roomPictures(int room) {
     // The room's method 4 after f27_0e5b: its own pictures on screen 3, at
-    // fixed places, each only if it fits (f14_1179: show_Clogo).
+    // fixed places, each only if it fits (f14_1179: show_Clogo). Each
+    // room's class (segments 41-60) has its own list; room 1's are the
+    // holes' labels (HIGH Score, Lab, Credits, play room, LEVEL 1, 4 and 5),
+    // the logo and EXIT.
     struct Picture {
         int x, y;
         uint16_t id;
     };
-    static const Picture kRoom1[] = {
-        // f41_0126: the holes' labels (HIGH Score, Lab, Credits, play room,
-        // LEVEL 1, 4 and 5), the logo, EXIT.
-        {58, 168, 0x1399}, {104, 139, 0x139A}, {144, 98, 0x139B}, {236, 80, 0x139C}, {320, 76, 0x139D},
-        {408, 76, 0x139E}, {504, 29, 0x139F}, {54, 6, 0x13D0}, {478, 212, 0x13D2}};
+    struct Room {
+        int room;
+        std::vector<Picture> pictures;
+    };
+    // (Taken from each room's method 4 by tools/testing/roompics.py --cpp:
+    // x, y, the picture.)
+    static const Room kRooms[] = {
+        {1, {{58, 168, 0x1399}, {104, 139, 0x139A}, {144, 98, 0x139B}, {236, 80, 0x139C}, {320, 76, 0x139D}, {408, 76, 0x139E}, {504, 29, 0x139F}, {54, 6, 0x13D0}, {478, 212, 0x13D2}}},  // f41_0123
+        {2, {{190, 104, 0x10D3}, {497, 143, 0x1245}}},  // f41_0968
+        {3, {{160, 6, 0x106F}, {360, 6, 0x1070}}},  // f41_0ea2
+        {4, {{166, 6, 0x1100}, {414, 6, 0x1101}}},  // f41_1098
+        {5, {{206, 6, 0x1079}, {416, 6, 0x107A}, {54, 6, 0x107B}, {412, 156, 0x107C}, {128, 174, 0x10D1}, {474, 176, 0x10D2}}},  // f41_13e6
+        {6, {{54, 16, 0x10F0}}},  // f42_01c6
+        {7, {{54, 206, 0x112A}, {356, 58, 0x112B}}},  // f42_03e8
+        {8, {{174, 138, 0x107E}, {56, 140, 0x107F}, {370, 138, 0x1080}}},  // f42_05a1
+        {9, {{264, 48, 0x10D4}}},  // f42_0968
+        {10, {{260, 60, 0x10D5}}},  // f42_0ff8
+        {11, {{139, 6, 0x1081}, {54, 6, 0x1082}, {332, 6, 0x1083}}},  // f43_018d
+        {12, {{176, 83, 0x10D7}}},  // f43_064b
+        {13, {{54, 22, 0x1136}, {288, 190, 0x1137}}},  // f43_09fa
+        {14, {{98, 6, 0x1084}, {106, 230, 0x1085}, {342, 6, 0x1086}}},  // f43_0c85
+        {15, {{54, 232, 0x112C}, {220, 6, 0x112D}, {404, 162, 0x112E}}},  // f43_0e7f
+        {16, {{190, 30, 0x10DA}}},  // f44_05b6
+        {17, {{306, 6, 0x110F}, {292, 120, 0x1121}}},  // f44_07cb
+        {18, {{250, 90, 0x10DC}, {534, 166, 0x1245}}},  // f44_141e
+        {20, {{82, 50, 0x1122}, {490, 6, 0x1123}}},  // f44_174d
+        {21, {{192, 6, 0x1087}, {392, 6, 0x1088}}},  // f45_019e
+        {22, {{192, 6, 0x1089}, {392, 6, 0x108A}}},  // f45_08a6
+        {23, {{164, 6, 0x108B}, {364, 6, 0x108C}}},  // f45_0b53
+        {26, {{132, 6, 0x108D}, {210, 268, 0x108E}, {328, 6, 0x108F}}},  // f46_018a
+        {28, {{276, 38, 0x110D}, {114, 224, 0x110E}}},  // f46_0530
+        {29, {{222, 6, 0x1110}, {450, 58, 0x1111}}},  // f46_0726
+        {30, {{138, 94, 0x1102}, {356, 136, 0x1103}}},  // f46_0aa3
+        {31, {{192, 6, 0x1099}, {376, 6, 0x109A}}},  // f47_015d
+        {32, {{72, 32, 0x10FE}, {462, 32, 0x10FF}}},  // f47_03cf
+        {33, {{134, 136, 0x10CB}, {54, 214, 0x10CC}, {214, 8, 0x10F1}}},  // f47_063b
+        {34, {{76, 210, 0x1094}, {192, 6, 0x1095}, {342, 164, 0x1096}, {392, 20, 0x1092}}},  // f47_0bdb
+        {35, {{170, 164, 0x1097}, {192, 6, 0x1098}}},  // f47_13e5
+        {36, {{174, 80, 0x109B}, {394, 80, 0x109C}}},  // f48_05e1
+        {37, {{176, 124, 0x109F}, {312, 228, 0x109D}}},  // f48_0932
+        {38, {{268, 172, 0x10A1}, {468, 86, 0x10A2}, {466, 206, 0x109E}}},  // f48_0b82
+        {39, {{86, 122, 0x10A3}, {386, 38, 0x10A4}, {386, 182, 0x10A5}}},  // f48_0e74
+        {40, {{228, 76, 0x10A6}}},  // f48_115a
+        {41, {{150, 70, 0x1119}, {352, 70, 0x111A}}},  // f49_025f
+        {42, {{54, 256, 0x10A7}}},  // f49_05ca
+        {43, {{208, 48, 0x10A9}}},  // f49_0780
+        {44, {{208, 46, 0x10AA}, {418, 66, 0x10AB}}},  // f49_0918
+        {45, {{86, 184, 0x10AC}, {310, 124, 0x10AD}}},  // f49_0f6a
+        {46, {{194, 132, 0x10B1}, {420, 196, 0x10B2}}},  // f50_0187
+        {47, {{188, 106, 0x10BE}, {376, 108, 0x10BF}, {54, 256, 0x10C0}, {328, 256, 0x10C1}, {248, 30, 0x10EC}, {498, 36, 0x10ED}, {54, 84, 0x10EE}}},  // f50_08d6
+        {48, {{172, 150, 0x10C2}, {436, 150, 0x10C3}, {54, 218, 0x10C4}}},  // f50_0d7a
+        {49, {{54, 138, 0x10C9}, {332, 138, 0x10CA}}},  // f50_1010
+        {50, {{134, 136, 0x10CB}, {54, 214, 0x10CC}, {214, 8, 0x10F1}}},  // f50_1253
+        {51, {{54, 194, 0x1117}, {394, 108, 0x1118}}},  // f51_01de
+        {52, {{62, 82, 0x1138}, {410, 106, 0x1139}}},  // f51_0527
+        {54, {{296, 28, 0x10B5}, {422, 38, 0x10B3}}},  // f51_0d47
+        {55, {{324, 6, 0x10EF}}},  // f51_1cca
+        {57, {{54, 32, 0x10FD}}},  // f52_0671
+        {58, {{82, 78, 0x1104}, {332, 78, 0x1105}}},  // f52_0b8b
+        {59, {{228, 100, 0x1163}}},  // f52_0ecd
+        {60, {{54, 210, 0x112F}}},  // f52_11d7
+        {63, {{162, 192, 0x10E4}, {382, 140, 0x10E5}, {190, 88, 0x10FA}, {152, 36, 0x10FB}}},  // f53_041a
+        {64, {{54, 210, 0x1130}}},  // f53_0793
+        {65, {{150, 192, 0x10EB}, {174, 6, 0x1132}}},  // f53_0981
+        {66, {{132, 90, 0x10E6}}},  // f54_01e4
+        {67, {{220, 176, 0x10E7}, {230, 14, 0x1113}, {144, 168, 0x1114}, {54, 142, 0x1115}}},  // f54_04b1
+        {69, {{66, 210, 0x1131}}},  // f54_099d
+        {70, {{142, 98, 0x1107}}},  // f54_0e45
+        {71, {{54, 226, 0x1108}, {256, 226, 0x1109}, {304, 18, 0x110A}}},  // f55_0160
+        {72, {{96, 152, 0x110B}, {388, 100, 0x110C}}},  // f55_039c
+        {73, {{96, 116, 0x1106}}},  // f55_0582
+        {74, {{128, 156, 0x1112}}},  // f55_07cb
+        {75, {{68, 118, 0x1129}}},  // f55_0996
+        {76, {{68, 14, 0x111B}, {326, 18, 0x111C}}},  // f56_0151
+        {77, {{144, 6, 0x111D}, {376, 6, 0x111E}}},  // f56_035c
+        {91, {{162, 144, 0x10E2}, {54, 254, 0x10E3}}},  // f59_0385
+        {92, {{94, 56, 0x10DE}, {410, 162, 0x10DF}, {318, 170, 0x10E0}}},  // f59_0840
+        {93, {{54, 6, 0x1133}, {226, 134, 0x1134}}},  // f59_0a5a
+        {94, {{144, 84, 0x1128}}},  // f59_0c4a
+        {96, {{166, 12, 0x1116}}},  // f60_03be
+        {97, {{102, 78, 0x1124}, {314, 12, 0x1125}}},  // f60_0595
+        {98, {{54, 6, 0x1126}, {490, 6, 0x1127}}},  // f60_0794
+        {99, {{54, 6, 0x111F}, {242, 6, 0x1120}}},  // f60_099f
+    };
     select(3);
-    if (room == 1)
-        for (const Picture& p : kRoom1) drawLogo(p.x, p.y, p.id);
+    for (const Room& r : kRooms)
+        if (r.room == room)
+            for (const Picture& p : r.pictures) drawLogo(p.x, p.y, p.id);
 }
 
 void Science::redrawTable(const Rect& area) {
@@ -770,6 +876,23 @@ void Science::enterRoom(int room) {
     captured_ = Control::None;
     ballTypePressed_ = shootPressed_ = false;
     roomBusy_ = false, exitRoom_ = 0, exitHole_ = -1;
+    // The builder's settings; the targets (type 10 but kind 6, a suckhole:
+    // not ported) counted ([30A]); each drawable's creation number (+1E:
+    // the ball makes three, its shadow and target).
+    roomConfig(room);
+    targetsHit_ = targets_ = 0;
+    int made = 0;
+    for (Object& o : table_.objects) {
+        o.id = made;
+        made += (o.type == 1 || o.type == 3) ? 3 : 1;
+        if (o.type != 10 || o.args[2] == 6) continue;
+        o.kind = std::min(o.args[2], 10);
+        o.points = std::min(o.args[1], 1000) / 100 * 100;
+        o.frames = static_cast<int16_t>(data_[0x15CC + 0x18 * o.kind] | data_[0x15CC + 0x18 * o.kind + 1] << 8);
+        o.hit = o.scored = o.frame = o.sequence = 0;
+        o.live = true, o.shown = true;
+        ++targets_;
+    }
     for (int i = 0; i < 5; ++i) crackStage_[i] = 0;
     columns_[0] = columns_[1] = Column{};
     drawTable();

@@ -609,6 +609,36 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   ball breaking, the PUSH slide, step by step; their frames pixel for
   pixel.
 
+## Each room's class, point targets (ported: `table.cpp`, `targets.cpp`)
+
+- **A room's class** (its builder in the dispatcher's switch, segments
+  41-60): method 4 draws its pictures on screen 3 (`show_Clogo` at fixed
+  places: two to seven a room, none in 81-90 and a few others; room 2 even
+  paints a hole, `1245`). The builder also sets `[30C]` (the targets'
+  points by the shots), `+F7B` (the completion bonus; 1500 by default, 0
+  in room 1) and two tables of 6 bytes (from a shot count on,
+  `f27_088b`: `+F8D` the targets', `f27_0859`: `+F87` the completion's;
+  128ths, 128 by default). `tools/testing/roompics.py` takes them all.
+- **Point targets** (type 10 but kind 6, a suckhole; `f03_002c`: `c` the
+  kind, at most 10; `b` the points, at most 1000, in hundreds): a 26 cube
+  on the ground at its corner, sphere at its centre a unit lower, radius
+  13; soft (the ball goes on). Counted in `[30A]`, hits in `[308]` (`f03_0014`:
+  all hit, which some rooms' holes ask before letting the ball through).
+  Its tick (`f03_0207`) every 11 ticks, by `[FFE]` and its creation number
+  (`+1E`: the ball makes three): idle, the next of its kind's frames
+  (`DS:15CC`: 24 bytes a kind, the count then the sprites); hit (`f03_0593`:
+  sound 601A, its box 8 bigger each way, no longer met), its kind's hit
+  frames (`DS:2CC`: the first and how many), then its points (with `[30C]`
+  times `+F8D[shots]` / 128) to the score (`f06_0208`: `[BD8]`, the game's,
+  shown in the room's box; sound 602B), shown as `1236` + hundreds - 1;
+  five counts on, gone. Kind 3 catches the ball and throws it (not ported).
+- **Locked controls** (PANEL's flags): 2 shows an OUT OF ORDER sign at
+  once; 1 queues it for Edison to run in and put up (`f30_1569`, played by
+  the panel's tick `f30_1430` → `f30_0d7c`, segment 30's actor; not ported).
+- Checked against the original: rooms 31 and 21 (pictures, targets at
+  rest pixel for pixel but for their phases), a shot in room 21 traced
+  state for state from room 1 (through the hole) and its score (1600).
+
 ## The rooms (`S<n>.SRF`)
 
 A room reads `S<n>.SRF` (`f27_0ad8`: the name built at `DS:1FF4`, read

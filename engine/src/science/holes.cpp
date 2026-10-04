@@ -50,6 +50,8 @@ void Science::holeTick(Object& o) {
         }
         o.swallowDone = false, o.swallow = 0;
         holeEntered(o);
+        // Then the ball out of the way (f08_056e: 0, 0, its bottom at 400).
+        if (!o.spit) b.cx = 0, b.cy = 0, b.cz = 400 + b.r;
         viewDirty_ = true;
         return;
     }
@@ -147,7 +149,7 @@ void Science::ballLost() {
         return;
     }
     logLine("Wild Science Arcade: no balls left: the high scores aren't ported; a new game");
-    leftBalls_ = 7, rightBalls_ = 0;
+    leftBalls_ = 7, rightBalls_ = 0, totalScore_ = 0;
     exitRoom_ = 1;
 }
 
