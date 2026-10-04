@@ -5,6 +5,9 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
+
+#include "artech/context.h"
 
 #include "science/science.h"
 
@@ -87,6 +90,29 @@ void Science::drawPanel(const Rect* changed) {
     valueBox(0x1C6, 0x172, 0x20, 0x10, std::to_string(p.power));
     // The shoot button (f30_2730: DS:231E, the first when down).
     panelSprite(0x1F0, 0x13B, shootPressed_ ? 0x11C0 : 0x11C1);
+    // Locked controls' signs (drawn with each, +2C): a slider's 134C at its
+    // frame's middle a pixel right (f30_20ec), the ball type's 134D 6 right
+    // and 4 down of its middle (f30_25fd).
+    for (int c = 0; c < 4; ++c) {
+        if (!p.sign[c]) continue;
+        if (c == 2) {
+            const Bitmap& b = ctx_.bitmap(0x11BF);
+            const Bitmap& sign = ctx_.bitmap(0x134D);
+            panelSprite(0x124 + b.width / 2 + 6 - sign.width / 2, 0x150 + b.height / 2 + 4 - sign.height / 2, 0x134D);
+        } else {
+            const SliderKind& k = c == 0 ? kGravity : c == 1 ? kFriction : kPower;
+            const Bitmap& f = ctx_.bitmap(k.frame0);
+            const Bitmap& sign = ctx_.bitmap(0x134C);
+            panelSprite(k.x + f.width / 2 + 1 - sign.width / 2, k.y + f.height / 2 - sign.height / 2, 0x134C);
+        }
+    }
+    // Edison (f30_1120): his frame (131C on) on the bottom of his 96 x 104
+    // rectangle round his middle (its last row; drawn by f14_12e9 → f72_02cd).
+    if (runner_.flags != 0) {
+        const Bitmap& b = ctx_.bitmap(static_cast<uint16_t>(0x131C + std::max(runner_.frame, 0)));
+        const int top = runner_.y - 52 + 104 - 1 - b.height;
+        ctx_.screens.drawSprite(current(), b, runner_.x - 48, top);
+    }
     clearPolygonClip();
     copyArea(2, 1, area.x, area.y, area.w, area.h);
 }
@@ -123,6 +149,118 @@ int Science::borlandRand() {
     // f01_3309: rand(), Borland's.
     randSeed_ = randSeed_ * 0x015A4E35u + 1;
     return static_cast<int>((randSeed_ >> 16) & 0x7FFF);
+}
+
+Science::Rect Science::controlArea(int c) {
+    // The control's rectangle (+12): a slider's where it takes the mouse,
+    // the ball type's its picture.
+    if (c == 0) return {0, 300, 0xAE, 100};
+    if (c == 1) return {0xAE, 300, 0x68, 100};
+    if (c == 3) return {0x18A, 300, 0x6A, 100};
+    const Bitmap& b = ctx_.bitmap(0x11BF);
+    return {0x124, 0x150, b.width, b.height};
+}
+
+void Science::signAt(int c) {
+    // f30_2097: locked (+2E) with its sign (+2C), drawn again.
+    panel_.sign[c] = true;
+    markPanel(controlArea(c));
+}
+
+void Science::lockControls() {
+    // f61_0f76: a control whose flags are 2 is locked with its sign at
+    // once; 1, locked and listed (in the order made: gravity, friction, the
+    // ball type, power) for Edison to sign (f30_1569: from the right, the
+    // list backwards).
+    runner_ = Runner{};
+    // f30_0910: he starts off the panel on a random side, at its middle's
+    // height + 4 (the panel (0, 286, 640, 114)).
+    const bool right = static_cast<long>(borlandRand()) * 2 / 0x8000 == 0;
+    runner_.x = right ? 640 - 1 + 80 : -60;
+    runner_.dx = right ? -17 : 17;
+    for (int c = 0; c < 4; ++c) panel_.sign[c] = false;
+    const int flags[4] = {panel_.gravityFlags, panel_.frictionFlags, panel_.ballTypeFlags, panel_.powerFlags};
+    int list[4], n = 0;
+    for (int c = 0; c < 4; ++c) {
+        if ((flags[c] & 3) == 2) panel_.sign[c] = true;
+        else if ((flags[c] & 3) == 1) list[n++] = c;
+    }
+    for (int i = 0; i < n; ++i) runner_.queue[runner_.dx < 1 ? n - 1 - i : i] = list[i];
+    runner_.queued = n;
+    panelBusy_ = n > 0;
+}
+
+void Science::runnerMode(int mode) {
+    // f30_0c6e: stopped (and the controls free again), running (1), putting
+    // a sign up (2) or carrying it (3), facing his way.
+    Runner& r = runner_;
+    r.pending = false;
+    const bool left = r.dx < 1;
+    switch (mode) {
+    case 0: r.first = 0, r.count = 0, panelBusy_ = false; break;
+    case 1: r.period = 2, r.first = left ? 14 : 38, r.count = 10; break;
+    case 2: r.period = 5, r.first = left ? 10 : 34, r.count = 4; break;
+    case 3: r.period = 2, r.first = left ? 0 : 24, r.count = 10; break;
+    default: break;
+    }
+    r.frame = r.first - 1;
+}
+
+void Science::runnerTick() {
+    // f30_1430: the walking figure's tick (f30_0d7c), then the next control
+    // to sign, if he's free (f30_148f: he stops 48 to its right, coming
+    // from there, else 48 to its left).
+    Runner& r = runner_;
+    if (std::getenv("SCI_RUNNER"))  // (testing: his state, for tracecmp.py)
+        logLine("runner t" + std::to_string(runnerTicks_) + " x " + std::to_string(r.x) + " f " + std::to_string(r.frame) + " per " + std::to_string(r.period) + " dx " + std::to_string(r.dx) + " tgt " + std::to_string(r.target) + " fl " + std::to_string(r.flags) + " pend " + std::to_string(r.pending));
+    const Rect before{r.x - 48, r.y - 52, 96, 104};
+    if (++runnerTicks_ % r.period == 0) {
+        bool moved = true;
+        if (r.flags == 0) {
+            r.pending = true, r.target = 0, r.dx = 0;
+            moved = false;
+        } else if (r.flags & 1) {
+            if (r.pending) runnerMode(r.flags);
+            if ((r.dx < 0 && r.x <= r.target) || (r.dx > 0 && r.x >= r.target)) {
+                // +44: arrived (f30_152c: a mode change; with 2, the sign).
+                r.pending = true;
+                r.flags &= ~1;
+                if (r.target < 0 || r.target >= 640) runnerMode(0), r.flags = 0;
+            } else {
+                r.x += r.dx;
+            }
+        } else if (r.flags & 2) {
+            if (r.pending) {
+                runnerMode(2);
+                r.dx = r.dx < 0 ? -17 : 17;
+            } else if (r.count <= r.frame - r.first + 1) {
+                r.pending = true;
+                if (r.current >= 0) signAt(r.current);
+                ++r.done, r.current = -1;
+                r.flags = (r.flags & ~2) | 1;
+                r.target = r.dx < 0 ? -60 : 640 + 79;
+            }
+            r.x += r.dx;  // (he slides on while putting it up)
+        }
+        if (moved) {
+            if (++r.frame >= r.first + r.count) r.frame = r.first;
+            const int f = r.frame;
+            if (f == 1 || f == 6 || f == 15 || f == 20 || f == 25 || f == 30 || f == 39 || f == 44) sound(0x6009);
+            const Rect after{r.x - 48, r.y - 52, 96, 104};
+            markPanel(before);
+            markPanel(after);
+        }
+    }
+    if (r.done < r.queued && r.current < 0) {
+        panelBusy_ = true;
+        const int c = r.queue[r.done];
+        r.current = c;
+        const Rect a = controlArea(c);
+        const int right = a.x + a.w - 1;
+        r.target = r.x > right + 48 ? right + 48 : a.x - 48;
+        r.dx = r.target < r.x ? -17 : 17;
+        r.flags |= 3;
+    }
 }
 
 }  // namespace edison

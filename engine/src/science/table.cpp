@@ -902,6 +902,7 @@ void Science::enterRoom(int room) {
     // The player's objects (f31_27de: +A4 the panel, +AA and +AC the
     // columns, their method +40); the columns keep the player's counts
     // (+BA, +BC: 7 and 0 for a new game, f31_1b48).
+    lockControls();
     drawPanel();
     drawColumn(false);
     drawColumn(true);

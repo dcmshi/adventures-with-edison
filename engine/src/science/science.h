@@ -144,7 +144,30 @@ private:
     struct PanelState {
         int gravity = -4, friction = 4, power = 5, ballType = 2;
         int gravityFlags = 0, frictionFlags = 0, powerFlags = 0, ballTypeFlags = 0;
+        // Locked controls' OUT OF ORDER signs (+2C): 0 gravity, 1 friction,
+        // 2 the ball type, 3 power.
+        bool sign[4] = {};
     };
+    // Edison putting the signs up (segment 30's walking figure, the panel's
+    // +132-+15E: f30_0910; its tick f30_0d7c): where (its middle), which
+    // way (+146, 17 a step), where to (+148), what for (+15E: 1 going, 2
+    // putting a sign up), its frames (+13C, from +13E, +140 of them, a step
+    // every +142 ticks) and a mode change pending (+144); the controls to
+    // sign (+17C, +198 done, +19A of them; +19C the one now).
+    struct Runner {
+        int x = 0, y = 347, dx = -17, target = 0, flags = 0;
+        int frame = -1, first = 0, count = 0, period = 3;
+        bool pending = true;
+        int queue[4] = {}, queued = 0, done = 0, current = -1;
+    };
+    Runner runner_;
+    bool panelBusy_ = false;   // [22C8]: the controls don't take the mouse
+    int runnerTicks_ = 0;      // [22CA]
+    void lockControls();       // f61_0f76's flags: 2 a sign now, 1 Edison puts one up (f30_1569)
+    void runnerTick();         // f30_1430's f30_0d7c and f30_148f
+    void runnerMode(int mode); // f30_0c6e
+    Rect controlArea(int c);
+    void signAt(int c);
     bool panelSprite(int x, int y, uint16_t id);    // f14_1179
     void drawKnob(int kind, int value);             // 0 gravity, 1 friction, 2 power
     void valueBox(int x, int y, int w, int h, const std::string& text);  // f30_1af3
@@ -223,6 +246,7 @@ private:
         bool click = false;      // the event's +9 ([6EC5]: pressed since the last)
         bool held = false;       // [6EC4]
     };
+    void saveTickShot(const std::string& dir);    // (testing: SCI_TICKSHOTS)
     int playRoom(int room);                         // the arcade's loop (f32_0c1d) in a room: the next room
     void arcade(int room);                          // event 9 from room to room (f31_0783)
     // The holes (f28_00f3): the sphere the ball meets, a tick (f28_0671),

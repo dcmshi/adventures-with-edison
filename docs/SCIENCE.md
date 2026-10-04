@@ -632,9 +632,30 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   times `+F8D[shots]` / 128) to the score (`f06_0208`: `[BD8]`, the game's,
   shown in the room's box; sound 602B), shown as `1236` + hundreds - 1;
   five counts on, gone. Kind 3 catches the ball and throws it (not ported).
-- **Locked controls** (PANEL's flags): 2 shows an OUT OF ORDER sign at
-  once; 1 queues it for Edison to run in and put up (`f30_1569`, played by
-  the panel's tick `f30_1430` → `f30_0d7c`, segment 30's actor; not ported).
+- **Locked controls** (PANEL's flags, `f61_0f76`): locked either way; 2
+  shows an OUT OF ORDER sign at once (`f30_2097`), 1 queues it for Edison
+  to put up (`f30_1569`; from the right, the list backwards). Signs: a
+  slider's `134C` at its frame's middle a pixel right (`f30_20ec`, its
+  `+1A`: the frame at the slider's place), the ball type's `134D` 6 right
+  and 4 down of its picture's middle (`f30_25fd`).
+- **Edison putting them up** (the panel is segment 30's walking figure:
+  `f30_0910`; its tick `f30_0d7c` from the panel's `f30_1430`, every
+  `+142` ticks of `[22CA]`): he starts off the panel, a random side (x -60
+  or 719), at the panel's middle + 4 (the panel is (0, 286, 640, 114): y
+  347). To each control (`f30_148f`): 48 past its right edge coming from
+  the right, else 48 before its left (a slider's edge is where it takes
+  the mouse). Moving (`+15E` 1), 17 a step, frames by mode (`f30_0c6e`:
+  1 running 14-23 / 38-47 every 2 ticks, 3 carrying 0-9 / 24-33 every 2, 2
+  putting up 10-13 / 34-37 every 5; the second set facing right); on
+  arriving (the step not taken) a mode change; at the control (`+15E` 2)
+  he still slides 17 a step, and after the 4 frames the sign goes up
+  (`f30_152c`) and he heads for the next or off the panel (-60 or 719),
+  where he stops and the controls take the mouse again (`[22C8]`).
+  Footsteps: sound 6009 on frames 1, 6, 15, 20, 25, 30, 39, 44. Drawn
+  (`f30_1120` → `f14_12e9` → `f72_02cd`) as `131C` + his frame, on the last
+  row of his 96 x 104 rectangle round his middle. Checked: his state, read
+  from the original (`memwatch.py`), step for step, and 30 screenshots
+  pixel for pixel.
 - Checked against the original: rooms 31 and 21 (pictures, targets at
   rest pixel for pixel but for their phases), a shot in room 21 traced
   state for state from room 1 (through the hole) and its score (1600).

@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <cstdlib>
 
 #include "science/science.h"
@@ -44,8 +45,33 @@ int Science::playRoom(int room) {
             if (next + 100 < now) next = now;  // fallen behind (a stall): no catching up
             tickRoom();
             if (shotHeld_) shoot();
+            flushRoom();
+            if (const char* dir = std::getenv("SCI_TICKSHOTS")) saveTickShot(dir);
         }
         flushRoom();
+    }
+}
+
+void Science::saveTickShot(const std::string& dir) {
+    // (Testing: the display after each tick, DIR/t<tick>.bmp, 24-bit, so a
+    // run can be compared frame by frame whatever the machine's load.)
+    const Screen& s = ctx_.screens[1];
+    const int w = Screen::kWidth, h = Screen::kHeight, row = w * 3;
+    std::vector<uint8_t> out(54 + static_cast<size_t>(row) * h);
+    auto put32 = [&](size_t at, uint32_t v) { for (int i = 0; i < 4; ++i) out[at + i] = static_cast<uint8_t>(v >> (8 * i)); };
+    out[0] = 'B', out[1] = 'M';
+    put32(2, static_cast<uint32_t>(out.size())), put32(10, 54), put32(14, 40), put32(18, w), put32(22, h);
+    out[26] = 1, out[28] = 24;
+    put32(34, static_cast<uint32_t>(row) * h);
+    for (int y = 0; y < h; ++y)
+        for (int x = 0; x < w; ++x) {
+            const Rgb& c = ctx_.displayPalette[s.pixels[static_cast<size_t>(y) * w + x]];
+            uint8_t* px = &out[54 + static_cast<size_t>(h - 1 - y) * row + 3 * x];
+            px[0] = c.b, px[1] = c.g, px[2] = c.r;
+        }
+    if (FILE* f = std::fopen((dir + "/t" + std::to_string(timerTicks_) + ".bmp").c_str(), "wb")) {
+        std::fwrite(out.data(), 1, out.size(), f);
+        std::fclose(f);
     }
 }
 
@@ -66,6 +92,7 @@ void Science::mouseEvent(const Mouse& m) {
     }
     const int panelTop = table_.view.y + table_.view.h;
     if (m.y >= panelTop) {
+        if (panelBusy_) return;  // [22C8]: Edison is putting signs up
         // f30_1879: the first control whose area has the point (and that
         // isn't locked, +2E), its click (+8).
         struct Area {
@@ -364,6 +391,7 @@ void Science::tickRoom() {
     // the table, f27_293b).
     ++panelTicks_;
     ++timerTicks_;
+    runnerTick();
     // f27_2434: each object's tick (method 0), the list (+18E) from its
     // end: so the ball's target and shadow see where the ball was, and
     // the holes before it in the list come after it.

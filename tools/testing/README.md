@@ -22,3 +22,10 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
 - `roompics.py [--cpp | --config]`: every table room's pictures (its
   method 4) and its builder's settings, from Ghidra's output and a dump of
   the original's data segment (`--dump`, default `build/scratch/dg1.bin`).
+
+The port's test switches (environment): `SCI_DEBUG=1` logs the ball each
+tick (and holes, targets); `SCI_RUNNER=1` the panel's walking figure
+(for `tracecmp.py --port-pattern`); `SCI_TICKSHOTS=DIR` saves the display
+after every tick (`DIR/t<tick>.bmp`: no frame missed, whatever the load);
+`SCI_SHOOT_WHEN=cx,cy,cz,vx,vy,vz` holds a shot till the ball's in that
+state.
