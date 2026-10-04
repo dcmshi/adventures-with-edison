@@ -248,6 +248,7 @@ private:
         bool held = false;       // [6EC4]
     };
     void saveTickShot(const std::string& dir);    // (testing: SCI_TICKSHOTS)
+    void aimSearch(const char* spec);             // (testing: SCI_AIMSEARCH)
     int playRoom(int room);                         // the arcade's loop (f32_0c1d) in a room: the next room
     void arcade(int room);                          // event 9 from room to room (f31_0783)
     // The holes (f28_00f3): the sphere the ball meets, a tick (f28_0671),
@@ -259,6 +260,10 @@ private:
     void holeEntered(Object& o);
     void holeGo(Object& o);                         // f27_2530
     void roomHole(Object& o);                       // the room's method 8 (rooms.cpp)
+    void roomArrival(int room);                     // the room's builder: its greeting, doors
+    Object* holeTo(int room);                       // f27_09dc: the room's hole that leads there
+    int previousRoom_ = 0;                          // the player's +90: the room event 9 came from
+    bool dialogNoRedraw_ = false;                   // [275C]: a box's closing redraws nothing
     void closeHole(Object& o);                      // f28_1514
     void say(int face, int style, uint16_t message, uint16_t narration, uint16_t picture = 0, int align = 0);  // f24_00df / f24_01be
     int askButtons(int face, uint16_t message, uint16_t firstLine, uint16_t narration);  // f24_0482

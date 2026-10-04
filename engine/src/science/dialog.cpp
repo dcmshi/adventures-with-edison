@@ -311,13 +311,14 @@ void Science::dialogClose(Dialog& d) {
     // every control's. (Screen 2 under the face is then put back, under
     // what was redrawn: nothing shows it.)
     if (d.closed) return;
+    d.closed = true;
+    if (dialogNoRedraw_) return;  // [275C]: while event 9 builds a room
     for (const Rect& r : {dialogFrame(d), d.stand}) {
         redrawTable(r);
         drawPanel();
         drawColumn(false);
         drawColumn(true);
     }
-    d.closed = true;
 }
 
 Science::Rect Science::dialogBalls(Dialog& d) {

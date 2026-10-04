@@ -86,10 +86,15 @@ void Science::holeTick(Object& o) {
             ball.cz = (o.spitMode == 1 ? heightUnder(x, y) : s[2] - sr) + ball.r;
             lastCentre_[0] = shadowSeen_[0] = ball.cx, lastCentre_[1] = shadowSeen_[1] = ball.cy, lastCentre_[2] = shadowSeen_[2] = ball.cz;
             if (o.spitMode == 0) {
-                // The hole's place (its box's corner), 50 out.
-                const int hz = o.args[3] != -1 ? o.args[3] : heightUnder(o.x, o.y);
-                const int hx = o.x - (wall == 0 ? r : 0);
-                ballLaunch(wall ? hx : hx + 50, wall ? o.y - 50 : o.y, hz);
+                // The hole's place (its method 5: its sphere's centre; the
+                // original's launch is the same to the unit), 50 out of
+                // its wall.
+                int px = s[0], py = s[1];
+                const int pz = s[2];
+                if (wall) py -= 50;
+                else px += 50;
+                if (std::getenv("SCI_DEBUG")) logLine("spit 0 from " + std::to_string(ball.cx) + "," + std::to_string(ball.cy) + "," + std::to_string(ball.cz) + " at " + std::to_string(px) + "," + std::to_string(py) + "," + std::to_string(pz));
+                ballLaunch(px, py, pz);
             }
         }
         o.leaving = true;

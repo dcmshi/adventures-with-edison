@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <string>
+#include <tuple>
 
 #include "science/science.h"
 
@@ -752,6 +753,95 @@ void Science::roomEnd() {
     }
     pause();
     if (!quiet) dialogClose(d);
+}
+
+}  // namespace edison
+
+namespace edison {
+
+Science::Object* Science::holeTo(int room) {
+    // f27_09dc: the room's object (a hole) whose +C is `room`.
+    for (Object& o : table_.objects)
+        if (o.type == 8 && o.args[0] == room) return &o;
+    return nullptr;
+}
+
+void Science::roomArrival(int room) {
+    // The builders' own ends (segments 41-60), after the room's pictures:
+    // a greeting box on a black screen (f24_1ee3: screen 2's play area in
+    // colour 2; [275C] is set while event 9 builds a room, so its closing
+    // redraws nothing), some only when coming from a given room (the
+    // player's +90) or not from the same one; doors met on arrival (the
+    // ball coming out of the one it came through); holes shut by the
+    // game's flags.
+    const int from = previousRoom_;
+    std::vector<std::tuple<int, int, uint16_t, uint16_t>> boxes;  // face, style, text, sound
+    auto shut = [&](int to) {
+        if (Object* h = holeTo(to)) closeHole(*h);
+    };
+    switch (room) {
+    case 3: if (from == 55) boxes = {{1, 1, 0x36, 0x6135}}; break;
+    case 6: case 7: boxes = {{1, 1, 0x33, 0x6132}}; break;
+    case 9: roomVar_[3] = 0, boxes = {{2, 0, 0x28, 0x6127}}; break;
+    case 10: if (from != 10) boxes = {{2, 0, 0x2C, 0x612B}}; break;
+    case 13: if (from == 7) boxes = {{1, 1, 0x37, 0x6136}}; break;
+    case 16: boxes = {{2, 0, 0x2E, 0x612D}}; break;
+    case 18: if (from != 18) boxes = {{2, 0, 0x31, 0x6130}}; break;
+    case 32: if (from != 32) boxes = {{2, 0, 0x3F, 0x613D}}; break;
+    case 34:
+        if (from == 22 || from == 40) {
+            // In through a door: the ball out of the hole to 117, the doors
+            // to 22 and 40 shut.
+            roomVar_[1] = roomVar_[2] = 1;
+            if (Object* h = holeTo(117)) spitBall(*h, 0);
+            shut(22), shut(40);
+        } else {
+            boxes = {{2, 0, 0xC, 0x610C}};
+        }
+        break;
+    case 35:
+        if (from == 43) {
+            // In through the door from 43: the ball out of it, 2 shots.
+            if (Object* h = holeTo(43)) spitBall(*h, 2), closeHole(*h);
+            shots_ = 2, roomVar_[3] = 1;
+        } else {
+            roomVar_[3] = 0;
+            shut(1000);
+            boxes = {{2, 0, 3, 0x6103}, {2, 0, 0x5E8, 0x6160}};
+        }
+        break;
+    case 36: if (from != 36) boxes = {{1, 1, 0xF, 0x610F}}; break;
+    case 41: boxes = {{2, 0, 0x41, 0x613F}}; break;
+    case 47:
+        if (from == 50) gameFlag_[0] = gameFlag_[1] = 0, boxes = {{2, 0, 0x15, 0x6115}, {2, 0, 0x5F7, 0x616F}};
+        break;
+    case 54: if (from == 47) boxes = {{2, 0, 0x16, 0x6116}}; break;
+    case 55: boxes = {{2, 0, 0x20, 0x611F}}; break;
+    case 59: boxes = {{1, 1, 0x38, 0x6137}}; break;
+    case 67: boxes = {{2, 0, 0x43, 0x6141}, {2, 0, 0x44, 0x6142}}; break;
+    case 70: if (from != 70) boxes = {{2, 0, 0x46, 0x6144}}; break;
+    case 92: boxes = {{2, 0, 0x2B, 0x612A}}; break;
+    case 96: shut(66), boxes = {{2, 0, 0x40, 0x613E}}; break;
+    default: break;
+    }
+    if (!boxes.empty()) {
+        // (Event 9 has faded the old room out: the display is black.)
+        std::fill(ctx_.screens[1].pixels.begin(), ctx_.screens[1].pixels.end(), uint8_t{2});
+        std::fill(ctx_.screens[2].pixels.begin(), ctx_.screens[2].pixels.end(), uint8_t{2});
+        dialogNoRedraw_ = true;
+        for (const auto& [face, style, text, sound] : boxes) say(face, style, text, sound);
+        dialogNoRedraw_ = false;
+    }
+    // After the greeting (room 47's and 54's builders): holes shut by the
+    // game's flags ([8E50] the hole to 33 in 47, 100 and 101 in 54;
+    // [8E52] 23 in 47; [8E54] 48 in 54).
+    if (room == 47) {
+        if (gameFlag_[0]) shut(33);
+        if (gameFlag_[1]) shut(23);
+    } else if (room == 54) {
+        if (gameFlag_[2]) shut(48);
+        if (gameFlag_[0]) shut(100), shut(101);
+    }
 }
 
 }  // namespace edison

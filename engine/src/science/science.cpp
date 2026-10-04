@@ -90,17 +90,21 @@ void Science::arcade(int room) {
             // lesson between keeps the old room).
             if (from > 0 && room != 1) roomEnd();
             from = room;
-            room = playRoom(room);
+            const int next = playRoom(room);
+            previousRoom_ = room;
+            room = next;
             continue;
         }
         switch (room) {
         case 501:
+            previousRoom_ = 501;
             lab();
             room = from == 1 ? 1 : 505;
             break;
         case 502:
         case 503:
             logLine(std::string("Wild Science Arcade: the ") + (room == 502 ? "high scores aren't" : "credits aren't") + " ported yet");
+            previousRoom_ = room;
             room = from > 0 ? from : 1;
             break;
         case 504:
@@ -108,6 +112,7 @@ void Science::arcade(int room) {
         default:
             if (room >= 505 && room <= 510) {
                 if (from > 0 && roomEndFlag_) roomEnd();
+                previousRoom_ = room;
                 room = lesson(room - 500);
                 quietScore_ = true;  // f15_08b7, the lesson's end: [171C]
                 break;

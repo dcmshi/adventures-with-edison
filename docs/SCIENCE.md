@@ -785,15 +785,39 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   lesson (`[171C]`, set by every lesson's end, `f15_08b7`) all of it
   without the box or 601F; till then the score changes silently
   (`f06_0208` skips its sound and box).
-- Checked against the original: room 21's hint hole 102 (the box with
-  picture `135F`, the ball back, the hole drawn shut), the warp to room 57
-  through lesson 8 (60000 and the bonus ball in the right tube, the room's
-  end after a lesson), room 1's boxes. Not yet: the "Bonus Points" box
-  itself (a level has to be finished: room 21's exit, hole 35, takes a
-  bank shot round its middle wall), spit modes 0 and 1. Rooms 18 (`+FC4`),
-  34 (`+FA4`, `+FA6`: set when coming in through a door), 35 (`+FC0`) and
-  55 (its objects at `+FB4`, `+FB6`) read fields that their own code (not
-  ported) sets.
+- **Arriving** (the builders' own ends, after the room's pictures): a
+  greeting on a black screen (`f24_1ee3`; `[275C]`, set while event 9
+  builds a room, keeps the box's closing from redrawing): always in rooms
+  6, 7 (`7033`), 9, 16, 41, 55, 59, 67 (two), 92, 96; by the room the
+  player came from (its `+90`) in 3 (from 55), 13 (from 7), 47 (from 50:
+  two, and `[8E50]`, `[8E52]` cleared), 54 (from 47); unless coming from
+  the same room in 10, 18, 32, 36, 70. Doors met on arrival: room 34 from
+  22 or 40 (the ball out of the hole to 117, mode 0; the doors to 22 and
+  40 shut; else its greeting), room 35 from 43 (the ball out of that door,
+  mode 2, 2 shots; else the hole to 1000 shut and two boxes, "Friction is
+  a force that acts..."). Holes shut by the game's flags: 47 (`[8E50]` the
+  door to 33, `[8E52]` to 23), 54 (`[8E54]` 48, `[8E50]` 100 and 101), 96
+  (66, always).
+- Checked against the original:
+  - room 21's hint hole 102 (the box with picture `135F`, the ball back,
+    the hole drawn shut);
+  - level 1 finished in one bank shot (aim (272, 277), power 10: all five
+    targets, then hole 35): the "Bonus Points" box and the count, frame
+    for frame (zero pixels differ in the view), and room 35's greeting
+    (0 pixels with the same random picture);
+  - the warp to room 57 through lesson 8 (60000 and the bonus ball in the
+    right tube, the room's end after a lesson); room 1's boxes;
+  - spit mode 0 (room 35's door back into itself): the ball's launch, read
+    from the original (`memwatch.py`), is the same state for state; three
+    ticks later, after it bounces off the hole's own wall, the original's
+    is a unit higher and it comes to rest some 5 units away (the bounce's
+    re-step, in the physics).
+- Not yet: mode 1 (room 35's hint hole 105 needs power 5 with power
+  locked at 3; room 57's are behind its moving objects). Rooms 18 (`+FC4`),
+  34 (`+FA4`, `+FA6`), 35 (`+FC0`) and 55 (`+FB4`, `+FB6`) read fields
+  their own code (not ported) sets. Room 35 shows a "POW" sack (one of its
+  objects, not ported) and its middle walls in a different order (the
+  standing boxes' painter's order).
 
 ## The rooms (`S<n>.SRF`)
 

@@ -908,6 +908,7 @@ void Science::enterRoom(int room) {
     columns_[0] = columns_[1] = Column{};
     drawTable();
     roomPictures(room);
+    roomArrival(room);
     toDisplay(3);
     redrawTable({0, 0, Screen::kWidth, Screen::kHeight});
     // The player's objects (f31_27de: +A4 the panel, +AA and +AC the

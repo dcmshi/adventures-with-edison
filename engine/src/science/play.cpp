@@ -35,6 +35,10 @@ int Science::playRoom(int room) {
                 o.swallow = 1, o.spit = 0, o.swallowDone = false;
             }
     }
+    if (const char* search = std::getenv("SCI_AIMSEARCH"); search && hasBall_) {
+        aimSearch(search);
+        return -1;
+    }
     Mouse last;
     ctx_.platform.mouse(&last.x, &last.y, &last.held);
     bool lastPressed = false;  // [27D2]: the last event had a press
@@ -68,6 +72,55 @@ int Science::playRoom(int room) {
         }
         flushRoom();
     }
+}
+
+void Science::aimSearch(const char* spec) {
+    // (Testing: SCI_AIMSEARCH=to,power,x0,x1,y0,y1,step. From the room as
+    // built, every aim in the grid (screen points, as a click there aims)
+    // at the given power (-1: the room's own): the shot played tick by tick without drawing till
+    // a hole takes the ball (or 750 ticks); the aims that reach the hole
+    // leading to room `to` are logged ("aim x,y power p: hole to at tick t"),
+    // for a shot to replay in the original. Then the game ends.)
+    int to = 0, power = 5, x0 = 0, x1 = 0, y0 = 0, y1 = 0, step = 1;
+    if (std::sscanf(spec, "%d,%d,%d,%d,%d,%d,%d", &to, &power, &x0, &x1, &y0, &y1, &step) < 6 || step < 1) {
+        logLine("SCI_AIMSEARCH: to,power,x0,x1,y0,y1[,step]");
+        return;
+    }
+    const Ball ball = ball_;
+    const std::vector<Object> objects = table_.objects;
+    const PanelState panel = panel_;
+    const int shots = shots_, roomTicks = roomTicks_, timerTicks = timerTicks_;
+    const long score = score_, total = totalScore_;
+    const bool shadow = shadowShown_, moving = ballMoving_;
+    int found = 0;
+    for (int y = y0; y <= y1; y += step)
+        for (int x = x0; x <= x1; x += step) {
+            ball_ = ball, table_.objects = objects, panel_ = panel;
+            shots_ = shots, roomTicks_ = roomTicks, timerTicks_ = timerTicks, score_ = score, totalScore_ = total;
+            shadowShown_ = shadow, ballMoving_ = moving, exitRoom_ = 0, roomBusy_ = false;
+            for (int k = 0; k < 3; ++k) lastCentre_[k] = shadowSeen_[k] = (k == 0 ? ball_.cx : k == 1 ? ball_.cy : ball_.cz);
+            if (power >= 0) setSlider(Control::Power, power);
+            Mouse m;
+            m.x = x, m.y = y, m.held = true, m.click = true;
+            aim(m);
+            shoot();
+            for (int t = 0; t < 750; ++t) {
+                tickRoom();
+                const Object* taken = nullptr;
+                for (const Object& o : table_.objects)
+                    if (o.type == 8 && o.swallow) taken = &o;
+                if (taken) {
+                    if (taken->args[0] == to) {
+                        logLine("aim " + std::to_string(x) + "," + std::to_string(y) + " power " + std::to_string(panel_.power) + ": hole " +
+                                std::to_string(to) + " at tick " + std::to_string(t));
+                        ++found;
+                    }
+                    break;
+                }
+                if (exitRoom_ || ball_.state != 0) break;
+            }
+        }
+    logLine("SCI_AIMSEARCH: " + std::to_string(found) + " aims reach hole " + std::to_string(to));
 }
 
 void Science::saveTickShot(const std::string& dir) {

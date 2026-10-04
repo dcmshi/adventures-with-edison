@@ -32,4 +32,9 @@ after every tick (`DIR/t<tick>.bmp`: no frame missed, whatever the load);
 state; `SCI_HOLE=n` has the first room's hole to room n take the ball at
 once (room 1: 504 EXIT's question, 508 / 509 the warp codes; 501-503 the
 lab, high scores, credits), for what follows without a measured shot; `SCI_DIALOGPIC=k` gives the
-framed boxes picture `1359` + k (the original picks one at random).
+framed boxes picture `1359` + k (the original picks one at random); `SCI_AIMSEARCH=to,power,x0,x1,y0,y1,step`
+plays every aim of the grid (screen points, power -1 the room's own) from
+the room as built, without drawing, and logs those whose ball a hole
+leading to room `to` takes ("aim x,y power p: hole to at tick t"): for
+bank shots to replay in the original (with `--click`s for a greeting
+first; it ends the game when done).

@@ -60,7 +60,7 @@ scene objects and an event queue, floating point), so it goes in stages:
   - [x] Each room's pictures and builder settings; point targets (type 10) and the score.
   - [x] The panel's locked controls: OUT OF ORDER signs and Edison putting them up.
   - [x] Segment 24's dialog boxes and room 1's method 8: EXIT's question, the warp codes of levels 4 and 5 (and their points in the next table), checked against the original pixel for pixel. `SCI_HOLE=n` gets there without a shot.
-  - [x] Each room's method 8 (hint holes, questions, redirects, bonuses) and the room's end (`f38_020f`: the bonus by shots, the "Bonus Points" box, bonus balls). Still to compare with the original: the "Bonus Points" box (finish a level: room 21's exit takes a bank shot) and spit modes 0 and 1.
+  - [x] Each room's method 8 (hint holes, questions, redirects, bonuses), the rooms' greetings and doors on arrival, the room's end (`f38_020f`: the bonus by shots, the "Bonus Points" box, bonus balls); checked against the original through level 1's bank shot. Still to check: spit mode 1 (no reachable hole yet), and mode 0's bounce off the hole's wall (a unit off after the re-step).
   - [ ] The rooms' own code that their holes read: room 18's tick (`+FC4`), room 34's builder (`+FA4`, `+FA6`, coming in through a door), room 55's objects (`+FB4`, `+FB6`); room 57's lit shoot button.
   - [ ] Kind 3 targets, suckholes (type 10 kind 6), the other object types, the table's standing boxes in the painter's order (type 1 drawables).
   - [ ] The high scores (502, segment 40; and the game over: `f40_068b`), the credits (503, `f38_0eb9`).
