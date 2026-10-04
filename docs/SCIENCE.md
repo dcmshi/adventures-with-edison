@@ -572,7 +572,7 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   5 / 22 + 1` (1-5), the sprite from `DS:20FC` (small) or `DS:2114` (big),
   6 a wall, frames 1-4 plus the ball's type's offset (`f28_0cd5`: 29
   sprites a type). Then the room's method 8 (`f28_156a`): room 1's
-  (`f41_02a4`) asks for EXIT (504) and the passwords of levels 4 and 5
+  (`f41_02a4`, see the dialog boxes below) asks for EXIT (504) and the passwords of levels 4 and 5
   (508 "electric", 509 "wildway"; wrong: spat out, mode 2); others go
   to `f27_2530`: spat out (mode 0) if it leads to this room, a door within
   the room (0, 100-500) passes it on, else event 9 to that room.
@@ -659,6 +659,82 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
 - Checked against the original: rooms 31 and 21 (pictures, targets at
   rest pixel for pixel but for their phases), a shot in room 21 traced
   state for state from room 1 (through the hole) and its score (1600).
+
+## The dialog boxes (segment 24, ported: `dialog.cpp`)
+
+- **A box** (1CCh bytes on the caller's stack; built by `f24_0003`,
+  `00df`, `01be`, `02ba`, `03a3` (typed), `0482` (buttons), `057d` (a list
+  of strings)): `+0` the parent's rectangle, `+2` the buttons, `+4` one
+  field (OK or typed), `+6` / `+8` its middle (then its corner), `+A` / `+C`
+  the picture's size, `+E` / `+10` an extra picture and how it's aligned
+  (`f24_06bf`: low nibble 1 centred, 2 left, else right; high 10h, 20h,
+  else bottom; 80h it is the box), `+12` the message (text 7000h + n),
+  `+14` the first button's text, `+16` the box, `+1E` the stand, `+26` the
+  style (0 framed, 1 plain), `+28` the answer, `+2C` the first button's
+  row, `+30` the face, `+38` screen 2 under the face, `+3A` / `+3C` the
+  mouth, `+3E` closed, `+40` what was typed (64), `+81` five strings
+  (`057d`), `+1C6` the highlighted one, `+1CA` typing. `[1F1C]` is Edison's
+  face (0 none; sprites `13A3` + 4 x max(face, 1) + frame, frame 2 at
+  rest). Room 1 puts each in the middle of the room's window (`+60`, the
+  view: (319, 146)).
+- **Drawing** (`f24_0e8c`, on screen 2, then the frame to the display): the
+  picture, for style 0 one of `1359`-`135D` at random (`DS:1E7C`, ten
+  entries, Borland's `rand` x 10 / 8000h), style 1 `1393` (`DS:1EA4`);
+  `f24_0a34`: the stand `1394` centred under the frame's foot (unless
+  `GetPixel` on screen 2 there returns 2, which an RGB never is), and for
+  style 0 the frame (`f24_07e1`: 22 out, 328 x 236; `138F` top and `1392`
+  left at its corner, `1390` bottom and `1391` right against its far
+  edges). The buttons' rows from the picture's foot, 28 apart and 10 up
+  (not for style 0): `f24_08a9` (x + 23, row, 223 x 23). The message
+  (`f24_095e`: x + 13 (style 0) or 23, y + 8 or 28, 246 wide, down to the
+  buttons) through segment 23 (left, colour F, a line only if its corner is
+  in the rectangle; the first estimate is (w x w) / w here: the layout's
+  base class, `DS:17ED`, measures characters until `f15_3409` swaps in the
+  pixel one, `DS:17FD`); each button `1396` with its text centred
+  (alignment 1, the first line only, 4 down); one field: `1396` and the
+  text 4 right and 5 down (`f24_0cc7`: "OK..." at `DS:1F3D`, or what was
+  typed). The face: frame 2's size, x = (w - fw) x 5 / 8 + 10 (50, 54 or 26
+  more by face and style), its foot 4 above the picture's (style 1) or 2 /
+  8 below.
+- **Waiting** (`f24_193e`): every pass handles one Windows message
+  (`f36_0000`) and waits 3 ticks without handling any (`f24_1d43`, a busy
+  wait on the 50 Hz counter), the face's next frame every sixth pass
+  (`DS:1F1E`: 1 0 1 2 3 2 1, from a 1 on to 1 or 3 at random). No
+  buttons: a key or a click. Buttons: a key (`y`, or `Y` with several
+  buttons, is the second; any other the first), or the button held
+  (`[6EC4]`, set by WM_LBUTTONDOWN and cleared by WM_LBUTTONUP) with the
+  mouse in **the button tried this pass** (they're tried in turn, one a
+  pass): a click held for one pass only counts on its button's turn, so
+  with NO / YES half the clicks are missed (seen in the original: clicks
+  on YES 30 ms apart taken, missed, taken, missed). One field: any click.
+  The press (`f24_0d89`): sound 6025, the button down (`1398`) with "ZAP!"
+  (`DS:1F38`), 30 ticks.
+- **Typing** (`f24_1b15`): letters, digits and spaces up to 64,
+  backspace or left takes one away, Del clears (not in the port: its
+  platform has no Del key), Enter ends; each pass the
+  field, a caret (8 wide, the font's height less 4, after the text) in
+  colour F or 56 by the pass (8 each), the face again over the field; no
+  wait, so the caret flickers faster than screenshots 20 ms apart can
+  follow (the port takes a pass a millisecond).
+- **Closing** (`f24_1f26`): event 5 to the player (its method 4) for the
+  frame and again for the stand: the room's redraw there and every
+  control's.
+- **Room 1** (`f41_02a4`): EXIT (504): face 0, style 0, "Do you want to quit
+  this game?" (`720B`), NO / YES (`7202`, `7203`), sound 6016; NO spits the
+  ball back (mode 2). Levels 4 and 5 (508, 509): face 2, style 1, typed,
+  "Please type in the warp code:" (`7002`), narration 6102; compared with
+  "electric" / "wildway" by `strnicmp` (64); then a box with no face,
+  "That's right!" (`7205`, narration 6148) and the room's `+F7F` set to
+  60000 / 75000, or "Sorry, wrong answer." (`7204`, 6147) and the ball spat
+  back. `+F7F` reaches the score (`f06_0208`) at the room's end
+  (`f38_020f`), which event 9 runs when the next table comes: after the
+  lesson, room 57 opens at 60000 (read from the original).
+- Checked against the original: EXIT's box, NO by a key, the ball back,
+  the warp code's box, typing, the caret, "That's right!" and "Sorry,
+  wrong answer." with ZAP!, all pixel for pixel; the clicks' turns; the
+  score in room 57. Still different: after the wrong code the original
+  shows no shadow under the ball put back and the port draws one (29
+  pixels; the shadow object's state through the spit, `f07_15ba`).
 
 ## The rooms (`S<n>.SRF`)
 

@@ -17,6 +17,24 @@ int Science::playRoom(int room) {
     // The room built, then the game's loop till a hole sends the ball to
     // another room (event 9: that room) or Escape (-1).
     enterRoom(room);
+    if (const char* hole = std::getenv("SCI_HOLE"); hole && hasBall_) {
+        // (Testing: SCI_HOLE=n, the first room's hole that leads to room n
+        // takes the ball at once, as f28_14a5 does: for its dialogs and
+        // exits without a measured shot. Once a run.)
+        static bool used = false;
+        for (Object& o : table_.objects)
+            if (!used && o.type == 8 && o.args[0] == std::atoi(hole)) {
+                used = true;
+                int s[4];
+                holeSphere(o, s);
+                Ball& b = ball_;
+                b.cx = s[0], b.cy = s[1], b.cz = s[2];
+                for (int k = 0; k < 3; ++k) b.v[k] = 0, b.rem[k] = 0, b.kick[k] = 0, b.push[k] = 0;
+                b.kickTicks = 0;
+                b.hidden = true, shadowShown_ = false;
+                o.swallow = 1, o.spit = 0, o.swallowDone = false;
+            }
+    }
     Mouse last;
     ctx_.platform.mouse(&last.x, &last.y, &last.held);
     bool lastPressed = false;  // [27D2]: the last event had a press

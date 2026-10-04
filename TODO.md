@@ -59,11 +59,11 @@ scene objects and an event queue, floating point), so it goes in stages:
 - [ ] The arcade, next:
   - [x] Each room's pictures and builder settings; point targets (type 10) and the score.
   - [x] The panel's locked controls: OUT OF ORDER signs and Edison putting them up.
-  - [ ] Segment 24's dialog boxes: needed by room 1's EXIT question and the passwords of levels 4 and 5, and by rooms whose holes need every target hit first (method 8, `f03_0014`). Start here.
-  - [ ] Each room's own methods (method 8's hole handlers and dialogs), the completion bonus (`+F7B`, `+F87`).
+  - [x] Segment 24's dialog boxes and room 1's method 8: EXIT's question, the warp codes of levels 4 and 5 (and their points in the next table), checked against the original pixel for pixel. `SCI_HOLE=n` gets there without a shot.
+  - [ ] Each room's own methods (method 8's hole handlers and dialogs: holes that need every target hit first, `f03_0014`), the room's end (`f38_020f`: the completion bonus `+F7B`, `+F87`, its list box `f24_057d`; only its `+F7F` is ported).
   - [ ] Kind 3 targets, suckholes (type 10 kind 6), the other object types, the table's standing boxes in the painter's order (type 1 drawables).
   - [ ] The high scores (502, segment 40; and the game over: `f40_068b`), the credits (503, `f38_0eb9`).
-  - [ ] Doors within a room (holes 0, 100-500) and spit modes 0 and 1; type 3's segment 5 part; other balls (`f08_0d3e`), the push (`+4C`); the keys (S and two digits: a room; P; s).
+  - [ ] Doors within a room (holes 0, 100-500) and spit modes 0 and 1 (and mode 2's shadow: after a wrong warp code the original shows none under the ball put back, the port one; the shadow object's state through the spit, `f07_15ba`, which also runs while the ball is hidden); type 3's segment 5 part; other balls (`f08_0d3e`), the push (`+4C`); the keys (S and two digits: a room; P; s).
   - Test tools: `tools/testing/` (see its README: `trace.sh`, `regress.sh`, `cmp.py`, `bestframe.py`, `dis.sh`, `roompics.py`, the `SCI_*` switches). They and `tools/reference/` need `EDISON_RUN` (the game's folder) and `OTVDM` (winevdm's `otvdmw.exe`, unless on the PATH); `tools/ghidra/decompile.sh` needs `GHIDRA`. Under load (ComfyUI on the GPU) timed captures skip ticks: use `SCI_TICKSHOTS`, and rerun a failed `regress.sh` check before believing it.
 - [ ] The arcade's menu table, the levels, high scores (`WSCIENCE.HS`), the lab, the credits.
 - [ ] Compare with the original under winevdm as each part lands (`memwatch.py` reads the original's state: use it on Mystery and Rock and Bach too, for oddities in their ports).

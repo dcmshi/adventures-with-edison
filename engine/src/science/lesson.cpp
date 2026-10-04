@@ -61,7 +61,7 @@ const Lesson kLessons[6] = {
 
 }  // namespace
 
-std::vector<std::string> Science::wrapText(const std::string& text, int width) const {
+std::vector<std::string> Science::wrapText(const std::string& text, int width, int estimate) const {
     // Segment 23 (f23_02a4): from an estimate of the characters a line
     // holds, back to the space before (f23_0193, which leaves the space for
     // the next line) while too wide, or on to the next space (f23_0218,
@@ -83,9 +83,10 @@ std::vector<std::string> Science::wrapText(const std::string& text, int width) c
         return v - start + 1;
     };
     // The first estimate (f23_051c) is (width x width, in 16 bits) / the
-    // text's width; then each line starts from the last one's length.
+    // text's width (unless the caller gives one); then each line starts
+    // from the last one's length.
     const int total = std::max(1, font_->width(text));
-    int estimate = std::max(1, static_cast<int>((static_cast<unsigned>(width * width) & 0xFFFFu) / static_cast<unsigned>(total)));
+    if (estimate <= 0) estimate = std::max(1, static_cast<int>((static_cast<unsigned>(width * width) & 0xFFFFu) / static_cast<unsigned>(total)));
     std::vector<std::string> lines;
     for (int start = 0; start < len;) {
         int n = back(start, estimate);

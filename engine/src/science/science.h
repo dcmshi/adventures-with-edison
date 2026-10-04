@@ -71,7 +71,7 @@ private:
     struct Bubble {
         int x = 0, y = 0, w = 0, h = 0;  // what it covers
     };
-    std::vector<std::string> wrapText(const std::string& text, int width) const;  // f23_02a4
+    std::vector<std::string> wrapText(const std::string& text, int width, int estimate = 0) const;  // f23_02a4
     void drawStretched(int x, int y, int w, int h, uint16_t id);                  // f14_148a
     Bubble bubble(int ax, int ay, int width, int tail, const std::string& text);  // g15_0467
     std::string textResource(uint16_t id);
@@ -258,6 +258,42 @@ private:
     void holeEntered(Object& o);
     void spitBall(Object& o, int mode);
     void ballToStart();
+
+    // --- the dialog boxes (segment 24; dialog.cpp) ---
+    // A box (1CCh bytes; built by f24_0003-f24_057d) on screen 2 over the
+    // room: a picture (random of five, or 1393 for style 1), a message
+    // (text resource 7000h + n), `lines` answer buttons (7000h + first
+    // line + i), or one field: OK, or typed text. Edison's face ([1F1C]) at
+    // its foot, talking while it waits.
+    struct Dialog {
+        int centreX = 0, centreY = 0;   // +6, +8 (the room's window's middle)
+        int lines = 0;                  // +2: the buttons
+        bool single = false;            // +4: one field (OK or typed)
+        bool typed = false;             // +1CA: the field takes typing
+        int style = 0;                  // +26: 0 framed (1359-135D), 1 plain (1393)
+        int face = 0;                   // [1F1C]: 0 none, 1, 2 (sprites 13A3 + 4 face + frame)
+        uint16_t message = 0, firstLine = 0;  // +12, +14 (+ 7000h)
+        Rect rect, stand, faceRect;     // +16, +1E, +30
+        int linesTop = 0;               // +2C: the first button's row
+        int mouth = 0, mouthShown = 0;  // +3A, +3C
+        std::vector<uint8_t> underFace; // +38: screen 2 under the face
+        std::string text;               // +40: what was typed
+        int result = 0;                 // +28
+        bool closed = false;            // +3E
+    };
+    Rect dialogFrame(const Dialog& d) const;        // f24_07e1
+    Rect dialogLine(const Dialog& d, int i) const;  // f24_08a9
+    void dialogButton(const Rect& r, const std::string& s, bool down);  // f24_0cc7
+    void dialogFace(Dialog& d, int frame);          // f24_0d57's sprite at +30
+    void dialogOpen(Dialog& d);                     // f24_0e8c
+    int dialogRun(Dialog& d);                       // f24_193e (f24_1b15 for typing)
+    void dialogTick(Dialog& d);                     // f24_1d43
+    void dialogPress(Dialog& d, int i);             // f24_0d89: "ZAP!"
+    void dialogClose(Dialog& d);                    // f24_1f26
+    void dialogWait(int ticks);                     // f32_07aa
+    int faceTicks_ = 0;                             // [1F2E]
+    bool roomOneHole(Object& o);                    // room 1's method 8 (f41_02a4)
+    long levelBonus_ = 0;                           // the room's +F7F: added to the score when it ends
     void shadowTick();                              // f07_15ba
     void targetTick();                              // f06_0aa8
     void growCracks();                              // f27_2434's every 20 ticks

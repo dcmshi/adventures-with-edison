@@ -29,4 +29,6 @@ tick (and holes, targets); `SCI_RUNNER=1` the panel's walking figure
 (for `tracecmp.py --port-pattern`); `SCI_TICKSHOTS=DIR` saves the display
 after every tick (`DIR/t<tick>.bmp`: no frame missed, whatever the load);
 `SCI_SHOOT_WHEN=cx,cy,cz,vx,vy,vz` holds a shot till the ball's in that
-state.
+state; `SCI_HOLE=n` has the first room's hole to room n take the ball at
+once (room 1: 504 EXIT's question, 508 / 509 the warp codes; 501-503 the
+lab, high scores, credits), for what follows without a measured shot.

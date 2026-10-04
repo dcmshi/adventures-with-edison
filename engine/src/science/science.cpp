@@ -86,6 +86,15 @@ void Science::arcade(int room) {
     int from = 0;  // the player's +90: the last table
     while (room > 0) {
         if (room <= 110) {
+            // The last table's end (f38_020f, from event 9 when the next
+            // table comes: a lesson between keeps the old room) starts with
+            // its +F7F to the score (f06_0208): a warp code's points. The
+            // rest of it isn't ported.
+            if (levelBonus_) {
+                totalScore_ += levelBonus_;
+                levelBonus_ = 0;
+                sound(0x602B);
+            }
             from = room;
             room = playRoom(room);
             continue;

@@ -850,7 +850,8 @@ void Science::enterRoom(int room) {
         logLine("Wild Science Arcade: no S" + std::to_string(room) + ".SRF");
         return;
     }
-    score_ = 0, shots_ = 0;
+    // The room's box shows the game's score ([BD8], f06_0208).
+    score_ = totalScore_, shots_ = 0;
     currentRoom_ = room;
     worldW_ = table_.root.bottom.w, worldD_ = table_.root.bottom.h;
     applyPanelPhysics();

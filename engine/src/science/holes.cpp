@@ -79,16 +79,10 @@ void Science::holeTick(Object& o) {
 
 void Science::holeEntered(Object& o) {
     // f28_156a: the room's method 8 with the hole and the ball. Room 1's
-    // (f41_02a4) asks first for EXIT (504: "are you sure", f10b8 dialogs)
-    // and the passwords of levels 4 and 5 (508 "electric", 509 "wildway";
-    // a wrong one spits the ball out, mode 2); the others go to f27_2530.
+    // (f41_02a4, dialog.cpp) asks first for EXIT and the warp codes of
+    // levels 4 and 5; the others go straight to f27_2530.
     const int room = o.args[0];
-    if (currentRoom_ == 1 && (room == 508 || room == 509)) {
-        logLine("Wild Science Arcade: the level's password isn't ported; the ball comes back");
-        spitBall(o, 2);
-        return;
-    }
-    if (currentRoom_ == 1 && room == 504) logLine("Wild Science Arcade: EXIT's question isn't ported: leaving");
+    if (currentRoom_ == 1 && !roomOneHole(o)) return;
     // f27_2530: back out if it leads to this room (mode 0); a door within
     // the room (0, 100-500) passes the ball to its other half (not
     // ported); else event 9: that room, from this hole.
