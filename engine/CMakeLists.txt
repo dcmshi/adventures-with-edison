@@ -51,6 +51,7 @@ add_library(edison_core
     src/science/physics.cpp
     src/science/holes.cpp
     src/science/dialog.cpp
+    src/science/rooms.cpp
     src/science/targets.cpp
     src/mystery/editor.cpp
     src/mystery/end.cpp

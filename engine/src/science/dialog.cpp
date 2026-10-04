@@ -56,7 +56,10 @@ void Science::dialogOpen(Dialog& d) {
     // The picture: a random one of 1359-135D (DS:1E7C, ten entries), or
     // 1393 for style 1 (DS:1EA4); centred on the point.
     const int pick = static_cast<int>(static_cast<long>(borlandRand()) * 10 / 0x8000);
-    const uint16_t picture = d.style == 0 ? static_cast<uint16_t>(0x1359 + pick % 5) : 0x1393;
+    uint16_t picture = d.style == 0 ? static_cast<uint16_t>(0x1359 + pick % 5) : 0x1393;
+    // (Testing: SCI_DIALOGPIC=k picks 1359 + k, as the original's rand may have.)
+    if (const char* k = std::getenv("SCI_DIALOGPIC"); k && d.style == 0) picture = static_cast<uint16_t>(0x1359 + std::atoi(k) % 5);
+    if (!d.strings.empty() && !d.strings[0].empty()) picture = 0x135E;
     const Bitmap& pic = ctx_.bitmap(picture);
     d.rect = {d.centreX - pic.width / 2, d.centreY - pic.height / 2, pic.width, pic.height};
     panelSprite(d.rect.x, d.rect.y, picture);
@@ -74,6 +77,15 @@ void Science::dialogOpen(Dialog& d) {
         panelSprite(f.x, f.y, 0x1392);
         panelSprite(f.x, bottom - ctx_.bitmap(0x1390).height + 1, 0x1390);
         panelSprite(right - ctx_.bitmap(0x1391).width + 1, f.y, 0x1391);
+    }
+    // f24_01be's picture in the box (f24_06bf: low nibble 1 centred, 2
+    // left, else right; high 10h centred, 20h top, else bottom).
+    if (d.picture) {
+        const Bitmap& p = ctx_.bitmap(d.picture);
+        const int h = d.align & 0x0F, v = d.align & 0xF0;
+        const int px = h == 1 ? (d.rect.w - p.width) / 2 + d.rect.x : h == 2 ? d.rect.x : d.rect.x + d.rect.w - p.width;
+        const int py = v == 0x10 ? (d.rect.h - p.height) / 2 + d.rect.y : v == 0x20 ? d.rect.y : d.rect.y + d.rect.h - p.height;
+        panelSprite(px, py, d.picture);
     }
     // The buttons' rows: up from the picture's foot, 28 each and 10 more
     // (not for the framed style).
@@ -99,6 +111,22 @@ void Science::dialogOpen(Dialog& d) {
             // "OK..." (DS:1F3D).
             const std::string s = d.typed ? std::string() : d.text.empty() ? dataString(0x1F3D) : d.text;
             dialogButton(dialogLine(d, 0), s, false);
+        } else if (!d.strings.empty() && !d.strings[0].empty()) {
+            // A list (f24_057d): for each line the balls over the first
+            // (f24_175a, drawn again each time), then the line 4 right and
+            // 5 down in colour F, or as a button (1396, colour 18) when
+            // it's the highlighted one.
+            for (int i = 0; i < d.lines; ++i) {
+                dialogBalls(d);
+                if (i >= 5) continue;
+                int colour = 0x0F;
+                const Rect r = dialogLine(d, i);
+                if (d.highlight == i && d.highlight < 5) {
+                    colour = 0x18;
+                    panelSprite(r.x, r.y, 0x1396);
+                }
+                if (static_cast<size_t>(i) < d.strings.size()) textAt(r.x + 4, r.y + 5, d.strings[static_cast<size_t>(i)], colour);
+            }
         } else {
             // Each button with its line centred (segment 23, alignment 1),
             // the first line only, 4 lower (f22_0325, colour F).
@@ -292,55 +320,29 @@ void Science::dialogClose(Dialog& d) {
     d.closed = true;
 }
 
-bool Science::roomOneHole(Object& o) {
-    // f41_02a4, room 1's method 8 (a hole has the ball): EXIT (504) asks
-    // first (sound 6016; NO spits the ball back, mode 2); the warp codes
-    // of levels 4 and 5 (508 "electric", 509 "wildway", compared as
-    // strnicmp does; Edison's face asks, narration 6102): right, "That's
-    // right!" (6148) and the room's +F7F (the points the level starts
-    // with, 60000 or 75000, added when the room ends: f38_020f, not yet
-    // ported); wrong, "Sorry, wrong answer." (6147) and the ball back.
-    // Each box in the middle of the room's window (+60, the view). True
-    // when the ball goes on (f27_2530).
-    const Rect& v = table_.view;
-    Dialog d;
-    d.centreX = v.x + (v.w >> 1), d.centreY = v.y + (v.h >> 1);
-    const int room = o.args[0];
-    if (room == 504) {
-        d.face = 0, d.style = 0, d.lines = 2, d.message = 0x20B, d.firstLine = 0x202;
-        dialogOpen(d);
-        sound(0x6016);
-        if (dialogRun(d) == 0) {
-            spitBall(o, 2);
-            return false;
-        }
-        return true;
-    }
-    if (room != 508 && room != 509) return true;
-    d.face = 2, d.style = 1, d.lines = 1, d.single = true, d.typed = true, d.message = 2;
-    dialogOpen(d);
-    narration(0x6102, false);
-    dialogRun(d);
-    const char* code = room == 508 ? "electric" : "wildway";
-    bool right = true;
-    for (size_t i = 0; i <= std::strlen(code); ++i) {
-        auto upper = [](char c) { return c >= 'a' && c <= 'z' ? static_cast<char>(c - 0x20) : c; };
-        const char a = i < d.text.size() ? d.text[i] : 0;
-        if (upper(a) != upper(code[i])) right = false;
-        if (!right || a == 0) break;
-    }
-    Dialog answer;
-    answer.centreX = d.centreX, answer.centreY = d.centreY;
-    answer.face = 0, answer.style = 1, answer.lines = 1, answer.single = true, answer.message = right ? 0x205 : 0x204;
-    dialogOpen(answer);
-    narration(right ? 0x6148 : 0x6147, false);
-    dialogRun(answer);
-    if (!right) {
-        spitBall(o, 2);
-        return false;
-    }
-    levelBonus_ = room == 508 ? 60000 : 75000;
-    return true;
+Science::Rect Science::dialogBalls(Dialog& d) {
+    // f24_175a: +1C8 balls in random rolling frames (101C-1021), 30
+    // apart, 25 above the first line; its rectangle so moved.
+    Rect r = dialogLine(d, 0);
+    r.y -= 0x19;
+    for (int i = 0, x = r.x; i < d.balls; ++i, x += 0x1E)
+        panelSprite(x, r.y, static_cast<uint16_t>(0x101C + static_cast<long>(borlandRand()) * 6 / 0x8000));
+    return r;
+}
+
+void Science::dialogLineAgain(Dialog& d, const std::string& s) {
+    // f24_1829: for a list, the balls again (to the display), and the
+    // highlighted line as a button with s in colours 16-18 in turn
+    // ([1F2C]).
+    select(2);
+    if (d.strings.empty() || d.strings[0].empty()) return;
+    const Rect b = dialogBalls(d);
+    copyArea(2, 1, b.x, b.y, b.w, b.h);
+    if (d.highlight >= 5) return;
+    const Rect r = dialogLine(d, d.highlight);
+    panelSprite(r.x, r.y, 0x1396);
+    textAt(r.x + 4, r.y + 5, s, static_cast<int>(flashCount_++ % 3 + 0x16));
+    copyArea(2, 1, r.x, r.y, r.w, r.h);
 }
 
 }  // namespace edison

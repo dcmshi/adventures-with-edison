@@ -104,6 +104,7 @@ private:
         // the ball still leaving it (+25).
         int swallow = 0, spit = 0, spitMode = 0;
         bool swallowDone = false, spitDone = false, leaving = false;
+        bool closed = false;            // a hole's +2F (f28_1514): shown shut, takes no ball
         // A target (type 10, f03_002c; c its kind, b its points): hit (+12,
         // counting), scored (+14, counting), its frame (+18) of a sequence
         // (+16: DS offset, 0 its kind's idle frames) of +1A frames; its
@@ -256,6 +257,15 @@ private:
     void holeSphere(const Object& o, int out[4]) const;
     void holeTick(Object& o);
     void holeEntered(Object& o);
+    void holeGo(Object& o);                         // f27_2530
+    void roomHole(Object& o);                       // the room's method 8 (rooms.cpp)
+    void closeHole(Object& o);                      // f28_1514
+    void say(int face, int style, uint16_t message, uint16_t narration, uint16_t picture = 0, int align = 0);  // f24_00df / f24_01be
+    int askButtons(int face, uint16_t message, uint16_t firstLine, uint16_t narration);  // f24_0482
+    std::string askCode(int face, uint16_t message, uint16_t narration);  // f24_03a3
+    static bool sameCode(const std::string& typed, const char* code);  // strnicmp(.., 40h)
+    int roomVar_[5] = {};      // the room's own +FA2, +FA4, +FA6, +FC0, +FC4
+    int gameFlag_[3] = {};     // [8E50], [8E52], [8E54] (cleared for a new game, f31_1b48)
     void spitBall(Object& o, int mode);
     void ballToStart();
 
@@ -280,6 +290,11 @@ private:
         std::string text;               // +40: what was typed
         int result = 0;                 // +28
         bool closed = false;            // +3E
+        std::vector<std::string> strings;  // +81: the lines themselves (f24_057d), five at most
+        int highlight = 5;              // +1C6: the line shown as a button (5 none)
+        int balls = 0;                  // +1C8: balls drawn over the first line
+        uint16_t picture = 0;           // +E: a picture in the box (f24_01be)
+        int align = 0;                  // +10: where (f24_06bf)
     };
     Rect dialogFrame(const Dialog& d) const;        // f24_07e1
     Rect dialogLine(const Dialog& d, int i) const;  // f24_08a9
@@ -290,10 +305,20 @@ private:
     void dialogTick(Dialog& d);                     // f24_1d43
     void dialogPress(Dialog& d, int i);             // f24_0d89: "ZAP!"
     void dialogClose(Dialog& d);                    // f24_1f26
+    Rect dialogBalls(Dialog& d);                    // f24_175a
+    void dialogLineAgain(Dialog& d, const std::string& s);  // f24_1829
+    unsigned flashCount_ = 0;                       // [1F2C]
     void dialogWait(int ticks);                     // f32_07aa
     int faceTicks_ = 0;                             // [1F2E]
-    bool roomOneHole(Object& o);                    // room 1's method 8 (f41_02a4)
     long levelBonus_ = 0;                           // the room's +F7F: added to the score when it ends
+    // The room's end (f38_020f, rooms.cpp).
+    void roomEnd();
+    long bonusLines(long counted, std::vector<std::string>* lines, int* count, int* highlight) const;  // f38_0003
+    bool roomEnded_ = false;                        // +F3B
+    bool roomEndFlag_ = false;                      // +F71: the end comes before a lesson too
+    int bonusBalls_ = 0;                            // +F83: balls for the right tube
+    long ballsAwarded_ = 0;                         // [29BA]: a ball for each 10000 points
+    bool quietScore_ = false;                       // [171C]: after a lesson, till a room's end
     void shadowTick();                              // f07_15ba
     void targetTick();                              // f06_0aa8
     void growCracks();                              // f27_2434's every 20 ticks

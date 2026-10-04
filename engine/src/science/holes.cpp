@@ -66,26 +66,48 @@ void Science::holeTick(Object& o) {
         }
         roomBusy_ = false;  // f13_05d4, +F6F
         o.spitDone = false, o.spit = 0;
-        // Mode 2: the ball back where the room put it (f27_287d). Modes 0
-        // (out of the hole, 50 from its wall, shot at it: f08_056e, f27_27a3
-        // with no shot counted) and 1 (a door's) aren't ported: there the
-        // ball goes back too.
-        if (o.spitMode != 2) logLine("Wild Science Arcade: a hole's spit (mode " + std::to_string(o.spitMode) + ") isn't ported; the ball goes back to its place");
-        ballToStart();
+        // Then the ball out by the mode (+1F): 2 back where the room put it
+        // (f27_287d); 1 set down in front of the hole (on the back wall
+        // 4r towards the front, on the left wall 4r to the right; f08_056e
+        // on the ground); 0 at the hole's mouth, its bottom the sphere's,
+        // and shot 50 out of the wall (f27_27a3, no shot counted).
+        int s[4];
+        holeSphere(o, s);
+        const int wall = o.args[1], r = o.args[2] ? 17 : 11, sr = s[3];
+        Ball& ball = ball_;
+        if (o.spitMode == 2) {
+            ballToStart();
+        } else {
+            int x, y;
+            if (o.spitMode == 1) x = wall ? s[0] - sr + r : s[0] + 4 * r, y = wall ? s[1] - sr - 4 * r : s[1] + 1;
+            else x = wall ? s[0] - sr : s[0], y = wall ? s[1] - sr - 10 : s[1] + 1;
+            ballToStart();
+            ball.cx = x, ball.cy = y;
+            ball.cz = (o.spitMode == 1 ? heightUnder(x, y) : s[2] - sr) + ball.r;
+            lastCentre_[0] = shadowSeen_[0] = ball.cx, lastCentre_[1] = shadowSeen_[1] = ball.cy, lastCentre_[2] = shadowSeen_[2] = ball.cz;
+            if (o.spitMode == 0) {
+                // The hole's place (its box's corner), 50 out.
+                const int hz = o.args[3] != -1 ? o.args[3] : heightUnder(o.x, o.y);
+                const int hx = o.x - (wall == 0 ? r : 0);
+                ballLaunch(wall ? hx : hx + 50, wall ? o.y - 50 : o.y, hz);
+            }
+        }
         o.leaving = true;
         viewDirty_ = true;
     }
 }
 
 void Science::holeEntered(Object& o) {
-    // f28_156a: the room's method 8 with the hole and the ball. Room 1's
-    // (f41_02a4, dialog.cpp) asks first for EXIT and the warp codes of
-    // levels 4 and 5; the others go straight to f27_2530.
-    const int room = o.args[0];
-    if (currentRoom_ == 1 && !roomOneHole(o)) return;
+    // f28_156a: the room's method 8 with the hole and the ball (rooms.cpp),
+    // which mostly ends in f27_2530 (holeGo).
+    roomHole(o);
+}
+
+void Science::holeGo(Object& o) {
     // f27_2530: back out if it leads to this room (mode 0); a door within
     // the room (0, 100-500) passes the ball to its other half (not
     // ported); else event 9: that room, from this hole.
+    const int room = o.args[0];
     if (room == currentRoom_) {
         spitBall(o, 0);
         return;
@@ -144,6 +166,7 @@ void Science::ballLost() {
     }
     logLine("Wild Science Arcade: no balls left: the high scores aren't ported; a new game");
     leftBalls_ = 7, rightBalls_ = 0, totalScore_ = 0;
+    std::fill(std::begin(gameFlag_), std::end(gameFlag_), 0);  // f31_1b48
     exitRoom_ = 1;
 }
 

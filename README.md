@@ -69,8 +69,8 @@ ctest --test-dir build --output-on-failure
   - Imports from the CD's DLLs are named, and functions found by `nedis.py` are added.
   - Needs [Ghidra](https://github.com/NationalSecurityAgency/ghidra) 12 and a JDK 21. Set `GHIDRA` to its folder, and `JAVA_HOME` unless `java` is on the PATH.
 - `tools/scripts.py`: decompiles the menu scripts (see `docs/GAME.md`).
-- `tools/reference/otvdm.ps1 start|shot|dialogs|stop|unlock|click|rclick|down|up|move|type|run`: runs the original game under [winevdm](https://github.com/otya128/winevdm) as a visual reference.
-  - `click`, `rclick`, `down`/`up` (hold the button), `move` and `type` post input to the game's window (the real cursor isn't moved); `run SCRIPT DIR` plays a script of those, `wait` and `shot` steps (see `tools/reference/*.txt`).
+- `tools/reference/otvdm.ps1 start|play|shot|dialogs|stop|unlock|click|rclick|down|up|move|type|run`: runs the original game under [winevdm](https://github.com/otya128/winevdm) as a visual reference.
+  - `click`, `rclick`, `down`/`up` (hold the button), `move` and `type` post input to the game's window (the real cursor isn't moved); `run SCRIPT DIR` plays a script of those, `wait` and `shot` steps (see `tools/reference/*.txt`); `play EXE SCRIPT DIR` starts the game, runs the script and stops the game whatever happens, so the next start is clean (use it in test scripts).
   - `tools/reference/screendiff.py PORT.bmp ORIGINAL.png OUT.png` compares a port capture (`--capture`) with a screenshot of the original.
   - `tools/reference/memwatch.py find|peek|watch|dump EXE ...` reads the running original's memory: it finds the program's live data segment (DGROUP) in the otvdmw process by the executable's own static data, then evaluates expressions that follow near pointers, e.g. `vx=[[[5ffc+ae]+f77]+2]+62` (the Wild Science ball's x velocity). `watch` prints a line whenever the values change. Read-only. It works for EDISON, MALL and WINMAIN too (each one's automatic data segment).
   - `tools/reference/tracecmp.py ORIGINAL.txt PORT.log` compares a `memwatch.py watch` trace with the port's log, state by state, ignoring timing. A read caught mid-update, or a state the port only passed through within a tick (it says how many), counts as matching. Start `watch` once the game is up (and no other winevdm is running), or it can pick the wrong copy of the data.
@@ -81,7 +81,7 @@ ctest --test-dir build --output-on-failure
 The original's error boxes often have no owner, so winevdm attaches them to whatever window is in front, usually your terminal, and Windows disables that window until the box closes. If the game is killed or crashes while a box is open, the window (often every Windows Terminal window, since they share a process) stays disabled.
 
 ```powershell
-pwsh tools/reference/otvdm.ps1 start                # boot EDISON.EXE (or: start WMAIN.EXE)
+pwsh tools/reference/otvdm.ps1 start                # boot EDISON.EXE (or: start WMAIN.EXE); stops a leftover run first
 pwsh tools/reference/otvdm.ps1 dialogs              # check for open error boxes
 pwsh tools/reference/otvdm.ps1 stop                 # always end a session with this
 pwsh tools/reference/otvdm.ps1 unlock               # if the game already died
@@ -89,9 +89,10 @@ pwsh tools/reference/otvdm.ps1 unlock               # if the game already died
 
 - `start` runs the game in a window: it hides the black, screen-sized backdrop that the game's library opens behind its 640x400 window, and keeps the game window on top so other windows can't cover it in shots. Set `OTVDM_FULLSCREEN=1` to keep the backdrop.
 - To get to the Wild Science Arcade's menu table quickly, `python tools/reference/wmain_skip.py` writes `WMAINSKP.EXE` into the run folder. It's a copy with the intro flag cleared, so `start "WMAINSKP.EXE -A"` skips the title, the story, the lab and the professor and is at room 1 in about 8 seconds. In the port, `edison --game science --room 1` does the same.
-- If `WMAIN.EXE` shows only a black window and uses a whole CPU core (seen right after a reboot), `stop` it, run `EDISON.EXE` once, and try again.
+- `start` stops any run left over from before (an interrupted test, a crash) first, and `play` always ends with `stop`, even when a step fails; `tools/testing/trace.sh` does the same.
+- If `WMAIN.EXE` or `WMAINSKP.EXE` shows only a black window or nothing at all (seen after a reboot, and once mid-session), `stop` it, run the full `WMAIN.EXE -A` until its story starts, stop it, and try again (running `EDISON.EXE` once helped the first time). `WMAINSKP.EXE` at room 1 has only 3 threads until a sound plays, so check it with a shot.
 - Always end with `stop`, never by killing `otvdmw` or closing its window. `stop` closes dialogs, asks the game to quit, kills it only as a last resort, and then re-enables disabled windows.
-- **Symptom:** a window that chimes when clicked and ignores all input is disabled, not frozen. Run `unlock` from any working shell (such as a new terminal window from the Start menu, or Claude Code's shell). It re-enables those windows; it skips conpty's `PseudoConsoleWindow` and UWP frames, which are disabled by design.
+- **Symptom:** a window that chimes when clicked and ignores all input is disabled, not frozen. Run `unlock` from any working shell (such as a new terminal window from the Start menu, or Claude Code's shell). It re-enables those windows; it skips conpty's `PseudoConsoleWindow`, UWP frames and DWM's listener window, which are disabled by design.
 
 ## Status
 

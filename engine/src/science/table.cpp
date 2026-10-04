@@ -294,8 +294,15 @@ void Science::drawObjects() {
             else if (o.spit) frame = std::clamp(6 - (static_cast<int>(static_cast<unsigned>(o.spit) * 5 / kHoleTicks) + 1), 1, 5);
             static const int kTypeOffset[6] = {4, 5, 0, 1, 2, 3};
             const int typeOffset = kTypeOffset[std::clamp(panel_.ballType, 0, 5)] * 0x1D;
-            dr.draw = [this, x, y = o.y, z, r, wall, big, frame, typeOffset] {
+            const bool closed = o.closed;
+            dr.draw = [this, x, y = o.y, z, r, wall, big, frame, typeOffset, closed] {
                 auto [cx, cy] = objectCentre(x, y, z, 2 * r, 2 * r, 2 * r);
+                if (closed) {
+                    // Shut (+2F): 11C6-11C9 by size and wall, the small one
+                    // on the left wall 3 up.
+                    objectSprite(cx, cy - (!big && wall == 0 ? 3 : 0), static_cast<uint16_t>(big ? (wall ? 0x11C9 : 0x11C8) : (wall ? 0x11C7 : 0x11C6)));
+                    return;
+                }
                 const size_t at = (big ? 0x2114u : 0x20FCu) + 2u * static_cast<size_t>((wall ? 6 : 0) + frame);
                 uint16_t id = static_cast<uint16_t>(data_[at] | data_[at + 1] << 8);
                 if (frame > 0 && frame < 5) id = static_cast<uint16_t>(id + typeOffset);
@@ -852,6 +859,9 @@ void Science::enterRoom(int room) {
     }
     // The room's box shows the game's score ([BD8], f06_0208).
     score_ = totalScore_, shots_ = 0;
+    // The room's own (f27_03da): no end yet, no warp points, no balls.
+    roomEnded_ = false, roomEndFlag_ = false, levelBonus_ = 0, bonusBalls_ = 0;
+    std::fill(std::begin(roomVar_), std::end(roomVar_), 0);
     currentRoom_ = room;
     worldW_ = table_.root.bottom.w, worldD_ = table_.root.bottom.h;
     applyPanelPhysics();

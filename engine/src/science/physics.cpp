@@ -319,7 +319,7 @@ void Science::ballStep() {
             if (static_cast<int64_t>(dx) * dx + static_cast<int64_t>(dy) * dy + static_cast<int64_t>(dz) * dz > rr) continue;
             if (o.type == 10) {
                 pointHit(o);
-            } else if (!o.swallow && !o.leaving && !o.spit) {
+            } else if (!o.swallow && !o.leaving && !o.spit && !o.closed) {
                 // f28_14a5: the ball stopped (f07_0ead → f08_0721) and
                 // hidden with its shadow (f07_03be); the room busy (+F6F).
                 for (int k = 0; k < 3; ++k) b.v[k] = 0, b.kick[k] = 0, b.push[k] = 0;

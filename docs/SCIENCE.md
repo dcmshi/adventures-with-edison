@@ -736,6 +736,65 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   shows no shadow under the ball put back and the port draws one (29
   pixels; the shadow object's state through the spit, `f07_15ba`).
 
+## Each room's word on its holes, the room's end (ported: `rooms.cpp`)
+
+- **Method 8** (the room's `+5E` table, `+20`; `f28_156a` calls it when a
+  hole has swallowed the ball): most rooms only pass on to `f27_2530`;
+  47 have their own (`tools/testing` has no generator: transcribed by hand
+  from the disassembly). Their pieces: a box with OK (`f24_00df`, or
+  `f24_01be` with a picture in it, aligned by `f24_06bf`), two buttons
+  (`f24_0482`: "Want to try again?" Give up / Try again, NO / YES, "Would
+  you like to reset the screen?"), a code to type (`f24_03a3`, compared
+  by `strnicmp`: "repel", "attract", "gravity", "equals", "force",
+  "earth", "electricity"; room 21's warp machine "40 Newtons" or
+  "40Newtons", "magnetic", "electric", "wildway": lessons 506-509 and
+  30000-75000 points), Edison's face (`[1F1C]`) and narration; then the
+  ball spat out (mode 0, 1 or 2) or on (`f27_2530`), the hole redirected
+  (its `+C`: a door C46h to a bonus room, room 60 always to 64, 64 to
+  69), the completion bonus `+F7B` set (2000 for most "right" exits),
+  `+F87`'s shares (`f27_0859`), a bonus ball (`+F83`), `+F71` (the room's
+  end before a lesson), the room's own fields (`+FA2`-`+FC4`: counters,
+  a question asked once) and the game's (`[8E50]`-`[8E54]`). Some check
+  that every target is hit (`f03_0014`: `[308] >= [30A]`) or the shots.
+- **Hint holes** close after their message (`f28_1514`: `+2F`): drawn as
+  `11C6` (small, left wall, 3 up), `11C7`, `11C8` (big, left wall),
+  `11C9`, and they no longer swallow the ball (`f28_14a5` returns).
+- **Spitting out** (`f28_0671`'s end, by `+1F`): 2 the ball back where the
+  room put it (`f27_287d`); 1 set down on the ground in front of the hole
+  (`f08_056e`: on the back wall at the sphere's x - its radius + r, y -
+  its radius - 4r; on the left wall at x + 4r, y + 1); 0 at the hole's
+  mouth (back wall: x - radius, y - radius - 10; left wall: x, y + 1; its
+  bottom the sphere's) and shot at the hole's place 50 out of its wall
+  (`f27_27a3`, no shot counted). Then the hole stays "leaving" (`+25`)
+  till the ball is clear.
+- **The room's end** (`f38_020f`, event 9 runs it for the old table when
+  the next is another table but room 1, or a lesson after a room that set
+  `+F71`; room 59 runs it itself): once (`+F3B`); the warp points (`+F7F`)
+  to the score; a bonus ball (`+F83`) for each new 10000 points
+  (`[29BA]`); then, with a ball and a bonus or a ball to give, `+F39` at
+  least 1, the bonus by the shots (`f38_0003`: `+F87[min(shots, 5)]` x
+  `+F7B` (kept within 0-100000) / 128): "Bonus Points" (`7206`), the list
+  "1 Shot.... Bonus: n", "k Shots... Bonus: n" (2-4), " Your Bonus:   n"
+  (highlighted: button `1396`, colour 18), the balls to give over the
+  first line (`f24_175a`), on picture `135E` (`f24_057d`); a key or a
+  click; the bonus counted in 100 at a time (`f06_0208`, each with its
+  sound and the score box redrawn), the highlighted line again in colours
+  16-18 in turn (`f24_1829`), 7 ticks each unless Escape is held
+  (`[9570]` bit 1: the held keys by scan code); then each ball: sound
+  601F, the line blank, the right tube a ball more (at most 4). After a
+  lesson (`[171C]`, set by every lesson's end, `f15_08b7`) all of it
+  without the box or 601F; till then the score changes silently
+  (`f06_0208` skips its sound and box).
+- Checked against the original: room 21's hint hole 102 (the box with
+  picture `135F`, the ball back, the hole drawn shut), the warp to room 57
+  through lesson 8 (60000 and the bonus ball in the right tube, the room's
+  end after a lesson), room 1's boxes. Not yet: the "Bonus Points" box
+  itself (a level has to be finished: room 21's exit, hole 35, takes a
+  bank shot round its middle wall), spit modes 0 and 1. Rooms 18 (`+FC4`),
+  34 (`+FA4`, `+FA6`: set when coming in through a door), 35 (`+FC0`) and
+  55 (its objects at `+FB4`, `+FB6`) read fields that their own code (not
+  ported) sets.
+
 ## The rooms (`S<n>.SRF`)
 
 A room reads `S<n>.SRF` (`f27_0ad8`: the name built at `DS:1FF4`, read

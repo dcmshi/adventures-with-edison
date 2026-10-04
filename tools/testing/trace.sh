@@ -29,16 +29,19 @@ rm -f $out/port.log; mkdir -p $out/port
 SCI_DEBUG=1 EDISON_LOG=$out/port.log timeout 90 ./build/engine/edison.exe --game science --room 1 -A --hidden \
   --capture $out/port 100 $args --quit-after $total >/dev/null 2>&1
 
-# The original (no other winevdm left: memwatch would find its memory).
+# The original (no other winevdm left: memwatch would find its memory). A
+# run left over from an interrupted trace is stopped first, and this one is
+# stopped however the script ends.
 gone() { for i in $(seq 1 50); do tasklist | grep -qi otvdmw || return 0; sleep 0.2; done; }
-gone
+stopgame() { pwsh -NoProfile -File tools/reference/otvdm.ps1 stop >/dev/null; gone; }
+trap stopgame EXIT
+stopgame
 pwsh -NoProfile -File tools/reference/otvdm.ps1 start $W >/dev/null
 (pwsh -NoProfile -File tools/reference/otvdm.ps1 run $script $out >/dev/null &)
 sleep 8
 python tools/reference/memwatch.py watch $W --every 1 --for $(( total / 1000 + 3 )) --out $out/orig_trace.txt $EXPRS >/dev/null
 sleep 2  # (the script's last shot)
-pwsh -NoProfile -File tools/reference/otvdm.ps1 stop >/dev/null
-gone
+stopgame
 
 python tools/reference/tracecmp.py $out/orig_trace.txt $out/port.log
 echo "end frame: $(python tools/reference/screendiff.py $(ls $out/port/*.bmp | tail -1) $out/end.png 2>/dev/null)"

@@ -1,6 +1,9 @@
 # Runs the ORIGINAL game under winevdm (otvdm) as a visual reference, safely.
 #
-#   otvdm.ps1 start [EXE]        start the game (default EDISON.EXE)
+#   otvdm.ps1 start [EXE]        start the game (default EDISON.EXE); a run
+#                                left over from before is stopped first
+#   otvdm.ps1 play EXE SCRIPT [DIR]  start, run SCRIPT, then stop, whatever
+#                                happens (the way test scripts should use it)
 #   otvdm.ps1 shot OUT.png       screenshot the game window only (no focus change)
 #   otvdm.ps1 dialogs            list open dialogs (error boxes) of the game
 #   otvdm.ps1 stop               close the game safely
@@ -32,7 +35,7 @@
 #
 # `start` needs winevdm's otvdmw.exe ($env:OTVDM, or on the PATH) and a
 # folder with the game files and the WinG DLLs ($env:EDISON_RUN).
-param([Parameter(Mandatory)][string]$Command, [string]$Arg, [string]$Arg2)
+param([Parameter(Mandatory)][string]$Command, [string]$Arg, [string]$Arg2, [string]$Arg3)
 
 $otvdm = if ($env:OTVDM) { $env:OTVDM } else { (Get-Command otvdmw.exe -ErrorAction SilentlyContinue).Source }
 $runDir = $env:EDISON_RUN
@@ -70,9 +73,9 @@ function Dialogs { GameWindows | Where-Object { [W]::Cls($_) -eq "#32770" } }
 function Enable-DisabledWindows {
     $gameIds = @(Game | ForEach-Object Id)
     foreach ($h in [W]::All()) {
-        # conpty's PseudoConsoleWindow and UWP frames are disabled normally
+        # conpty's PseudoConsoleWindow, UWP frames and DWM's listener are disabled normally
         if ([W]::IsWindowVisible($h) -and -not [W]::IsWindowEnabled($h) -and $gameIds -notcontains [W]::Pid($h) -and
-            @("#32770", "PseudoConsoleWindow", "ApplicationFrameWindow") -notcontains [W]::Cls($h)) {
+            @("#32770", "PseudoConsoleWindow", "ApplicationFrameWindow", "DummyDWMListenerWindow") -notcontains [W]::Cls($h)) {
             [W]::EnableWindow($h, $true) | Out-Null
             Write-Output "re-enabled '$([W]::Text($h))' ($([W]::Cls($h)))"
         }
@@ -146,14 +149,59 @@ function Shot($out) {
     Write-Output "saved $out ($($r.R - $r.L)x$($r.B - $r.T))$(if ($d) { ", $d dialog(s) open" })"
 }
 
+function StopGame {
+    if (-not (Game)) { return "nothing running" }
+    foreach ($d in @(Dialogs)) { [W]::SendMessage($d, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null }  # WM_CLOSE
+    Start-Sleep -Milliseconds 500
+    Game | ForEach-Object { $_.CloseMainWindow() | Out-Null }
+    for ($i = 0; $i -lt 10 -and (Game); $i++) {
+        foreach ($d in @(Dialogs)) { [W]::SendMessage($d, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null }
+        Start-Sleep -Milliseconds 500
+    }
+    $how = if (Game) { Game | Stop-Process -Force; "had to force-kill" } else { "closed" }
+    Start-Sleep -Milliseconds 300
+    Enable-DisabledWindows
+    $how
+}
+
+function StartGame($exe) {
+    if (-not $otvdm) { throw "set OTVDM to winevdm's otvdmw.exe (or put it on the PATH)" }
+    if (-not $runDir) { throw "set EDISON_RUN to the folder with the game files" }
+    # A run left over from an interrupted test (or a crash) first: two at
+    # once confuse the shots, the input and memwatch.
+    if (Game) { Write-Output "a run was left over: $(StopGame)" }
+    Start-Process -FilePath $otvdm -ArgumentList $exe -WorkingDirectory $runDir
+    Write-Output "started $exe"
+    if ($env:OTVDM_FULLSCREEN -ne "1") { Windowed }
+}
+
+function RunScript($script, $dir) {
+    if (-not $dir) { $dir = "." }
+    foreach ($line in Get-Content $script) {
+        $w = ($line -replace '#.*$', '').Trim() -split '\s+', 2
+        if (-not $w[0]) { continue }
+        $a = if ($w.Count -gt 1) { $w[1] } else { "" }
+        switch ($w[0]) {
+            "wait" { Start-Sleep -Milliseconds ([double]$a * 1000) }
+            "click" { $p = $a -split '\s+'; Click $p[0] $p[1] $false }
+            "rclick" { $p = $a -split '\s+'; Click $p[0] $p[1] $true }
+            "move" { $p = $a -split '\s+'; $h = MainWindow; if ($h) { Post $h 0x200 0 (([int]$p[1] -shl 16) -bor ([int]$p[0] -band 0xFFFF)) } }
+            "down" { $p = $a -split '\s+'; Button $p[0] $p[1] $true }
+            "up" { $p = $a -split '\s+'; Button $p[0] $p[1] $false }
+            "type" { TypeText $a }
+            "shot" { Shot (Join-Path $dir $a) | Out-Null }
+            default { Write-Output "unknown step: $line" }
+        }
+    }
+    Write-Output "ran $script"
+}
+
 switch ($Command) {
-    "start" {
-        $exe = if ($Arg) { $Arg } else { "EDISON.EXE" }
-        if (-not $otvdm) { throw "set OTVDM to winevdm's otvdmw.exe (or put it on the PATH)" }
-        if (-not $runDir) { throw "set EDISON_RUN to the folder with the game files" }
-        Start-Process -FilePath $otvdm -ArgumentList $exe -WorkingDirectory $runDir
-        Write-Output "started $exe"
-        if ($env:OTVDM_FULLSCREEN -ne "1") { Windowed }
+    "start" { StartGame $(if ($Arg) { $Arg } else { "EDISON.EXE" }) }
+    "play" {
+        # Start, the script, stop: the stop runs even when a step fails or
+        # the script is interrupted, so the next start is clean.
+        try { StartGame $Arg; RunScript $Arg2 $Arg3 } finally { StopGame }
     }
     "shot" { Shot $Arg }
     "click" { Click $Arg $Arg2 $false }
@@ -162,43 +210,13 @@ switch ($Command) {
     "down" { Button $Arg $Arg2 $true }
     "up" { Button $Arg $Arg2 $false }
     "type" { TypeText $Arg }
-    "run" {
-        $dir = if ($Arg2) { $Arg2 } else { "." }
-        foreach ($line in Get-Content $Arg) {
-            $w = ($line -replace '#.*$', '').Trim() -split '\s+', 2
-            if (-not $w[0]) { continue }
-            $a = if ($w.Count -gt 1) { $w[1] } else { "" }
-            switch ($w[0]) {
-                "wait" { Start-Sleep -Milliseconds ([double]$a * 1000) }
-                "click" { $p = $a -split '\s+'; Click $p[0] $p[1] $false }
-                "rclick" { $p = $a -split '\s+'; Click $p[0] $p[1] $true }
-                "move" { $p = $a -split '\s+'; $h = MainWindow; if ($h) { Post $h 0x200 0 (([int]$p[1] -shl 16) -bor ([int]$p[0] -band 0xFFFF)) } }
-                "down" { $p = $a -split '\s+'; Button $p[0] $p[1] $true }
-                "up" { $p = $a -split '\s+'; Button $p[0] $p[1] $false }
-                "type" { TypeText $a }
-                "shot" { Shot (Join-Path $dir $a) | Out-Null }
-                default { Write-Output "unknown step: $line" }
-            }
-        }
-        Write-Output "ran $Arg"
-    }
+    "run" { RunScript $Arg $Arg2 }
     "unlock" {
         if (Game) { Write-Output "the game is still running: use stop"; exit 1 }
         $out = @(Enable-DisabledWindows)
         if ($out) { $out } else { Write-Output "no disabled windows" }
     }
     "dialogs" { Dialogs | ForEach-Object { Write-Output "'$([W]::Text($_))'" } }
-    "stop" {
-        foreach ($d in @(Dialogs)) { [W]::SendMessage($d, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null }  # WM_CLOSE
-        Start-Sleep -Milliseconds 500
-        Game | ForEach-Object { $_.CloseMainWindow() | Out-Null }
-        for ($i = 0; $i -lt 10 -and (Game); $i++) {
-            foreach ($d in @(Dialogs)) { [W]::SendMessage($d, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null }
-            Start-Sleep -Milliseconds 500
-        }
-        if (Game) { Game | Stop-Process -Force; Write-Output "had to force-kill" } else { Write-Output "closed" }
-        Start-Sleep -Milliseconds 300
-        Enable-DisabledWindows
-    }
+    "stop" { StopGame }
     default { Write-Output "unknown command $Command"; exit 2 }
 }

@@ -121,7 +121,10 @@ void Science::roomConfig(int room) {
 void Science::addScore(long points) {
     // f06_0208: the game's score ([BD8], not below 0) more, sound 602B, shown
     // in the room's box (+F35).
+    // While [171C] is set (after a lesson, till a room's end clears it)
+    // neither the sound nor the box.
     totalScore_ = std::max(0L, totalScore_ + points);
+    if (quietScore_) return;
     sound(0x602B);
     score_ = totalScore_;
     viewDirty_ = true;
