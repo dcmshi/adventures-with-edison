@@ -59,10 +59,12 @@ scene objects and an event queue, floating point), so it goes in stages:
 - [ ] The arcade, next:
   - [x] Each room's pictures and builder settings; point targets (type 10) and the score.
   - [x] The panel's locked controls: OUT OF ORDER signs and Edison putting them up.
-  - Each room's own methods (method 8: holes that need every target hit, `f03_0014`; dialogs), the completion bonus (`+F7B`, `+F87`), kind 3 targets, suckholes (type 10 kind 6), the other object types, the table's standing boxes in the painter's order (type 1 drawables).
-  - Room 1's dialogs (EXIT's question, the passwords of levels 4 and 5: segment 24's), the high scores (502, segment 40; and the game over: `f40_068b`), the credits (503, `f38_0eb9`).
-  - Doors within a room (holes 0, 100-500) and spit modes 0 and 1; type 3's segment 5 part; other balls (`f08_0d3e`), the push (`+4C`); the keys (S and two digits: a room; P; s).
-  - Test tools (gitignored, `build/scratch/`): `regress.sh` (rest, sliders, aim and ball types, 8 aims, the shot, against the original's shots there), the otvdm scripts `room1_*.txt`, `cmp.py` (tolerant diff of view and panel by capture time), `trace.sh NAME "ms x y hold;..." [ms]` (the same presses in both, the original traced by `memwatch.py`, compared by `tracecmp.py`), `bestframe.py PORTDIR SHOT.png` (the port's capture nearest an original's screenshot: captures every 10 ms, as 20 can skip a tick).
+  - [ ] Segment 24's dialog boxes: needed by room 1's EXIT question and the passwords of levels 4 and 5, and by rooms whose holes need every target hit first (method 8, `f03_0014`). Start here.
+  - [ ] Each room's own methods (method 8's hole handlers and dialogs), the completion bonus (`+F7B`, `+F87`).
+  - [ ] Kind 3 targets, suckholes (type 10 kind 6), the other object types, the table's standing boxes in the painter's order (type 1 drawables).
+  - [ ] The high scores (502, segment 40; and the game over: `f40_068b`), the credits (503, `f38_0eb9`).
+  - [ ] Doors within a room (holes 0, 100-500) and spit modes 0 and 1; type 3's segment 5 part; other balls (`f08_0d3e`), the push (`+4C`); the keys (S and two digits: a room; P; s).
+  - Test tools: `tools/testing/` (see its README: `trace.sh`, `regress.sh`, `cmp.py`, `bestframe.py`, `dis.sh`, `roompics.py`, the `SCI_*` switches). They and `tools/reference/` need `EDISON_RUN` (the game's folder) and `OTVDM` (winevdm's `otvdmw.exe`, unless on the PATH); `tools/ghidra/decompile.sh` needs `GHIDRA`. Under load (ComfyUI on the GPU) timed captures skip ticks: use `SCI_TICKSHOTS`, and rerun a failed `regress.sh` check before believing it.
 - [ ] The arcade's menu table, the levels, high scores (`WSCIENCE.HS`), the lab, the credits.
 - [ ] Compare with the original under winevdm as each part lands (`memwatch.py` reads the original's state: use it on Mystery and Rock and Bach too, for oddities in their ports).
 
