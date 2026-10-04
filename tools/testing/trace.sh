@@ -6,7 +6,7 @@
 cd "$(dirname "$0")/../.."
 name=$1; events=$2; total=${3:-14000}
 out=build/scratch/tr_$name; rm -rf $out; mkdir -p $out
-W=D:/tools/edison-run/WMAINSKP.EXE
+W=${EDISON_RUN:?set EDISON_RUN to the folder with the game files}/WMAINSKP.EXE
 B="[[5ffc+ae]+f77]"
 EXPRS="cx=[$B]+2 cy=[$B]+4 cz=[$B]+6 vx=[$B+2]+62 vy=[$B+2]+64 vz=[$B+2]+66"
 
