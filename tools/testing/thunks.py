@@ -11,7 +11,14 @@ for r in e.relocations(seg):
     for s in r['sites']: site[s]=r['target']
 data=e.segment_bytes(seg)
 for o in offs:
-    # thunk: 8b dc 36 81/83 47 04 imm ea <off> <seg>
-    i=data.index(b'\xea',o)
+    # thunk: 8b dc 36 81/83 47 04 imm ea <off> <seg> (this += imm, then
+    # a far jump); the imm can itself be EAh, so decode by the opcode.
+    if data[o:o+3] == b'\x8b\xdc\x36' and data[o+3] in (0x81, 0x83):
+        n = 2 if data[o+3] == 0x81 else 1
+        adj = int.from_bytes(data[o+6:o+6+n], 'little', signed=True)
+        i = o + 6 + n
+    else:
+        adj = None; i = data.index(b'\xea', o)
     t=site.get(i+1)
-    print('%04x -> f%02d_%04x' % (o, t[0], t[1]) if t and isinstance(t[0],int) else (hex(o), t))
+    note = '' if adj is None else ' (this %+d)' % adj
+    print('%04x -> f%02d_%04x%s' % (o, t[0], t[1], note) if t and isinstance(t[0],int) else (hex(o), t))

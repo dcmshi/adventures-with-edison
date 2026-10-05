@@ -9,11 +9,15 @@ static data (its longer strings), so no addresses have to be known.
 
     memwatch.py find EXE
         print where DGROUP is (and the process)
-    memwatch.py peek EXE EXPR...
-        print each expression's value once
-    memwatch.py watch EXE [--every MS] [--for S] [--out FILE] EXPR...
+    memwatch.py peek EXE [--live] EXPR...
+        print each expression's value once (--live: from the copy whose
+        room ticks count, after the segment has moved)
+    memwatch.py watch EXE [--every MS] [--for S] [--out FILE] [--follow S] EXPR...
         poll and print a line (milliseconds since the start, then each
-        value) whenever a value changes
+        value) whenever a value changes; with --follow, look for the data
+        segment again when the room ticks ([FFE]) stop for that long (the
+        segment moves as the local heap grows: a watch across a change of
+        room needs it)
     memwatch.py dump EXE FILE
         save the whole of DGROUP (64 KB) to FILE
 
@@ -136,6 +140,47 @@ def dgroup_of(exe_path):
     return exe.segment_bytes(auto)
 
 
+def candidates(exe_path):
+    """Every block in an otvdmw process that holds this program's data
+    segment's static data: (changed bytes against the file, process, base)."""
+    data = dgroup_of(exe_path)
+    sigs = signatures(data)
+    if not sigs:
+        raise SystemExit("no signature in the data segment")
+    first_off, first = sigs[0]
+    found = []
+    for pid in find_processes():
+        proc = Process(pid)
+        for base, size in proc.regions():
+            if size > 64 << 20:
+                continue
+            chunk = proc.read(base, size)
+            if not chunk:
+                continue
+            at = chunk.find(first)
+            while at >= 0:
+                seg = base + at - first_off
+                if all(proc.read(seg + off, len(s)) == s for off, s in sigs[1:]):
+                    live = proc.read(seg, len(data)) or b""
+                    found.append((sum(1 for x, y in zip(live, data) if x != y), proc, seg))
+                at = chunk.find(first, at + 1)
+    return found
+
+
+def relocate(exe_path, ticks_at, wait=0.15):
+    """(process, base) of the copy whose word at DS:ticks_at changes (the
+    data segment is moveable: when the local heap grows the program's
+    DGROUP moves, and the old block can keep a stale copy); None if none
+    does within `wait` seconds."""
+    found = candidates(exe_path)
+    before = [p.read(b + ticks_at, 2) for _, p, b in found]
+    time.sleep(wait)
+    for (_, p, b), old in zip(found, before):
+        if p.read(b + ticks_at, 2) != old:
+            return p, b
+    return None
+
+
 def locate(exe_path):
     """(process, base): this program's live DGROUP in an otvdmw process. The
     executable's image is in memory too, with the same data: of the blocks
@@ -225,14 +270,27 @@ def main():
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("find"); p.add_argument("exe")
     p = sub.add_parser("peek"); p.add_argument("exe"); p.add_argument("expr", nargs="+")
+    p.add_argument("--live", action="store_true",
+                   help="read the copy whose room ticks ([FFE]) are counting (after the segment has moved)")
     p = sub.add_parser("dump"); p.add_argument("exe"); p.add_argument("file")
     p = sub.add_parser("watch"); p.add_argument("exe"); p.add_argument("expr", nargs="+")
     p.add_argument("--every", type=float, default=2.0, help="milliseconds between reads (default 2)")
     p.add_argument("--for", dest="seconds", type=float, default=10.0, help="seconds to watch (default 10)")
     p.add_argument("--out", help="also write the lines to this file")
+    p.add_argument("--follow", type=float, default=0.0,
+                   help="when the word at --ticks hasn't changed for this many seconds, look for the data segment "
+                        "again (it moves when the local heap grows, as a room is built); 0: never")
+    p.add_argument("--ticks", default="ffe", help="the word that changes while the program runs (hex; default ffe, "
+                                                  "WMAIN.EXE's room ticks)")
     args = ap.parse_args()
 
-    proc, base = locate(args.exe)
+    if getattr(args, "live", False):
+        found = relocate(args.exe, 0xFFE, 0.3)
+        if not found:
+            raise SystemExit("no copy of the data segment is counting room ticks")
+        proc, base = found
+    else:
+        proc, base = locate(args.exe)
     if args.cmd == "find":
         print(f"process {proc.pid}, DGROUP at {base:#x}")
         return
@@ -253,8 +311,22 @@ def main():
     start = time.perf_counter()
     last = None
     failed = 0
+    ticks_at = int(args.ticks, 16)
+    ticks, ticks_seen = None, start
     while time.perf_counter() - start < args.seconds:
         mem = proc.read(base, 0x10000)
+        if args.follow and mem and len(mem) >= 0x10000:
+            now = time.perf_counter()
+            t = mem[ticks_at:ticks_at + 2]
+            if t != ticks:
+                ticks, ticks_seen = t, now
+            elif now - ticks_seen > args.follow:
+                moved = relocate(args.exe, ticks_at)
+                ticks_seen = time.perf_counter()
+                if moved and moved[1] != base:
+                    proc, base = moved
+                    print(f"# DGROUP now at {base:#x}", file=sys.stderr)
+                continue
         if mem is None or len(mem) < 0x10000:
             # A read can fail now and then while the game runs; only a run
             # of failures (the game gone) ends the watch.

@@ -12,6 +12,15 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
   ball's remainders for `memwatch.py`: `[[[5ffc+ae]+f77]+2]+68` (`+6a`,
   `+6c`). `memwatch.py` finds the ball when it starts: start it after the
   room is up.
+- `EDISON_LOG` appends: remove the file before a run whose log is read.
+- `retrace.sh [NAME...]`: replays the shots checked before in the port
+  and compares them with the original's traces kept in `build/scratch`
+  (holes' spits, the lips, the magnets of rooms 3 and 13).
+- Tracing across a change of room: `memwatch.py watch --follow 0.3` (the
+  data segment moves as the room is built). Expressions are hex: a list
+  entry i is at `[[5ffc+ae]+18e]+` 2i in hex. The room's object list
+  (`+18E`, count `+190`) is in the order the objects were made: the ball,
+  its shadow and target, then the file's objects.
 - `trace.sh NAME "ms x y hold;..." [ms]`: the same presses (times from the
   room's start) in the port (`SCI_DEBUG` log) and in the original
   (`WMAINSKP.EXE`, traced by `memwatch.py`), then `tracecmp.py`.
@@ -24,7 +33,9 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
   an original screenshot (capture every 10 ms: 20 can skip a tick).
 - `dis.sh SEG OFF [LINES] [BITS]`, `fn.sh SEL_OFF...` (a function from
   Ghidra's `extracted/ghidra/wmain.c`), `thunks.py SEG OFF...` (where
-  method-table thunks jump): reading WMAIN.EXE.
+  method-table thunks jump, and what they add to `this`), `vtable.py OFF
+  [COUNT]` (a method table in the data segment, its far pointers):
+  reading WMAIN.EXE.
 - `roompics.py [--cpp | --config]`: every table room's pictures (its
   method 4) and its builder's settings, from Ghidra's output and a dump of
   the original's data segment (`--dump`, default `build/scratch/dg1.bin`).
@@ -40,6 +51,8 @@ lab, high scores, credits), for what follows without a measured shot; `SCI_DIALO
 framed boxes picture `1359` + k (the original picks one at random); `SCI_AIMSEARCH=to,power,x0,x1,y0,y1,step`
 plays every aim of the grid (screen points, power -1 the room's own) from
 the room as built, without drawing, and logs those whose ball a hole
-leading to room `to` takes ("aim x,y power p: hole to at tick t"): for
+leading to room `to` takes ("aim x,y power p: hole to at tick t"; a
+negative `to`: the first point target of kind -`to` hit; an eighth
+number sets the ball type): for
 bank shots to replay in the original (with `--click`s for a greeting
 first; it ends the game when done).

@@ -7,6 +7,7 @@
 // docs/SCIENCE.md.
 
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 
 #include "science/science.h"
@@ -52,7 +53,13 @@ int32_t Science::libLength(const int16_t v[3]) const {
 }
 
 void Science::libUnit(const int16_t v[3], int16_t out[3]) const {
-    const int in[3] = {v[0], v[1], v[2]};
+    // As segment 11 normalises (f11_01f2, f11_0651, f11_02f7, f11_043e): a
+    // vector whose parts are all within +-2 (and none 8000h) is doubled
+    // first, once (so (1, 0, 0) keeps its heading: f84_0000 takes the length
+    // across at half a unit), then f84_0000.
+    int in[3] = {v[0], v[1], v[2]};
+    if (v[0] != -0x8000 && v[1] != -0x8000 && v[2] != -0x8000 && iabs16(v[0]) <= 2 && iabs16(v[1]) <= 2 && iabs16(v[2]) <= 2)
+        for (int& c : in) c = w(c * 2);
     int o[3];
     libNormalize(in, o);
     for (int k = 0; k < 3; ++k) out[k] = w(o[k]);
@@ -181,16 +188,16 @@ void Science::acrossFace(const Face& f, const int16_t v[3], int16_t out[3]) cons
 
 // --- the ball ----------------------------------------------------------------------
 
-void Science::ballSetForce(const int16_t f[3]) {
+void Science::ballSetForce(Ball& b, const int16_t f[3]) {
     // f08_13a2: the kick (+46), each within +-7FFFh.
-    for (int k = 0; k < 3; ++k) ball_.kick[k] = w(std::clamp<int32_t>(f[k], -0x7FFF, 0x7FFF));
+    for (int k = 0; k < 3; ++k) b.kick[k] = w(std::clamp<int32_t>(f[k], -0x7FFF, 0x7FFF));
 }
 
-void Science::ballMove(const int16_t d[3]) {
+void Science::ballMove(Ball& b, const int16_t d[3]) {
     // f08_0aab → f07_04d5: the sphere's centre moved, its box after it.
-    ball_.cx = w(ball_.cx + d[0]);
-    ball_.cy = w(ball_.cy + d[1]);
-    ball_.cz = w(ball_.cz + d[2]);
+    b.cx = w(b.cx + d[0]);
+    b.cy = w(b.cy + d[1]);
+    b.cz = w(b.cz + d[2]);
     viewDirty_ = true;
 }
 
@@ -200,10 +207,11 @@ bool Science::ballDampsOthers() const {
     return !(r == 14 || r == 60 || r == 64 || r == 69 || r == 91);
 }
 
-void Science::ballBounce(const int16_t normal[3], bool always) {
+void Science::ballBounce(Ball& b, const int16_t normal[3], bool always) {
     // f08_1843 (the player's ball only): how hard it hit (along the
     // normal): too hard for its kind (+21) and it breaks (+7C); else, at
     // most every 2 timer ticks, a sound by its speed (6004, 6001, 6002).
+    if (&b != &ball_) return;
     const int16_t v[3] = {ball_.v[0], ball_.v[1], ball_.v[2]};
     const int16_t along = iabs16(libDot(normal, v));
     const int32_t level = static_cast<int32_t>(kTimerRate) * (along / 50) / kTimerK;
@@ -224,12 +232,23 @@ void Science::ballBounce(const int16_t normal[3], bool always) {
     else sound(0x6002);
 }
 
-void Science::ballStep() {
-    // f08_1a42: one tick of the ball. See docs/SCIENCE.md.
-    Ball& b = ball_;
+void Science::ballStep(Ball& b) {
+    // f08_1a42: one tick of a body (the ball, other balls, loose magnets).
+    // See docs/SCIENCE.md.
     if (b.state != 0) return;
-    // The acceleration (f08_125c): the kick and the push, gravity on z.
-    const int16_t accel[3] = {w(b.kick[0] + b.push[0]), w(b.kick[1] + b.push[1]), w(b.kick[2] + b.push[2] + gravity_)};
+    // The acceleration (f08_125c): the kick and the push, gravity on z;
+    // with a magnetic part (f05_0c0b, its core's +30), if its type is
+    // magnetic (the record's +11: Iron's 1), the field where it is
+    // (f26_02e2, every source but its own), backwards when its strength is
+    // below 0.
+    int16_t accel[3] = {w(b.kick[0] + b.push[0]), w(b.kick[1] + b.push[1]), w(b.kick[2] + b.push[2] + gravity_)};
+    if (b.magnetic && b.kind == 3) {
+        int16_t f[3];
+        const int at[3] = {b.cx, b.cy, b.cz};
+        fieldAt(at, &b, f);
+        if (b.strengthNum < 0) f[0] = w(-f[0]), f[1] = w(-f[1]), f[2] = w(-f[2]);
+        for (int k = 0; k < 3; ++k) accel[k] = w(accel[k] + f[k]);
+    }
     int16_t a0[3] = {accel[0], accel[1], accel[2]};
     const int16_t bottom[3] = {w(b.cx), w(b.cy), w(b.cz - b.r)};
     const Face face0 = faceUnder(bottom[0], bottom[1]);
@@ -298,43 +317,51 @@ void Science::ballStep() {
     int16_t P[3] = {w(bottom[0] + q[0]), w(bottom[1] + q[1]), w(bottom[2] + q[2])};
     // The room's other objects (its list +18E, those whose +34 / +38 isn't
     // 0): one the new centre is within 35 of on each axis and within the
-    // two radii of. A solid one (2 and up: other balls, not yet) bounces
-    // it (f08_0d3e) and ends the step; a soft one, a hole (1), takes it
-    // (its +34, f28_13fe: an idle hole swallows the player's ball,
-    // f28_14a5) and the ball's move, remainder and kick are cleared (the
-    // step goes on with its own copy of the move).
+    // two radii of, unless it's the last solid one met (+56). The player's
+    // ball at full power ([234C] 16) looks at five points along its move,
+    // a fifth of it (each axis cut) further each time. A solid one (2 and
+    // up) becomes the last met: the first time (+54 clear) its hit
+    // (f08_1843, the velocity backwards for the normal), then both bounce
+    // (f08_0d3e), +54 set. Either way both are told (their +34, the body's
+    // first: holes, targets and switches act on what met them) and the
+    // body's move, remainder and kick are cleared (the step goes on with
+    // its own copy of the move); a solid one ends the step.
+    const bool player = &b == &ball_;
+    const int points = player && panel_.power == 16 ? 5 : 1;
     if (!b.hidden)
-        for (Object& o : table_.objects) {
-            int s[4];
-            if (o.type == 8) {
-                // (While the ball leaves it, the hole's +34 is 0: out of
-                // the list's reach, f28_0671.)
-                if (o.leaving) continue;
-                holeSphere(o, s);
-            } else if (o.type == 10 && o.live) {
-                // A point target's sphere: its box's centre a unit lower,
-                // radius 13 (f03_002c's f07_1082).
-                const int g = heightUnder(o.x, o.y);
-                s[0] = o.x + 13, s[1] = o.y + 13, s[2] = g + 12, s[3] = 13;
-            } else continue;
-            const int dx = s[0] - (b.cx + q[0]), dy = s[1] - (b.cy + q[1]), dz = s[2] - (b.cz + q[2]);
-            if (dx >= 35 || dx <= -35 || dy >= 35 || dy <= -35 || dz >= 35 || dz <= -35) continue;
-            const int64_t rr = static_cast<int64_t>(b.r + s[3]) * (b.r + s[3]);
-            if (static_cast<int64_t>(dx) * dx + static_cast<int64_t>(dy) * dy + static_cast<int64_t>(dz) * dz > rr) continue;
-            if (o.type == 10) {
-                pointHit(o);
-            } else if (!o.swallow && !o.leaving && !o.spit && !o.closed) {
-                // f28_14a5: the ball stopped (f07_0ead → f08_0721) and
-                // hidden with its shadow (f07_03be); the room busy (+F6F).
-                for (int k = 0; k < 3; ++k) b.v[k] = 0, b.kick[k] = 0, b.push[k] = 0;
-                b.kickTicks = 0;
-                b.hidden = true, shadowShown_ = false;
-                o.swallow = 1, o.spit = 0, o.swallowDone = false;
-                if (std::getenv("SCI_DEBUG")) logLine("hole " + std::to_string(o.args[0]) + " takes the ball at t" + std::to_string(timerTicks_));
-                roomBusy_ = true;
-                viewDirty_ = true;
+        for (int k = 0; k < points; ++k) {
+            int c[3];
+            for (int i = 0; i < 3; ++i) {
+                const int centre = i == 0 ? b.cx : i == 1 ? b.cy : b.cz;
+                c[i] = points == 5 ? w(centre + (k + 1) * w(q[i] / 5)) : w(centre + q[i]);
             }
-            for (int k = 0; k < 3; ++k) b.disp[k] = 0, b.rem[k] = 0, b.kick[k] = 0;
+            for (size_t i = 0; i < table_.objects.size(); ++i) {
+                if (static_cast<int>(i) == b.self) continue;
+                Object& o = table_.objects[i];
+                Contact t;
+                if (!contactOf(o, t) || t.ratio == 0) continue;
+                const int dx = t.s[0] - c[0], dy = t.s[1] - c[1], dz = t.s[2] - c[2];
+                if (dx >= 35 || dx <= -35 || dy >= 35 || dy <= -35 || dz >= 35 || dz <= -35) continue;
+                const int64_t rr = static_cast<int64_t>(w(b.r + t.s[3])) * w(b.r + t.s[3]);
+                if (static_cast<int64_t>(dx) * dx + static_cast<int64_t>(dy) * dy + static_cast<int64_t>(dz) * dz > rr) continue;
+                if (b.lastHit == static_cast<int>(i) + 1) continue;
+                const bool solid = t.ratio >= 2;
+                if (solid) {
+                    b.lastHit = static_cast<int>(i) + 1;
+                    if (b.hitFlag == 0) {
+                        const int16_t back[3] = {w(-b.v[0]), w(-b.v[1]), w(-b.v[2])};
+                        ballBounce(b, back, true);
+                    }
+                    ballCollide(b, t);
+                    b.hitFlag = 1;
+                }
+                contactMet(o, b);
+                for (int j = 0; j < 3; ++j) b.disp[j] = 0, b.rem[j] = 0, b.kick[j] = 0;
+                if (solid) {
+                    if (stepDepth_) --stepDepth_;
+                    return;
+                }
+            }
         }
     if (!q[0] && !q[1] && !q[2]) {
         if (stepDepth_) --stepDepth_;
@@ -348,7 +375,7 @@ void Science::ballStep() {
     // crack), else the ceiling (279).
     const int16_t wx[3] = {100, 0, 0}, wy[3] = {0, 100, 0}, wyb[3] = {0, -100, 0}, wz[3] = {0, 0, -100};
     if (P[0] < 0 || P[0] >= worldW_) {
-        if (iabs16(b.v[0]) > 50) ballBounce(wx, true);
+        if (iabs16(b.v[0]) > 50) ballBounce(b, wx, true);
         P[0] = P[0] < 0 ? 0 : w(worldW_ - 1);
         b.v[0] = flipScale(b.v[0]), b.v[1] = scale(b.v[1]), b.v[2] = scale(b.v[2]);
         b.rem[0] = 0;
@@ -358,18 +385,18 @@ void Science::ballStep() {
             const int16_t v[3] = {b.v[0], b.v[1], b.v[2]};
             const int32_t hit = static_cast<int32_t>(iabs16(libDot(wy, v)) / 50) * kTimerRate / kTimerK;
             if (hit >= 16) crackGlass();
-            ballBounce(wy, true);
+            ballBounce(b, wy, true);
         }
         P[1] = 0;
         b.v[1] = flipScale(b.v[1]), b.v[0] = scale(b.v[0]), b.v[2] = scale(b.v[2]);
         b.rem[1] = 0;
     } else if (P[1] >= worldD_) {
-        if (iabs16(b.v[1]) > 50) ballBounce(wyb, true);
+        if (iabs16(b.v[1]) > 50) ballBounce(b, wyb, true);
         P[1] = w(worldD_ - 1);
         b.v[1] = flipScale(b.v[1]), b.v[0] = scale(b.v[0]), b.v[2] = scale(b.v[2]);
         b.rem[1] = 0;
     } else if (P[2] >= 0x118) {
-        if (iabs16(b.v[2]) > 50) ballBounce(wz, true);
+        if (iabs16(b.v[2]) > 50) ballBounce(b, wz, true);
         P[2] = 0x117;
         b.v[2] = flipScale(b.v[2]), b.v[0] = scale(b.v[0]), b.v[1] = scale(b.v[1]);
         b.rem[2] = 0;
@@ -388,7 +415,7 @@ void Science::ballStep() {
             if (g2 > centreZ) {
                 if (iabs16(b.v[1]) > 50) {
                     const int16_t nrm[3] = {0, w(b.v[1] < 0 ? 100 : -100), 0};
-                    ballBounce(nrm, true);
+                    ballBounce(b, nrm, true);
                 }
                 v[1] = flipScale(v[1]);
                 if (ballDampsOthers()) v[0] = scale(v[0]), v[2] = scale(v[2]);
@@ -396,7 +423,7 @@ void Science::ballStep() {
             } else {
                 if (iabs16(b.v[0]) > 50) {
                     const int16_t nrm[3] = {w(b.v[0] < 0 ? 100 : -100), 0, 0};
-                    ballBounce(nrm, true);
+                    ballBounce(b, nrm, true);
                 }
                 v[0] = flipScale(v[0]);
                 if (ballDampsOthers()) v[1] = scale(v[1]), v[2] = scale(v[2]);
@@ -404,7 +431,7 @@ void Science::ballStep() {
             }
             for (int k = 0; k < 3; ++k) b.v[k] = v[k], b.disp[k] = 0;
             ++stepDepth_;
-            if (stepDepth_ < 2) ballStep();
+            if (stepDepth_ < 2) ballStep(b);
             else --stepDepth_;
             if (stepDepth_) --stepDepth_;
             return;
@@ -422,21 +449,85 @@ void Science::ballStep() {
             const int16_t v[3] = {b.v[0], b.v[1], b.v[2]};
             int16_t n[3];
             acrossFace(faceUnder(P[0], P[1]), v, n);
-            if (iabs16(b.v[2]) > 50) ballBounce(n, true);
+            if (iabs16(b.v[2]) > 50) ballBounce(b, n, true);
             int16_t t[3], out[3];
             for (int k = 0; k < 3; ++k) t[k] = w(v[k] - n[k]), n[k] = w(-n[k]);
             for (int k = 0; k < 3; ++k) out[k] = w(w(static_cast<int32_t>(num) * n[k] / den) + t[k]);
             for (int k = 0; k < 3; ++k) b.v[k] = out[k], b.rem[k] = 0, b.disp[k] = 0;
             const int16_t delta[3] = {w(P[0] - bottom[0]), w(P[1] - bottom[1]), w(P[2] - bottom[2])};
-            ballMove(delta);
+            ballMove(b, delta);
             // (The room's method +24, told of the face: nothing in the base room.)
             if (stepDepth_) --stepDepth_;
             return;
         }
     }
     const int16_t delta[3] = {w(P[0] - bottom[0]), w(P[1] - bottom[1]), w(P[2] - bottom[2])};
-    ballMove(delta);
+    ballMove(b, delta);
     if (stepDepth_) --stepDepth_;
+}
+
+namespace {
+
+// f08_0b39: the velocities along the line of the centres after two masses
+// meet, momentum and energy kept: in the 8087's 80 bits, each stored value
+// a 32-bit float (the run time's pow(x, 2) a product, sqrt fsqrt, ftol a
+// cut).
+void massesMeet(int16_t mA, int16_t mB, int32_t uA, int32_t uB, int32_t& outA, int32_t& outB) {
+    if (uA == 0 && uB == 0) {
+        outA = outB = 0;
+        return;
+    }
+    int16_t m = static_cast<int16_t>(mA + mB);
+    if (m == 0) m = 1;
+    if (mA == 0) mA = 1;
+    if (mB == 0) mB = 1;
+    const int32_t pa = static_cast<int32_t>(static_cast<uint32_t>(mA) * static_cast<uint32_t>(uA));
+    const int32_t pb = static_cast<int32_t>(static_cast<uint32_t>(mB) * static_cast<uint32_t>(uB));
+    const float p = static_cast<float>(static_cast<int32_t>(static_cast<uint32_t>(pa) + static_cast<uint32_t>(pb)));
+    const float e = static_cast<float>(static_cast<long double>(pa) * uA + static_cast<long double>(pb) * uB);
+    const float p2 = static_cast<float>(static_cast<long double>(p) * p);
+    const long double t = static_cast<long double>(m) * (static_cast<long double>(p2) - static_cast<long double>(mB) * e);
+    float d = static_cast<float>((static_cast<long double>(mA) * p2 - t) / mA);
+    if (0 > d) d = -d;
+    d = static_cast<float>(std::sqrt(static_cast<long double>(d)));
+    const float va = uA < 0 ? static_cast<float>((static_cast<long double>(p) + d) / m) : static_cast<float>((static_cast<long double>(p) - d) / m);
+    outA = static_cast<int32_t>(va);
+    outB = static_cast<int32_t>((static_cast<long double>(p) - static_cast<long double>(mA) * va) / mB);
+}
+
+}  // namespace
+
+void Science::ballCollide(Ball& a, Contact& c) {
+    // f08_0d3e: the line of the centres (20 times their difference); each
+    // velocity's part along it (f11_0651, f11_02f7) and the rest; the parts
+    // after the masses meet (f08_0b39, axis by axis), the rest added back,
+    // within +-7FFFh; neither on the ground (+5E); both told their new
+    // velocity (their +2C: ignored by what doesn't move).
+    const int16_t ma = static_cast<int16_t>(&a == &ball_ ? ballKinds_[a.kind].mass : a.mass), mb = static_cast<int16_t>(c.ratio);
+    int16_t n[3] = {w((a.cx - c.s[0]) * 20), w((a.cy - c.s[1]) * 20), w((a.cz - c.s[2]) * 20)};
+    if (libLength(n) == 0) return;
+    const int16_t va[3] = {a.v[0], a.v[1], a.v[2]};
+    const int16_t zero[3] = {0, 0, 0};
+    const int16_t* vbp = c.body ? c.body->v : zero;
+    const int16_t vb[3] = {vbp[0], vbp[1], vbp[2]};
+    int16_t pa[3] = {n[0], n[1], n[2]}, pb[3] = {n[0], n[1], n[2]};
+    libScaleTo(pa, libDot(n, va));
+    libScaleTo(pb, libDot(n, vb));
+    const int16_t ta[3] = {w(va[0] - pa[0]), w(va[1] - pa[1]), w(va[2] - pa[2])};
+    const int16_t tb[3] = {w(vb[0] - pb[0]), w(vb[1] - pb[1]), w(vb[2] - pb[2])};
+    int32_t oa[3], ob[3];
+    for (int k = 0; k < 3; ++k) massesMeet(ma, mb, pa[k], pb[k], oa[k], ob[k]);
+    for (int k = 0; k < 3; ++k) {
+        oa[k] = std::clamp<int32_t>(oa[k] + ta[k], -0x7FFF, 0x7FFF);
+        ob[k] = std::clamp<int32_t>(ob[k] + tb[k], -0x7FFF, 0x7FFF);
+    }
+    a.onGround = false;
+    for (int k = 0; k < 3; ++k) a.v[k] = w(oa[k]);
+    if (c.body) {
+        c.body->onGround = false;
+        if (c.movable)
+            for (int k = 0; k < 3; ++k) c.body->v[k] = w(ob[k]);
+    }
 }
 
 void Science::ballTick() {
@@ -444,7 +535,7 @@ void Science::ballTick() {
     // r * r / 16 * [DFA] / [DFE] of squared move across), the kick's last
     // tick.
     Ball& b = ball_;
-    ballStep();
+    ballStep(b);
     if (b.state != 0) {
         // Breaking (+7C), on the room's even ticks ([FFE]): first its sound
         // (6019 glass, else 601A; 6028 with +28 set, not ported), then 13
@@ -479,7 +570,7 @@ void Science::ballTick() {
     }
     if (b.kickTicks != 0 && --b.kickTicks == 0) {
         const int16_t zero[3] = {0, 0, 0};
-        ballSetForce(zero);
+        ballSetForce(b, zero);
     }
 }
 
@@ -489,13 +580,13 @@ void Science::ballLaunch(int tx, int ty, int tz) {
     Ball& b = ball_;
     if (b.kickTicks != 0) {
         const int16_t zero[3] = {0, 0, 0};
-        ballSetForce(zero);
+        ballSetForce(b, zero);
     }
     int16_t dir[3] = {w(tx - b.cx), w(ty - b.cy), w(tz - (b.cz - b.r))};
     libScaleTo(dir, power_);
     dir[2] = w(dir[2] + static_cast<int32_t>(kTimerK) * 9000 / (ballKinds_[b.kind].mass * kTimerRate));
     b.kickTicks = power_ >= kMaxPower ? 2 : 1;
-    ballSetForce(dir);
+    ballSetForce(b, dir);
 }
 
 }  // namespace edison

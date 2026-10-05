@@ -52,6 +52,9 @@ protected:
     // bitmap stretched onto it, its rows over the polygon's rows and each
     // row over that row's span (16.16 steps).
     void fillPolygonStretched(const std::vector<std::pair<int, int>>& points, uint16_t bitmap);
+    // draw_poly as the same build has it (f63_1fbf → f81_0280): the same
+    // cut and spans, filled with one colour.
+    void fillPolygonSolid(const std::vector<std::pair<int, int>>& points, uint8_t colour);
     // The library's polygon clip (Wild Science's f83_0000): the polygons
     // only fill inside it. The whole screen by default.
     void setPolygonClip(int x, int y, int w, int h) { clip_ = {x, y, x + w - 1, y + h - 1}; }
@@ -83,6 +86,10 @@ protected:
     const Font* font_ = nullptr;
 
 private:
+    // WMAIN.EXE's library: the polygon cut to the clip (f83_0065) and each
+    // row's span along its edges (f81_0000), from row `top`; false if
+    // nothing's left.
+    bool librarySpans(const std::vector<std::pair<int, int>>& points, int& top, std::vector<std::pair<int, int>>& span) const;
     // Calls plot(x, y) for each pixel of the polygon's inside, on screen.
     template <class Plot>
     void scanPolygon(const std::vector<std::pair<int, int>>& points, Plot plot);

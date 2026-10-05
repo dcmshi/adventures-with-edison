@@ -80,12 +80,16 @@ void Science::aimSearch(const char* spec) {
     // at the given power (-1: the room's own): the shot played tick by tick without drawing till
     // a hole takes the ball (or 750 ticks); the aims that reach the hole
     // leading to room `to` are logged ("aim x,y power p: hole to at tick t"),
-    // for a shot to replay in the original. Then the game ends.)
-    int to = 0, power = 5, x0 = 0, x1 = 0, y0 = 0, y1 = 0, step = 1;
-    if (std::sscanf(spec, "%d,%d,%d,%d,%d,%d,%d", &to, &power, &x0, &x1, &y0, &y1, &step) < 6 || step < 1) {
-        logLine("SCI_AIMSEARCH: to,power,x0,x1,y0,y1[,step]");
+    // for a shot to replay in the original; a negative `to`, the first
+    // point target of kind -to hit (-100: the ball near a magnet). An
+    // eighth number, the ball type. Then
+    // the game ends.)
+    int to = 0, power = 5, x0 = 0, x1 = 0, y0 = 0, y1 = 0, step = 1, type = -1;
+    if (std::sscanf(spec, "%d,%d,%d,%d,%d,%d,%d,%d", &to, &power, &x0, &x1, &y0, &y1, &step, &type) < 6 || step < 1) {
+        logLine("SCI_AIMSEARCH: to,power,x0,x1,y0,y1[,step[,ball type]]");
         return;
     }
+    if (type >= 0) panel_.ballType = type, ball_.kind = type;
     const Ball ball = ball_;
     const std::vector<Object> objects = table_.objects;
     const PanelState panel = panel_;
@@ -109,6 +113,32 @@ void Science::aimSearch(const char* spec) {
                 const Object* taken = nullptr;
                 for (const Object& o : table_.objects)
                     if (o.type == 8 && o.swallow) taken = &o;
+                if (to == -100) {
+                    // (The ball within 60 of a magnet's centre instead.)
+                    bool near = false;
+                    for (const Object& o : table_.objects)
+                        if (o.type == 4 || o.type == 5 || o.type == 6 || o.type == 15) {
+                            const int dx = o.body.cx - ball_.cx, dy = o.body.cy - ball_.cy, dz = o.body.cz - ball_.cz;
+                            near |= dx * dx + dy * dy + dz * dz < 60 * 60;
+                        }
+                    if (near) {
+                        logLine("aim " + std::to_string(x) + "," + std::to_string(y) + " power " + std::to_string(panel_.power) + ": near a magnet at tick " +
+                                std::to_string(t));
+                        ++found;
+                        break;
+                    }
+                } else if (to < 0) {
+                    // (A point target of kind -to hit instead.)
+                    bool hit = false;
+                    for (const Object& o : table_.objects)
+                        if (o.type == 10 && o.kind == -to && o.hit) hit = true;
+                    if (hit) {
+                        logLine("aim " + std::to_string(x) + "," + std::to_string(y) + " power " + std::to_string(panel_.power) + ": kind " +
+                                std::to_string(-to) + " at tick " + std::to_string(t));
+                        ++found;
+                        break;
+                    }
+                }
                 if (taken) {
                     if (taken->args[0] == to) {
                         logLine("aim " + std::to_string(x) + "," + std::to_string(y) + " power " + std::to_string(panel_.power) + ": hole " +
@@ -158,6 +188,10 @@ void Science::mouseEvent(const Mouse& m) {
         return;
     }
     if (inside(table_.view, m.x, m.y)) {
+        // f27_2d15: the objects first (the room's list, +18E, from its
+        // start), then aiming.
+        for (Object& o : table_.objects)
+            if (thingClick(o, m)) return;
         aim(m);
         return;
     }
@@ -295,6 +329,7 @@ void Science::shoot() {
         if (shotHeld_) return;
     }
     const int z = heightUnder(targetX_, targetY_) + (targetMoved_ ? 1 : 0);
+    if (std::getenv("SCI_DEBUG")) logLine("shoot at " + std::to_string(targetX_) + "," + std::to_string(targetY_) + "," + std::to_string(z) + " power " + std::to_string(power_) + " type " + std::to_string(ball_.kind) + " from " + std::to_string(ball_.cx) + "," + std::to_string(ball_.cy) + "," + std::to_string(ball_.cz));
     ballLaunch(targetX_, targetY_, z);
     sound(0x6003);
     ++shots_;
@@ -470,6 +505,7 @@ void Science::tickRoom() {
         Object& o = table_.objects[i];
         if (o.type == 8) holeTick(o);
         else if (o.type == 10 && o.args[2] != 6) pointTick(o);
+        else if (o.type == 7 || o.type == 4) thingTick(o);
         else if ((o.type == 1 || o.type == 3) && hasBall_) {
             targetTick();
             shadowTick();
@@ -489,6 +525,22 @@ void Science::tickRoom() {
                 std::to_string(b.drawFrame >> 1) + " c " + std::to_string(b.cx) + "," + std::to_string(b.cy) + "," + std::to_string(b.cz) +
                 " v " + std::to_string(b.v[0]) + "," + std::to_string(b.v[1]) + "," + std::to_string(b.v[2]) +
                 " r " + std::to_string(b.rem[0]) + "," + std::to_string(b.rem[1]) + "," + std::to_string(b.rem[2]));
+    }
+    if (std::getenv("SCI_DEBUG")) {
+        // (Testing: the loose magnets with the ball, for tracecmp.py: the
+        // ball's centre and velocity, then each magnet's box corner and
+        // velocity, as the original's cores have them, +6E and +62.)
+        std::string line;
+        for (const Object& o : table_.objects)
+            if (o.type == 4) {
+                int b[6];
+                thingBox(o, b);
+                line += " " + std::to_string(b[0]) + "," + std::to_string(b[1]) + "," + std::to_string(b[2]) + "," + std::to_string(o.body.v[0]) +
+                        "," + std::to_string(o.body.v[1]) + "," + std::to_string(o.body.v[2]);
+            }
+        if (!line.empty() && hasBall_)
+            logLine("bodies t" + std::to_string(timerTicks_) + " " + std::to_string(ball_.cx) + "," + std::to_string(ball_.cy) + "," + std::to_string(ball_.cz) + "," +
+                    std::to_string(ball_.v[0]) + "," + std::to_string(ball_.v[1]) + "," + std::to_string(ball_.v[2]) + line);
     }
     for (int c = 0; c < 2; ++c) {
         Column& col = columns_[c];

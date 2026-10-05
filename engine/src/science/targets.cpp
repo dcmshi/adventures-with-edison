@@ -131,25 +131,58 @@ void Science::addScore(long points) {
 }
 
 void Science::pointHit(Object& o) {
-    // f03_0593 (not kind 3): live, with points and not yet hit, by the
-    // player's ball: hit; one target more down ([308]); no longer met (+34
-    // 0); its box 8 bigger each way; its kind's hit frames (f03_01bf: from
-    // DS:2CC, the first and how many); sound 601A.
+    // f03_0593. Kind 3 (the lips), whatever it's done before: hit, its box
+    // 8 bigger each way; the player's ball, if Ice (its type's first byte
+    // 0), caught (+10 0: put out of the way at 0, 0, f08_056e; stopped,
+    // f07_0ead; hidden, f07_03be), else broken (+7C); its hit frames
+    // (f03_01bf); sound 6019 (Glass) or 601A unless caught.
+    const int first = static_cast<int16_t>(data_[kHitAnims + 4 * o.kind] | data_[kHitAnims + 4 * o.kind + 1] << 8);
+    const int count = static_cast<int16_t>(data_[kHitAnims + 4 * o.kind + 2] | data_[kHitAnims + 4 * o.kind + 3] << 8);
+    auto hitFrames = [&](int sequence, int frames) {
+        if (o.sequence != sequence) viewDirty_ = true;
+        o.sequence = sequence, o.frames = frames, o.frame = -1;
+    };
     if (o.kind == 3) {
-        logLine("Wild Science Arcade: a kind 3 point target isn't ported");
+        o.hit = 1;
+        o.grow += 8;
+        bool caught = false;
+        if (ball_.kind == 0) {
+            o.grip = 0, caught = true;
+            ballHold();
+        } else {
+            ball_.state = 1;
+        }
+        if (std::getenv("SCI_DEBUG")) logLine("lips at " + std::to_string(o.x) + "," + std::to_string(o.y) + (caught ? " catch" : " break") + " at t" + std::to_string(timerTicks_));
+        hitFrames(kKinds + 0x18 * o.kind + 2 * first, count);
+        if (!caught) sound(ball_.kind == 4 ? 0x6019 : 0x601A);
+        viewDirty_ = true;
         return;
     }
+    // The others: live, with points and not yet hit, by the player's ball:
+    // hit; one target more down ([308]); no longer met (+34 0); its box 8
+    // bigger each way; its kind's hit frames (from DS:2CC, the first and
+    // how many); sound 601A.
     if (o.points == 0 || o.hit != 0) return;
     o.hit = 1;
     ++targetsHit_;
     if (std::getenv("SCI_DEBUG")) logLine("target at " + std::to_string(o.x) + "," + std::to_string(o.y) + " hit at t" + std::to_string(timerTicks_));
     o.live = false;
-    const int first = static_cast<int16_t>(data_[kHitAnims + 4 * o.kind] | data_[kHitAnims + 4 * o.kind + 1] << 8);
-    const int count = static_cast<int16_t>(data_[kHitAnims + 4 * o.kind + 2] | data_[kHitAnims + 4 * o.kind + 3] << 8);
-    o.sequence = kKinds + 0x18 * o.kind + 2 * first;
-    o.frames = count;
-    o.frame = -1;
+    o.grow = 8;
+    hitFrames(kKinds + 0x18 * o.kind + 2 * first, count);
     sound(0x601A);
+    viewDirty_ = true;
+}
+
+void Science::ballHold() {
+    // The lips' hold (f03_0593, f03_0207): the ball put on the ground at 0,
+    // 0 (f08_056e: sound 6026 if that's far), stopped (f07_0ead) and
+    // hidden (f07_03be).
+    Ball& b = ball_;
+    if (b.cx * b.cx + b.cy * b.cy > 15 * 15) sound(0x6026);
+    b.cx = 0, b.cy = 0, b.cz = heightUnder(0, 0) + b.r;
+    for (int k = 0; k < 3; ++k) b.v[k] = 0, b.rem[k] = 0, b.disp[k] = 0, b.kick[k] = 0, b.push[k] = 0;
+    b.kickTicks = 0;
+    b.hidden = true, shadowShown_ = false;
     viewDirty_ = true;
 }
 
@@ -164,10 +197,16 @@ void Science::pointTick(Object& o) {
             if (++o.frame >= o.frames) o.frame = 0;
         } else {
             const int length = static_cast<int16_t>(data_[kHitAnims + 4 * o.kind + 2] | data_[kHitAnims + 4 * o.kind + 3] << 8);
-            if (++o.hit > length + 1) {
-                if (shotBonus_) o.points = static_cast<int>(static_cast<long>(o.points) * targetBonus_[std::min(shots_, 5)] / 0x80);
-                addScore(o.points / 100 * 100);
-                o.scored = 1;
+            // Kind 3 holding the ball keeps it out of the way.
+            if (o.grip == 0) ballHold();
+            if (++o.hit > (o.grip == 1 ? 3 : length + 1)) {
+                if (o.kind == 3) {
+                    lipsTurn(o);
+                } else {
+                    if (shotBonus_) o.points = static_cast<int>(static_cast<long>(o.points) * targetBonus_[std::min(shots_, 5)] / 0x80);
+                    addScore(o.points / 100 * 100);
+                    o.scored = 1;
+                }
             }
             if (++o.frame >= o.frames) o.frame = o.frames - 1;
         }
@@ -177,6 +216,40 @@ void Science::pointTick(Object& o) {
             return;
         }
     }
+    viewDirty_ = true;
+}
+
+void Science::lipsTurn(Object& o) {
+    // f03_0207, kind 3 when its frames are done: holding the ball, it
+    // spits (DS:15C4, four frames: +10 1); spitting, the ball comes out
+    // 34 in front of its sphere's centre, on the ground (f08_056e), shown
+    // (f07_03fb) and shot 20 further forward at the centre's height
+    // (f27_27a3; +10 -1); then (and after a ball it broke) idle again:
+    // soft, its box back, its idle frames.
+    if (o.grip == 0) {
+        if (o.sequence != 0x15C4) viewDirty_ = true;
+        o.sequence = 0x15C4, o.frames = 4, o.frame = -1;
+        o.hit = 1, o.grip = 1;
+        return;
+    }
+    if (o.grip == 1) {
+        // Its sphere (f03_002c's f07_1082): the box's centre a unit lower.
+        const int cx = o.x + 13, cy = o.y + 13, cz = heightUnder(o.x, o.y) + 12;
+        Ball& b = ball_;
+        const int x = cx, y = cy - 0x22;
+        const int dx = b.cx - x, dy = b.cy - y;
+        if (dx * dx + dy * dy > 15 * 15) sound(0x6026);
+        b.cx = x, b.cy = y, b.cz = heightUnder(x, y) + b.r;
+        b.hidden = false;
+        lastCentre_[0] = shadowSeen_[0] = b.cx, lastCentre_[1] = shadowSeen_[1] = b.cy, lastCentre_[2] = shadowSeen_[2] = b.cz;
+        if (std::getenv("SCI_DEBUG")) logLine("lips throw from " + std::to_string(b.cx) + "," + std::to_string(b.cy) + "," + std::to_string(b.cz) + " at " + std::to_string(x) + "," + std::to_string(y - 0x14) + "," + std::to_string(cz));
+        ballLaunch(x, y - 0x14, cz);
+        o.grip = -1;
+    }
+    o.hit = 0, o.sequence = 0;
+    o.frames = static_cast<int16_t>(data_[kKinds + 0x18 * o.kind] | data_[kKinds + 0x18 * o.kind + 1] << 8);
+    o.frame = 0;
+    o.grow -= 8;
     viewDirty_ = true;
 }
 

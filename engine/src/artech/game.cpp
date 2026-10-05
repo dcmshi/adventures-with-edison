@@ -48,10 +48,11 @@ void ArtechGame::fillPolygonWith(const std::vector<std::pair<int, int>>& pts, ui
     });
 }
 
-void ArtechGame::fillPolygonStretched(const std::vector<std::pair<int, int>>& pts, uint16_t bitmap) {
-    const Bitmap& bmp = ctx_.bitmap(bitmap);
-    if (bmp.width <= 0 || bmp.height <= 0 || current_ == 1 || pts.size() < 3) return;
-    // f83_0065: cut to the clip, an edge of it at a time.
+bool ArtechGame::librarySpans(const std::vector<std::pair<int, int>>& pts, int& top, std::vector<std::pair<int, int>>& span) const {
+    // WMAIN.EXE's library polygon (f81_0280 / f63_20e4): cut to the clip,
+    // an edge of it at a time (f83_0065); then each row's leftmost and
+    // rightmost x along the edges (f81_0000).
+    if (pts.size() < 3) return false;
     std::vector<std::pair<int, int>> poly(pts);
     auto cut = [&](auto in, auto at) {
         std::vector<std::pair<int, int>> out;
@@ -76,12 +77,12 @@ void ArtechGame::fillPolygonStretched(const std::vector<std::pair<int, int>>& pt
     if (!poly.empty()) cut([&](auto p) { return p.first <= clip_.x1; }, atX(clip_.x1));
     if (!poly.empty()) cut([&](auto p) { return p.second >= clip_.y0; }, atY(clip_.y0));
     if (!poly.empty()) cut([&](auto p) { return p.second <= clip_.y1; }, atY(clip_.y1));
-    if (poly.size() < 3) return;
-    // f81_0000: each row's leftmost and rightmost x along the edges.
-    int top = poly[0].second, bottom = top;
+    if (poly.size() < 3) return false;
+    top = poly[0].second;
+    int bottom = top;
     for (auto [x, y] : poly) top = std::min(top, y), bottom = std::max(bottom, y);
     const int rows = bottom - top + 1;
-    std::vector<std::pair<int, int>> span(static_cast<size_t>(rows), {0x7FFF, 0});
+    span.assign(static_cast<size_t>(rows), {0x7FFF, 0});
     auto widen = [&](int y, int x0, int x1) {
         auto& s = span[static_cast<size_t>(y - top)];
         s.first = std::min(s.first, x0), s.second = std::max(s.second, x1);
@@ -121,6 +122,31 @@ void ArtechGame::fillPolygonStretched(const std::vector<std::pair<int, int>>& pt
             widen(y, lo.first, x);
         }
     }
+    return true;
+}
+
+void ArtechGame::fillPolygonSolid(const std::vector<std::pair<int, int>>& pts, uint8_t colour) {
+    // draw_poly as WMAIN.EXE's library has it (f63_1fbf → f81_0280): the
+    // spans above, each filled with the colour.
+    int top = 0;
+    std::vector<std::pair<int, int>> span;
+    if (current_ == 1 || !librarySpans(pts, top, span)) return;
+    Screen& s = ctx_.screens[current_];
+    for (size_t r = 0; r < span.size(); ++r) {
+        const auto [left, right] = span[r];
+        const int y = top + static_cast<int>(r);
+        if (left > right || y < 0 || y >= Screen::kHeight) continue;
+        for (int x = std::max(left, 0); x <= std::min(right, Screen::kWidth - 1); ++x) s.pixels[static_cast<size_t>(y) * Screen::kWidth + x] = colour;
+    }
+}
+
+void ArtechGame::fillPolygonStretched(const std::vector<std::pair<int, int>>& pts, uint16_t bitmap) {
+    const Bitmap& bmp = ctx_.bitmap(bitmap);
+    if (bmp.width <= 0 || bmp.height <= 0 || current_ == 1) return;
+    int top = 0;
+    std::vector<std::pair<int, int>> span;
+    if (!librarySpans(pts, top, span)) return;
+    const int rows = static_cast<int>(span.size());
     // f82_02f0: the stretch.
     Screen& s = ctx_.screens[current_];
     const uint32_t rowStep = (static_cast<uint32_t>(bmp.height / rows) << 16) |

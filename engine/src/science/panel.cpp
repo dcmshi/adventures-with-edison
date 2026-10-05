@@ -223,9 +223,13 @@ void Science::runnerTick() {
             if (r.pending) runnerMode(r.flags);
             if ((r.dx < 0 && r.x <= r.target) || (r.dx > 0 && r.x >= r.target)) {
                 // +44: arrived (f30_152c: a mode change; with 2, the sign).
+                // A place off the panel (left of it, or at its right edge
+                // and on) only stops his frames (f30_0c6e with 0): the
+                // sign, if one's still to go up, then goes up at once
+                // (gravity's, coming from the left: 48 left of it).
                 r.pending = true;
                 r.flags &= ~1;
-                if (r.target < 0 || r.target >= 640) runnerMode(0), r.flags = 0;
+                if (r.target < 0 || r.target >= 639) runnerMode(0);
             } else {
                 r.x += r.dx;
             }

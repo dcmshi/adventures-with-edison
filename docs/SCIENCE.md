@@ -487,6 +487,27 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   face or landing: the velocity across the face (`f34_0e4c`) turned back
   times the bounce (at most 3/5 landing), the room told (method `+24`:
   nothing in the base room); else the move.
+- **Bodies**: the step (`f08_1a42`) is every moving object's: the ball,
+  other balls (type 0, mass 10) and loose magnets (type 4); `f08_1843`
+  acts only for the player's ball (`+2A` 1). Meeting an object (in the
+  room's list order, the body itself skipped; not the last solid one met,
+  `+56`, which is forgotten after a step that moves): both told (their
+  `+34`); a solid one (mass 2 or more) first gives `f08_1843` the velocity
+  backwards (once till `+54` is cleared), then `f08_0d3e`: the line of the
+  centres (20 times their difference); each velocity's part along it
+  (`f11_0651`, `f11_02f7`) and the rest; along it, axis by axis,
+  `f08_0b39` (8087 code, 32-bit floats: P = mA uA + mB uB, E = mA uA^2 +
+  mB uB^2, D = (mA P^2 - (mA + mB)(P^2 - mB E)) / mA, its absolute value;
+  vA = (P -+ sqrt D) / (mA + mB), the sign by uA's, vB = (P - mA vA) /
+  mB, each cut to a long); the rest back, within +-7FFFh; neither on the
+  ground; their `+2C` told the velocity (nothing for what doesn't move:
+  type 5, 15, 6 and 7's `+2C` are empty). The masses: the ball 5, 15, 5,
+  20, 5, 5 by type; magnets 3 level + 3; bullseyes 20; holes and live
+  targets 1 (soft); shadows, the target ring, levers and RETRY 0.
+- **Small vectors**: segment 11's unit, dot, scale and cross (`f11_01f2`,
+  `f11_0651`, `f11_02f7`, `f11_043e`) double a vector whose parts are all
+  within +-2 (none 8000h) before `f84_0000`, which takes the length across
+  at half a unit: (1, 0, 0) would otherwise come out straight up.
 - **The bounce's effect** (`f08_1843`, the player's ball): its hit (|v
   along the normal| / 50 * 50 / 42) times its kind's fragility over 100h
   breaks it (`+7C`); else, at most every 2 timer ticks, sound 6004, 6001
@@ -631,7 +652,21 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   frames (`DS:2CC`: the first and how many), then its points (with `[30C]`
   times `+F8D[shots]` / 128) to the score (`f06_0208`: `[BD8]`, the game's,
   shown in the room's box; sound 602B), shown as `1236` + hundreds - 1;
-  five counts on, gone. Kind 3 catches the ball and throws it (not ported).
+  five counts on, gone.
+- **Kind 3** (the lips, `1374`-`1379`, `1158`-`115A`): hit (`f03_0593`)
+  every time the ball meets it (no points, no `[308]`): its box 8 bigger
+  each way; the player's ball, if Ice (its type record's first byte 0:
+  the records `DS:286C` Ice ... `292A` Magic are 0-5), caught (`+10` 0:
+  put on the ground at 0, 0 by `f08_056e`, which sounds 6026 for a move
+  of more than 15, then stopped and hidden, `f07_0ead`, `f07_03be`), else
+  broken (`+7C`; sound 6019 for Glass, 601A else); its hit frames. In its
+  tick, holding it keeps it there; after its hit frames (5 counts on),
+  holding, it spits (`DS:15C4`: `1166`-`1169`, `+10` 1); 3 counts on the
+  ball comes out on the ground 34 in front of its sphere's centre, shown
+  (`f07_03fb`), and is shot (`f27_27a3`, no shot counted) 20 further
+  forward at the centre's height; then (and after a ball it broke) idle
+  again, its box back. Checked in room 2 (a Stone ball broken, an Ice
+  ball caught and thrown three times over, traced state for state).
 - **Locked controls** (PANEL's flags, `f61_0f76`): locked either way; 2
   shows an OUT OF ORDER sign at once (`f30_2097`), 1 queues it for Edison
   to put up (`f30_1569`; from the right, the list backwards). Signs: a
@@ -650,7 +685,10 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   arriving (the step not taken) a mode change; at the control (`+15E` 2)
   he still slides 17 a step, and after the 4 frames the sign goes up
   (`f30_152c`) and he heads for the next or off the panel (-60 or 719),
-  where he stops and the controls take the mouse again (`[22C8]`).
+  where he stops and the controls take the mouse again (`[22C8]`). A place
+  off the panel (below 0, or 639 and on) only stops his frames on
+  arriving (`f30_0c6e` with 0): gravity's sign, coming from the left (48
+  left of it, -48), then goes up at once.
   Footsteps: sound 6009 on frames 1, 6, 15, 20, 25, 30, 39, 44. Drawn
   (`f30_1120` → `f14_12e9` → `f72_02cd`) as `131C` + his frame, on the last
   row of his 96 x 104 rectangle round his middle. Checked: his state, read
@@ -823,6 +861,93 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   objects (the circuit, the gate shutting its door to 9, RETRY) aren't
   ported, and the port draws a dark line along its ramp's edge.
 
+## The room's other objects (being ported: `things.cpp`)
+
+- **An object's core** (`f08_0066`, `80h` bytes, its method table at
+  `+10`): `+0` its rectangle on the screen, `+28` the room, `+2A` whose
+  (1 the player's ball, 3 a hole's), `+34` / `+38` its mass (two longs;
+  0 out of the ball's step's reach, 1 soft, 2 and up solid: the ball 5,
+  a switch's bullseye 20), `+52` the ball's type record, `+60` hidden,
+  `+6E` its box (x, y, z, w, d, h). Its methods: `+00` its step (the
+  ball's `f08_1a42`), `+04` draw, `+08` the mouse, `+10` its area to be
+  redrawn (`f08_07a7`), `+18` / `+1C` hide / show, `+34` met by the ball,
+  `+4C` its sphere. An object made of parts has a wrapper with its own
+  method table (`tools/testing/vtable.py OFF` lists one; `thunks.py SEG
+  OFF...` follows the thunks, which add to `this`).
+- **The mouse in the room** (`f27_2d15`): an object that has it
+  (`+186`) first; else the first in the room's list (`+18E`) whose
+  rectangle has the point, its `+08`; one that takes it ends there; else
+  aiming. The generic `+08` (`f08_07c6`) drags the object; the ball,
+  holes, targets and the shadow take none; type 0 drags only in room 0.
+- **Type 7, switches** (segment 4: `f04_01a1` kind 0, `f04_03eb` 1,
+  `f04_0835` 2, `f04_05b8` 3, by `d`): a 34 cube at (x, y, `b`; -1 the
+  face's under it, `f04_00ba`); on or off (`+4`, `f04_008e`: its area
+  redrawn); drawn (`f13_0a5b` / `f13_0b03`) as the word at its `+14`
+  table + 4 `a` + 2 for on, at its rectangle's centre (`DS:15AA`: the
+  lever `11D0` / `11D1`; `15BA` the bullseye `1424` / `1423`; `15B2`
+  RETRY `115B` / `115C`, an empty picture). Kinds 0-2 work the power
+  (`+F94`, the last type 6, 12 or 13 made; none: not made), and with `c`
+  start on: method 3 (`f04_0321`) sets it and tells the power (its `+C`
+  with on or off; sound 6026 when switched on, unless the power's `+10`
+  says `
+`, and when off). Kind 0 a lever, clicked (`f04_03ab`: a
+  press switches it over); kind 1 a bullseye (mass 20), switched over
+  when the ball meets it (`f04_04c9`, unless hidden); kind 2 the same,
+  shown or hidden every 30 ticks by the bits of `e` (`f04_08e1`).
+- **RETRY** (type 7, `d` 3, `f04_05b8`; mass 0): keeps the game's score
+  (`[BD8]`, `f06_0000`) and the player's balls (`+BA`, `+BC`) as the room
+  is built. Clicked (`f04_070e`), while neither column waits for its PUSH
+  (their `+132`): on (its picture blank), the balls and score back (the
+  room's box too, `f06_028a`), no completion bonus (`+F7B` 0) and event 9
+  to this room (so the room's end runs, with nothing to give). Its step
+  (`f04_06e3`) turns it off on its sixth tick. Checked in room 2.
+- **Magnets** (segment 5; the rooms built by `f61_09bd`, segment 26's
+  class): each has a magnetic part (`f05_0003`, registered with the room,
+  `f26_00c0`; its strength `+6` / `+A`, a ratio of longs). The field at a
+  point (`f26_02e2`): every part's `+20` but the asker's, summed. A round
+  one's (`f05_0a1b`; the ball's part and types 4, 5): nothing unless its
+  core's type record is magnetic (`+11`: only Iron's is 1) and the point
+  within 16 of its radii; else k - k |d| / 256 (k its strength, d from
+  its sphere's centre, `>> 8` of the product) along d. A body's
+  acceleration (its core's `+30`: `f05_0c0b` for the type-3 ball and
+  loose magnets): `f08_125c` plus, if its own record is magnetic, the
+  field at its centre, backwards when its strength is below 0 (so unlike
+  poles pull). The type-3 ball's strength is 200 * [27B2] / ([27B0] * 2)
+  = 84 (`f61_09bd`); a magnet's (`f05_1902`) its level's of `DS:728`
+  (70, 210, 420, 700, 980, made at start-up while `[27B0]` was still 30)
+  times [27B2] times its pole over [27B0] (50).
+- **Types 4 and 5** (`f05_1749`, `f05_210d`; a its size and strength, a
+  byte; b its pole): a cube of side 2a at (x, y) on the ground
+  (`f08_0384`), its sphere at the cube's centre a unit lower, radius a
+  (`f07_0ed0`); level 0-4 by a above 7, 9, 12, 16 (`f05_1e60`); mass 3
+  level + 3; type Iron (`28DE`). Type 4 steps as a body (`f05_1f76` →
+  `f08_1a42`), type 5 doesn't. Drawn (`f13_0720`) as `DS:151E` + 10 for S
+  + 2 level (`1045`-`1049` N, `104B`-`104F` S) at its rectangle's centre.
+- **Types 15 and 6** (`f05_233e`, `f05_26f7`; a, b, c its wall, d its
+  height, -1 the ground): the core's box at (x, y, the ground) (`f05_2243`)
+  2a + 6 deep, 2a high, 2a + 6 wide, 2a + 18 on the left wall (c 0); the
+  sphere at that box's centre a unit lower (the motion part, `f07_0ed0`,
+  takes its centre from the core), radius a - 1; with a height, the centre
+  at d + a. Level, strength, mass, type as type 4's (`f05_1749`); neither
+  moves. The field (`f05_252f`; type 6 `f05_2933` only while powered,
+  `+26`): as the round one but without the type's test, the strength turned
+  for points past the centre in x (left wall) or y (back wall). Drawn
+  (`f13_0823`, `f13_0937`) as `DS:1532` (type 6 `155A`, powered `1582`) +
+  20 for c 1 + 10 for S + 2 level. Checked: room 33 (an Iron ball shot past
+  the bar on the white block, traced till it falls in the water, which is
+  the room's own, not ported), pixel for pixel at rest.
+  Checked: room 3 (the Iron ball pulled across to a type-5 magnet and
+  held inside it, 868 states) and room 13 (three loose magnets and the
+  ball, 625 states), traced (`memwatch.py --follow`) state for state.
+- **Room 2's own** (`f41_076c`, the builder; segment 41): a closed hole
+  to room 1000 at (606, 329, back wall, small) as the gate (`+FBA`), the
+  hole to 1001 closed and hidden (`+FBC`); its face method (`+24`,
+  `f41_0b78`): an Iron ball (`+52` `28DE`) on the circuit's face (`+FC0`
+  1; a loop of sounds 4A-4C), else off; its tick (`f41_0c21`): with the
+  circuit on, every third tick (`[27B4]`) the gate one higher (`f08_056e`
+  to (616, 345) at `+FBE`, up to 40); at 24 the hole to 1001 shown and
+  opened (`f28_153f`). Not ported yet.
+
 ## The rooms (`S<n>.SRF`)
 
 A room reads `S<n>.SRF` (`f27_0ad8`: the name built at `DS:1FF4`, read
@@ -841,24 +966,42 @@ through the run time's streams in segment 90). Text, in three parts:
 2. **The objects**, `OBJn x y type a b c d e f` (segment 61, `f61_011d`
    and `f61_09bd`; rooms 0, 100 and 101 give only x and y), at most 24:
 
-   | Type | Made by | In the rooms | Notes |
+   | Type | Made by | Objects | Notes |
    |---|---|---|---|
-   | 0 | `f07_0000` | 9 | |
+   | 0 | `f07_0000` | 9 | draggable in room 0 only |
    | 1 | `f06_0043` (+ `f07_0456`) | 37 | the ball (only one: "can't init more than one player") |
-   | 2-6, 15 | `f05_11c1`, `f05_1749` (3, 4), `f05_210d`, `f05_26f7`, `f05_233e` | 50 (3), 11, 21, 46, 53 | |
-   | 7 | `f04_01a1`, `03eb`, `0835`, `05b8` (by a sub-kind) | 69 | |
-   | 8 | `f28_00f3` / `f28_0391` | 263 | a hole: `a` is the room it leads to (in `S1`: 502 high scores, 501 lab, 503 credits, 31, 21, 508, 509, 504 EXIT) |
-   | 9, 10 | `f03_002c` / `f02_0be1` | 4, 267 | |
+   | 2 | `f05_11c1` | | a magnetic ball (the field's) |
+   | 3 | `f06_0348` (`f61_09bd`) | 50 | the ball with a magnetic part (`f05_11c1` at its `+6`) |
+   | 4, 5 | `f05_1749`, `f05_210d` | 11, 21 | magnets: `a` the strength (`f05_1e60`: 0-4 by 7, 9, 12, 16) |
+   | 6 | `f05_26f7` | 46 | type 15 on a switch's power (`+F94`) |
+   | 7 | `f04_01a1`, `03eb`, `0835`, `05b8` (by `d`) | 69 | switches; `d` 3 RETRY (see below) |
+   | 8 | `f28_00f3` / `f28_0391` | 263 | a hole: `a` is the room it leads to (in `S1`: 502 high scores, 501 lab, 503 credits, 31, 21, 508, 509, 504 EXIT); `e` not 0: the second of a door |
+   | 9 and others | `f28_15a1` | 4 | |
+   | 10 | `f03_002c`, kind 6 `f02_0be1` | 267 | point targets (`c` the kind); kind 6 a suckhole |
    | 11 | `f03_0865` | 9 | `a` up to 10000 |
-   | 12, 13, 14 | `f02_00c2`, `f02_05f2`, `f02_1234` | 2, 9, 6 | |
+   | 12, 13 | `f02_00c2`, `f02_05f2` | 2, 9 | power (`+F94`): an electromagnet that lifts Iron, a fan (`a` its way) |
+   | 14 | `f02_1234` | 6 | |
+   | 15 | `f05_233e` | 53 | a magnet on a wall |
    | 16 | `f07_17f2` | 9 | |
-   | other | `f28_15a1` | | |
+
+   Types 2-6 and 15 are made by `f61_09bd` (which hands the rest to
+   `f61_011d`), the magnets' rooms (segment 26's class, `f26_0000`: a
+   list of the field's sources at `+F98`-`+F9E`; `f26_01e6` the field at
+   a point, each source's `+20` summed).
 
 3. **`PANEL a b c d e f g h END`** (`f61_0000`): eight numbers for the
    controls under the table (85 different ones over 108 rooms;
    `0 0 0 0 0 0 0 0` in 21).
 
 ## The Artech library (segments 63-83)
+
+- **Polygons**: `draw_poly` (`f63_1fbf` → `f81_0280`) and the stretched
+  bitmap fill share the clip (`f83_0065`) and the spans (`f81_0000`, the
+  library line's steps along each edge): a solid polygon covers exactly
+  what a textured one with the same corners does (room 2's pit's mouth,
+  cut to colour 0 on screen 3, is filled again by its sides on screen 2;
+  a generic scan conversion leaves a line of colour 0 along it).
+
 
 The same library as WINMAIN's (see `ROCKBACH.md`), laid out differently:
 the screens are 5-word records at `DS:92CE` (`[92CC]` the display's

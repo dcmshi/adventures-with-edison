@@ -96,6 +96,29 @@ private:
         int parentHeight() const { return parent ? parent->height : 0; }
     };
     // An object of S<n>.SRF: OBJn x y type a b c d e f (f61_011d).
+    struct Ball {
+        int cx = 0, cy = 0, cz = 0, r = 10;     // the sphere (the motion part's +2)
+        int16_t v[3] = {}, rem[3] = {}, disp[3] = {};  // +62, +68 (50ths), +40
+        int16_t kick[3] = {}, push[3] = {};     // +46 (the shot), +4C
+        bool onGround = true;                   // +5E
+        int lastHit = 0, hitFlag = 0;           // +56, +54
+        int state = 0;                          // +7C: 1.. breaking
+        int kind = 2;                           // its type record (+52)
+        int kickTicks = 0;                      // the motion part's +E
+        int32_t rollAcc = 0;                    // +A
+        int frame = 0, drawFrame = 0;           // +1A, +1C
+        int rollThreshold = 6;                  // +1E: r * r / 16 * 9 / 9
+        bool hidden = false;                    // its drawable's +60 (in a hole)
+        int startX = 0, startY = 0;             // where the room put it (f27_287d puts it back)
+        // Its object in the room's list (the index; its +56 keeps the last
+        // solid one met, as index + 1); its mass (+34 / +38, a ratio).
+        int self = -1;
+        int mass = 5;
+        // Its magnetic part (segment 5, f05_0003): its strength (+6 / +A,
+        // a ratio of longs); none for a ball outside the magnets' rooms.
+        bool magnetic = false;
+        int32_t strengthNum = 0, strengthDen = 1;
+    };
     struct Object {
         int x = 0, y = 0, type = 0;
         int args[6] = {};
@@ -112,6 +135,27 @@ private:
         // (its +34 / +38 not 0) and shown.
         int kind = 0, points = 0, hit = 0, scored = 0, frame = 0, frames = 0, sequence = 0, id = 0;
         bool live = false, shown = true;
+        // Its box grown (8 each way a hit); kind 3's hold on the ball (+10:
+        // -1 none, 0 holding it, 1 spitting it out).
+        int grow = 0, grip = -1;
+        // Type 7 (segment 4, things.cpp): on or off (+4), its sprites
+        // (+14: a DS table, two a switch, by a; +12), a tick count (+16);
+        // RETRY's keeps the player's balls (+18, +1A) and the game's score
+        // (+1C) as they were when the room was built.
+        int state = 0, sprites = 0, ticks = 0, savedBalls[2] = {};
+        long savedScore = 0;
+        bool hiddenSwitch = false;      // a switch's core's +60 (kind 2 blinking)
+        // A magnet's (types 4 and 5, segment 5): its body (its core and motion
+        // part: sphere, velocity, mass, strength) and level (+1C, 0-4).
+        Ball body;
+        int level = 0;
+        // Types 15 and 6, magnets on a wall: their core's box (x, y, z, w,
+        // d, h: their sphere is the motion part's, a unit smaller), which
+        // wall (+20: 0 the left one) and, type 6, the power (its switch
+        // part's +4, +26).
+        int coreBox[6] = {};
+        int wall = 0;
+        bool powered = false;
     };
     // The room as its camera (segment 25) and the root of its boxes.
     struct Table {
@@ -189,21 +233,6 @@ private:
         int fragility;                 // +21: breaks above 100h / this
         int mass;                      // the core's +34 / +38
     };
-    struct Ball {
-        int cx = 0, cy = 0, cz = 0, r = 10;     // the sphere (the motion part's +2)
-        int16_t v[3] = {}, rem[3] = {}, disp[3] = {};  // +62, +68 (50ths), +40
-        int16_t kick[3] = {}, push[3] = {};     // +46 (the shot), +4C
-        bool onGround = true;                   // +5E
-        int lastHit = 0, hitFlag = 0;           // +56, +54
-        int state = 0;                          // +7C: 1.. breaking
-        int kind = 2;                           // its type record (+52)
-        int kickTicks = 0;                      // the motion part's +E
-        int32_t rollAcc = 0;                    // +A
-        int frame = 0, drawFrame = 0;           // +1A, +1C
-        int rollThreshold = 6;                  // +1E: r * r / 16 * 9 / 9
-        bool hidden = false;                    // its drawable's +60 (in a hole)
-        int startX = 0, startY = 0;             // where the room put it (f27_287d puts it back)
-    };
     static constexpr int kTimerRate = 50, kTimerK = 42;  // [27B0] (f32_0777), [27B2]
     static constexpr int kStepNum = 10, kStepDen = 100;  // [1010], [1014] (seg8:3A98)
     static constexpr int kMaxPower = 32760;              // [E02]
@@ -219,11 +248,24 @@ private:
     void gravityAlongSlope(const Face& f, int32_t num, int32_t den, int16_t out[3]) const;  // f34_0b8a
     void projectOnFace(const Face& f, const int16_t v[3], int16_t out[3]) const;  // f34_0d40
     void acrossFace(const Face& f, const int16_t v[3], int16_t out[3]) const;     // f34_0e4c
-    void ballSetForce(const int16_t f[3]);          // f08_13a2
-    void ballMove(const int16_t d[3]);              // f08_0aab
+    void ballSetForce(Ball& b, const int16_t f[3]);  // f08_13a2
+    void ballMove(Ball& b, const int16_t d[3]);     // f08_0aab
     bool ballDampsOthers() const;                   // f08_1802
-    void ballBounce(const int16_t normal[3], bool always);  // f08_1843
-    void ballStep();                                // f08_1a42
+    void ballBounce(Ball& b, const int16_t normal[3], bool always);  // f08_1843
+    void ballStep(Ball& b);                         // f08_1a42 (any body)
+    // An object as the step meets it (its sphere, +4C; its mass ratio,
+    // +34 / +38, 0 out of reach; its body, when it has one; whether its
+    // velocity takes a change, its +2C).
+    struct Contact {
+        int s[4] = {};
+        int ratio = 0;
+        Ball* body = nullptr;
+        bool movable = false;
+    };
+    bool contactOf(Object& o, Contact& c);
+    void ballCollide(Ball& a, Contact& b);          // f08_0d3e
+    void contactMet(Object& o, Ball& by);           // the object's +34: met by a body
+    void fieldAt(const int p[3], const Ball* self, int16_t out[3]);  // f26_02e2
     void ballTick();                                // f07_077e
     void ballLaunch(int tx, int ty, int tz);        // f07_0ca0
     void crackGlass();                              // f27_0772 (not yet)
@@ -257,6 +299,14 @@ private:
     // f28_1445), the ball put back (f27_287d).
     void holeSphere(const Object& o, int out[4]) const;
     void holeTick(Object& o);
+    // The room's other objects (things.cpp): set up when the room is
+    // built, their ticks (method 0), clicks (their core's +08) and boxes.
+    void thingsBuilt();
+    void thingTick(Object& o);
+    bool thingClick(Object& o, const Mouse& m);
+    bool thingBox(const Object& o, int box[6]) const;
+    uint16_t thingSprite(const Object& o) const;
+    void switchSet(Object& o, int on);              // f04_008e
     void holeEntered(Object& o);
     void holeGo(Object& o);                         // f27_2530
     void roomHole(Object& o);                       // the room's method 8 (rooms.cpp)
@@ -424,6 +474,8 @@ private:
     long completionBonus_ = 1500;       // +F7B (and +F87 by the shots: the room's end)
     uint8_t completionShare_[6] = {};
     void pointTick(Object& o);          // f03_0207: a point target's tick
+    void ballHold();                    // kind 3 keeping the ball out of the way
+    void lipsTurn(Object& o);           // kind 3's frames done (f03_0207)
     void pointHit(Object& o);           // f03_0593: hit by the ball
     void addScore(long points);         // f06_0208
     void roomConfig(int room);          // the builder's [30C], +F7B, +F8D, +F87

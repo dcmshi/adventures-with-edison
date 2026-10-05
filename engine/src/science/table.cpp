@@ -316,7 +316,7 @@ void Science::drawObjects() {
             // ground at its corner (8 bigger each way once hit); idle its
             // kind's frames (DS:15CE + 24 a kind), hit its sequence, scored
             // its points (1236 + hundreds - 1).
-            const int g = heightUnder(o.x, o.y), grow = o.hit ? 8 : 0;
+            const int g = heightUnder(o.x, o.y), grow = o.grow;
             const int bx = o.x - grow, by = o.y - grow, bz = g - grow, side = 26 + 2 * grow;
             Drawable dr{{bx, by, bz, side, side, side}, area(objectRect(bx, by, bz, side, side, side)), 0, 0, {}};
             dr.draw = [this, &o, bx, by, bz, side] {
@@ -332,6 +332,14 @@ void Science::drawObjects() {
                     id = static_cast<uint16_t>(data_[at] | data_[at + 1] << 8);
                 }
                 objectSprite(cx, cy, id);
+            };
+            list.push_back(dr);
+        } else if (int b[6]; thingBox(o, b)) {
+            // The others (things.cpp): their sprite at their box's centre.
+            Drawable dr{{b[0], b[1], b[2], b[3], b[4], b[5]}, area(objectRect(b[0], b[1], b[2], b[3], b[4], b[5])), 0, 0, {}};
+            dr.draw = [this, &o, b0 = b[0], b1 = b[1], b2 = b[2], b3 = b[3], b4 = b[4], b5 = b[5]] {
+                const auto [cx, cy] = objectCentre(b0, b1, b2, b3, b4, b5);
+                objectSprite(cx, cy, thingSprite(o));
             };
             list.push_back(dr);
         } else if ((o.type == 1 || o.type == 3) && hasBall_) {
@@ -499,7 +507,7 @@ void Science::faceFill(std::vector<std::pair<int, int>> points, int look, bool t
     // f12_0ddf: clipped to the view (f83_0065), then a bitmap fill
     // stretched onto it (f63_20e4) or one colour (f14_07a0).
     if (texture) fillPolygonStretched(points, static_cast<uint16_t>(look));
-    else fillPolygon(points, static_cast<uint8_t>(look));
+    else fillPolygonSolid(points, static_cast<uint8_t>(look));
 }
 
 void Science::tableLine(int x0, int y0, int x1, int y1, uint8_t colour) {
@@ -670,7 +678,7 @@ void Science::drawStanding(const Box& box) {
         auto cut = [&](std::vector<std::pair<int, int>> pts) {
             bool wide = false, tall = false;
             for (auto& p : pts) wide |= p.first != pts[0].first, tall |= p.second != pts[0].second;
-            if (wide && tall) fillPolygon(pts, 0);
+            if (wide && tall) fillPolygonSolid(pts, 0);
         };
         cut({b, d, c, a});
         if (B.y == box.parent->bottom.y) cut({A, C, c, a});
@@ -867,8 +875,8 @@ void Science::enterRoom(int room) {
     applyPanelPhysics();
     // The ball (type 1, on the face under it) and its target, under it.
     hasBall_ = false;
-    for (const Object& o : table_.objects)
-        if (o.type == 1 || o.type == 3) {
+    for (size_t i = 0; i < table_.objects.size(); ++i)
+        if (const Object& o = table_.objects[i]; o.type == 1 || o.type == 3) {
             // (Type 3, f61_09bd → f06_0348: the player's ball with a
             // segment 5 part as well, not ported: as type 1.)
             hasBall_ = true;
@@ -878,6 +886,11 @@ void Science::enterRoom(int room) {
             ball_.cz = faceHeight(faceUnder(o.x, o.y), o.x, o.y) + ball_.r;
             ball_.kind = panel_.ballType;
             ball_.startX = o.x, ball_.startY = o.y;
+            ball_.self = static_cast<int>(i);
+            // Type 3 (f61_09bd → f06_0348) has a magnetic part (f05_11c1):
+            // strength 200 * [27B2] / ([27B0] * 2) (f61_09bd).
+            ball_.magnetic = o.type == 3;
+            ball_.strengthNum = 200L * kTimerK, ball_.strengthDen = kTimerRate * 2L;
             targetX_ = o.x + 10, targetY_ = o.y + 10;
             targetMoved_ = false;
             ballMoving_ = false, shadowShown_ = false;
@@ -900,10 +913,12 @@ void Science::enterRoom(int room) {
         o.kind = std::min(o.args[2], 10);
         o.points = std::min(o.args[1], 1000) / 100 * 100;
         o.frames = static_cast<int16_t>(data_[0x15CC + 0x18 * o.kind] | data_[0x15CC + 0x18 * o.kind + 1] << 8);
-        o.hit = o.scored = o.frame = o.sequence = 0;
+        o.hit = o.scored = o.frame = o.sequence = o.grow = 0;
+        o.grip = -1;
         o.live = true, o.shown = true;
         ++targets_;
     }
+    thingsBuilt();
     for (int i = 0; i < 5; ++i) crackStage_[i] = 0;
     columns_[0] = columns_[1] = Column{};
     drawTable();
