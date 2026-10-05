@@ -18,6 +18,9 @@ cases=(
 "magnets3|build/scratch/mag/o3/trace.txt|rem|--room 3 --quit-after 14000"
 "magnets13|build/scratch/mag/o13/trace.txt|bodies|--room 13 --quit-after 14000"
 "magnets33|build/scratch/mag/o33/trace.txt|rem|--room 33 --drag 3000 334 330 334 330 80 --move 3150 330 300 --drag 4000 410 170 410 170 80 --move 4180 414 170 --drag 5000 540 340 540 340 80 --move 5130 544 340 --quit-after 14000"
+"lever61|build/scratch/sw/o61/trace.txt||--room 61 --click 2000 349 78 --click 8200 349 78 --quit-after 13000"
+"levers62|build/scratch/sw/o62/trace.txt||--room 62 --quit-after 13000"
+"bullseye29|build/scratch/sw/o29/trace.txt||--room 29 --drag 2000 270 216 270 216 80 --move 2180 274 216 --drag 3000 540 340 540 340 80 --move 3130 544 340 --quit-after 11000"
 "lipsIce|build/scratch/t7/olips0/trace.txt||--room 2 --drag 4000 334 330 334 330 80 --move 4150 330 300 --drag 4600 334 330 334 330 80 --move 4750 330 300 --drag 5200 334 330 334 330 80 --move 5350 330 300 --drag 5800 334 330 334 330 80 --move 5950 330 300 --drag 6400 122 236 122 236 80 --move 6580 126 236 --drag 7400 540 340 540 340 80 --move 7530 544 340 --quit-after 20000"
 )
 for c in "${cases[@]}"; do

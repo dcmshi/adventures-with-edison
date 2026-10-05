@@ -10,8 +10,14 @@ namespace edison {
 
 void Science::thingsBuilt() {
     // Each object's own setup as the builder makes it (f61_011d, f61_09bd).
+    int power = -1;  // the room's +F94: the last type 6, 12 or 13 made
     for (size_t i = 0; i < table_.objects.size(); ++i) {
         Object& o = table_.objects[i];
+        if (o.type == 6 || o.type == 12 || o.type == 13) {
+            // Its power part (f04_0000: off).
+            o.powered = false;
+            power = static_cast<int>(i);
+        }
         if (o.type == 4 || o.type == 5) {
             // A magnet (f05_1749, type 5 f05_210d: the same, but it doesn't
             // move): a its size and strength (a byte), b its pole (+1 N, -1
@@ -70,15 +76,20 @@ void Science::thingsBuilt() {
         if (o.type != 7) continue;
         // Type 7 (f04_01a1 and its kinds by d): a, b its height (-1 the
         // face's under it), c on at the start (method 3 with 1), d the kind,
-        // f its +2. Only d = 3 (f04_05b8, RETRY) needs no power (+F94).
-        o.state = 0, o.ticks = 0;
-        o.sprites = o.args[3] == 3 ? 0x15B2 : o.args[3] == 1 ? 0x15BA : o.args[3] == 2 ? 0 : 0x15AA;
+        // e kind 2's bits, f its +2. Kinds 0-2 work the power (+10: +F94 as
+        // it is now; table.cpp makes none without one); d 3 (f04_05b8,
+        // RETRY) needs none.
+        o.state = 0, o.ticks = 0, o.hiddenSwitch = false;
+        o.sprites = o.args[3] == 3 ? 0x15B2 : o.args[3] == 1 || o.args[3] == 2 ? 0x15BA : 0x15AA;
+        o.power = o.args[3] == 3 ? -1 : power;
+        o.blinkBits = o.args[3] == 2 ? o.args[4] : 0, o.blinkAt = -1;
         if (o.args[3] == 3) {
             // f04_05b8: the game's score (f06_0000: [BD8]) and the player's
             // balls (+BA, +BC) as they are now.
             o.savedScore = totalScore_;
             o.savedBalls[0] = leftBalls_, o.savedBalls[1] = rightBalls_;
         }
+        if (o.args[2] != 0) switchTurn(o, 1);
     }
 }
 
@@ -128,10 +139,39 @@ void Science::switchSet(Object& o, int on) {
     viewDirty_ = true;
 }
 
+void Science::switchTurn(Object& o, int on) {
+    // f04_0321 (kinds 0-2; no room starts a RETRY on): the switch set
+    // (f04_008e), then its power's +0C with on or off. Sound 6026 when
+    // switched off, and on unless the power's +10 says '\r' (type 6's,
+    // f05_29f2; 12's and 13's say 2). Type 6's +0C (f05_29c1) sounds 6027
+    // when switched on; then its power part set (+26: its field, f05_2933,
+    // and its picture) and redrawn.
+    switchSet(o, on);
+    if (std::getenv("SCI_DEBUG")) logLine("switch " + std::to_string(&o - table_.objects.data()) + (on ? " on" : " off") + " at t" + std::to_string(timerTicks_));
+    if (o.args[3] == 3 || o.power < 0) return;
+    Object& p = table_.objects[static_cast<size_t>(o.power)];
+    if (on && p.type != 6) sound(0x6026);
+    if (on && p.type == 6) sound(0x6027);
+    p.powered = on != 0;
+    viewDirty_ = true;
+    if (!on) sound(0x6026);
+}
+
 void Science::thingTick(Object& o) {
     if (o.type == 4) {
         // A loose magnet's step (its core's +00: f05_1f76 → f08_1a42).
         ballStep(o.body);
+        return;
+    }
+    if (o.type == 7 && o.args[3] == 2) {
+        // Kind 2's step (f04_08e1): every 30 room ticks ([FFE]) the next of
+        // e's 16 bits; set, it's shown (+1C, f08_04b3), else hidden (+18,
+        // f08_0469: its rectangle empty, so not drawn; it stays solid, but
+        // met it doesn't switch, f04_04c9).
+        if (roomTicks_ % 30 != 0) return;
+        if (++o.blinkAt > 15) o.blinkAt = 0;
+        const bool shown = (o.blinkBits >> o.blinkAt & 1) != 0;
+        if (shown == o.hiddenSwitch) o.hiddenSwitch = !shown, viewDirty_ = true;
         return;
     }
     if (o.type == 7 && o.args[3] == 3) {
@@ -149,13 +189,14 @@ bool Science::thingClick(Object& o, const Mouse& m) {
     thingBox(o, b);
     const Rect r = objectRect(b[0], b[1], b[2], b[3], b[4], b[5]);
     if (m.x < r.x || m.x >= r.x + r.w || m.y < r.y || m.y >= r.y + r.h) return false;
-    // f04_04bf: kinds 1 and 2 take no clicks; kind 0's (a switch on the
-    // power, +F94) isn't ported yet.
-    if (o.args[3] != 3) return false;
+    // f04_04bf: kinds 1 and 2 take no clicks.
+    if (o.args[3] == 1 || o.args[3] == 2) return false;
     // f04_03ab: a press switches it over (its method 3), and is taken.
     if (!m.click) return false;
     const int on = o.state ? 0 : 1;
-    if (o.args[3] == 3) {
+    if (o.args[3] == 0) {
+        switchTurn(o, on);
+    } else {
         // RETRY (f04_070e): only while neither column waits for its PUSH
         // (+132): the switch, the area redrawn; the player's balls and the
         // game's score as they were (f06_028a: the room's box too), no
@@ -242,9 +283,8 @@ void Science::contactMet(Object& o, Ball& by) {
         return;
     }
     if (o.type == 7 && (o.args[3] == 1 || o.args[3] == 2)) {
-        // f04_04c9: a bullseye shown switches over (its method 3; the power
-        // it works isn't ported yet).
-        if (!o.hiddenSwitch) switchSet(o, o.state ? 0 : 1);
+        // f04_04c9: a bullseye shown switches over (its method 3).
+        if (!o.hiddenSwitch) switchTurn(o, o.state ? 0 : 1);
     }
 }
 

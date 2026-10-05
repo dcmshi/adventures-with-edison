@@ -40,9 +40,12 @@ void Science::holeTick(Object& o) {
         return;
     }
     if (o.swallow && hasBall_) {
-        // Swallowing (+21): the ball kept hidden (f07_0381), a frame a tick;
-        // a tick after the last (+27), the room's word (+20).
+        // Swallowing (+21): the ball stopped (its +2C's +10, f07_0ead →
+        // f08_0721: velocity, remainder and kick, f08_13a2) and kept hidden
+        // (f07_0381), a frame a tick (so a field doesn't move it); a tick
+        // after the last (+27), the room's word (+20).
         if (!o.swallowDone) {
+            for (int k = 0; k < 3; ++k) b.v[k] = 0, b.rem[k] = 0, b.kick[k] = 0;
             b.hidden = true, shadowShown_ = false;
             if (++o.swallow > kHoleTicks) o.swallowDone = true;
             viewDirty_ = true;
@@ -56,9 +59,11 @@ void Science::holeTick(Object& o) {
         return;
     }
     if (o.spit) {
-        // Spitting out (+23): the frames backwards (only the first for
-        // modes 1 and 2), then the ball out (+29).
+        // Spitting out (+23): the ball stopped and hidden as above, the
+        // frames backwards (only the first for modes 1 and 2), then the
+        // ball out (+29).
         if (!o.spitDone) {
+            for (int k = 0; k < 3; ++k) b.v[k] = 0, b.rem[k] = 0, b.kick[k] = 0;
             b.hidden = true, shadowShown_ = false;
             if (++o.spit > kHoleTicks || o.spitMode == 1 || o.spitMode == 2) o.spitDone = true;
             viewDirty_ = true;

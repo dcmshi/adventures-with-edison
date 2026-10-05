@@ -15,7 +15,9 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
 - `EDISON_LOG` appends: remove the file before a run whose log is read.
 - `retrace.sh [NAME...]`: replays the shots checked before in the port
   and compares them with the original's traces kept in `build/scratch`
-  (holes' spits, the lips, the magnets of rooms 3 and 13).
+  (holes' spits, the lips, the magnets of rooms 3 and 13, the
+  levers of rooms 61 and 62 and their powered magnets, room 29's
+  bullseye).
 - Tracing across a change of room: `memwatch.py watch --follow 0.3` (the
   data segment moves as the room is built). Expressions are hex: a list
   entry i is at `[[5ffc+ae]+18e]+` 2i in hex. The room's object list
@@ -52,7 +54,8 @@ framed boxes picture `1359` + k (the original picks one at random); `SCI_AIMSEAR
 plays every aim of the grid (screen points, power -1 the room's own) from
 the room as built, without drawing, and logs those whose ball a hole
 leading to room `to` takes ("aim x,y power p: hole to at tick t"; a
-negative `to`: the first point target of kind -`to` hit; an eighth
+negative `to`: the first point target of kind -`to` hit, -100 the
+ball near a magnet, -101 a switch turned over; an eighth
 number sets the ball type): for
 bank shots to replay in the original (with `--click`s for a greeting
 first; it ends the game when done).

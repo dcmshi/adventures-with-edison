@@ -145,14 +145,18 @@ private:
         int state = 0, sprites = 0, ticks = 0, savedBalls[2] = {};
         long savedScore = 0;
         bool hiddenSwitch = false;      // a switch's core's +60 (kind 2 blinking)
+        // Kinds 0-2: the power they work (+10: the room's +F94 as it was
+        // made, an index in the list); kind 2's bits (+16, shown by each in
+        // turn) and the bit it's at (+18).
+        int power = -1, blinkBits = 0, blinkAt = -1;
         // A magnet's (types 4 and 5, segment 5): its body (its core and motion
         // part: sphere, velocity, mass, strength) and level (+1C, 0-4).
         Ball body;
         int level = 0;
         // Types 15 and 6, magnets on a wall: their core's box (x, y, z, w,
         // d, h: their sphere is the motion part's, a unit smaller), which
-        // wall (+20: 0 the left one) and, type 6, the power (its switch
-        // part's +4, +26).
+        // wall (+20: 0 the left one) and, types 6, 12 and 13, the power
+        // (its switch part's +4: type 6's +26).
         int coreBox[6] = {};
         int wall = 0;
         bool powered = false;
@@ -307,6 +311,7 @@ private:
     bool thingBox(const Object& o, int box[6]) const;
     uint16_t thingSprite(const Object& o) const;
     void switchSet(Object& o, int on);              // f04_008e
+    void switchTurn(Object& o, int on);             // f04_0321: a switch's method 3
     void holeEntered(Object& o);
     void holeGo(Object& o);                         // f27_2530
     void roomHole(Object& o);                       // the room's method 8 (rooms.cpp)

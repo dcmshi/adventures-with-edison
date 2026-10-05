@@ -589,7 +589,10 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   A soft one (under 2) takes it: an idle hole stops and hides the ball
   (`f07_0ead`, `f07_03be`), the room busy (`+F6F`); the ball's move,
   remainder and kick are cleared (the step goes on with its own copy).
-- **The swallow** (`+21`): a frame a tick, `[212C]` = 22 ticks; frame `+21 *
+- **The swallow** (`+21`; and the spit, `+23`): each tick the ball stopped
+  (its `+2C`'s `+10`, `f07_0ead` → `f08_0721`: velocity, remainder and
+  kick, `f08_13a2`) and hidden (`f07_0381`), so a field only gives it a
+  tick's pull it never uses (room 62); a frame a tick, `[212C]` = 22 ticks; frame `+21 *
   5 / 22 + 1` (1-5), the sprite from `DS:20FC` (small) or `DS:2114` (big),
   6 a wall, frames 1-4 plus the ball's type's offset (`f28_0cd5`: 29
   sprites a type). Then the room's method 8 (`f28_156a`): room 1's
@@ -886,14 +889,27 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   table + 4 `a` + 2 for on, at its rectangle's centre (`DS:15AA`: the
   lever `11D0` / `11D1`; `15BA` the bullseye `1424` / `1423`; `15B2`
   RETRY `115B` / `115C`, an empty picture). Kinds 0-2 work the power
-  (`+F94`, the last type 6, 12 or 13 made; none: not made), and with `c`
-  start on: method 3 (`f04_0321`) sets it and tells the power (its `+C`
-  with on or off; sound 6026 when switched on, unless the power's `+10`
-  says `
-`, and when off). Kind 0 a lever, clicked (`f04_03ab`: a
-  press switches it over); kind 1 a bullseye (mass 20), switched over
-  when the ball meets it (`f04_04c9`, unless hidden); kind 2 the same,
-  shown or hidden every 30 ticks by the bits of `e` (`f04_08e1`).
+  (their `+10`: the room's `+F94` as they're made, the last type 6, 12 or
+  13; none yet: the switch isn't made, so room 25's OBJ3 never is), and
+  with `c` start on. Method 3 (`f04_0321`) sets it, then tells the power
+  (the power part's `+0C` with on or off): sound 6026 when switched off,
+  and when switched on unless the power's `+10` says `\r` (type 6's,
+  `f05_29f2`; 12's and 13's say 2). Type 6's power part is at its `+22`
+  (`f04_0000`, table `7B0`): its `+0C` (`f05_29c1`) sounds 6027 when
+  switched on, then sets its `+4` (the object's `+26`: its field and its
+  picture) and redraws; 12's and 13's (at their `+0C`) are the plain
+  `f04_008e`. Kind 0 a lever, clicked (`f04_03ab`: a press switches it
+  over and is taken); kind 1 a bullseye (mass 20), switched over when a
+  body meets it (`f04_04c9`, unless hidden); kind 2 the same (its sprites
+  kind 1's), and its step (`f04_08e1`): every 30 room ticks (`[FFE]`) the
+  next of `e`'s 16 bits (`+18`, from -1): set, shown (`+1C`, `f08_04b3`),
+  else hidden (`+18`, `f08_0469`: `+60` set and its rectangle emptied, so
+  not drawn; nothing in the step tests `+60`, so it stays solid).
+  Checked: rooms 61 (a lever clicked on and off, its magnet pulling the
+  Iron ball, 435 states) and 62 (both levers on from the start, the ball
+  pulled into a hole) traced state for state; room 29 (a bullseye shot
+  on, 42 states); room 25's blinker (bits 170: one 30-tick slot shown in
+  ten, `[FFE]` read from the original).
 - **RETRY** (type 7, `d` 3, `f04_05b8`; mass 0): keeps the game's score
   (`[BD8]`, `f06_0000`) and the player's balls (`+BA`, `+BC`) as the room
   is built. Clicked (`f04_070e`), while neither column waits for its PUSH

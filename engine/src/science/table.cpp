@@ -131,13 +131,18 @@ bool Science::loadTable(int room) {
     };
     read(nullptr);
 
-    // The objects (f61_011d): OBJn x y type a b c d e f, then PANEL.
+    // The objects (f61_011d): OBJn x y type a b c d e f, then PANEL. A
+    // switch on the power (type 7, d 0-2) isn't made before there's a power
+    // (+F94: types 6, 12 and 13 set it).
     t.objects.clear();
     std::string w = r.word();
+    bool power = false;
     for (; w.rfind("OBJ", 0) == 0; w = r.word()) {
         Object o;
         o.x = r.number(), o.y = r.number(), o.type = r.number();
         for (int& v : o.args) v = r.number();
+        if (o.type == 6 || o.type == 12 || o.type == 13) power = true;
+        if (o.type == 7 && o.args[3] != 3 && !power) continue;
         t.objects.push_back(o);
     }
     // PANEL: (flags, value) for gravity, friction, power and the ball type
@@ -334,8 +339,9 @@ void Science::drawObjects() {
                 objectSprite(cx, cy, id);
             };
             list.push_back(dr);
-        } else if (int b[6]; thingBox(o, b)) {
-            // The others (things.cpp): their sprite at their box's centre.
+        } else if (int b[6]; !o.hiddenSwitch && thingBox(o, b)) {
+            // The others (things.cpp): their sprite at their box's centre
+            // (a hidden one's rectangle is empty, f08_0469).
             Drawable dr{{b[0], b[1], b[2], b[3], b[4], b[5]}, area(objectRect(b[0], b[1], b[2], b[3], b[4], b[5])), 0, 0, {}};
             dr.draw = [this, &o, b0 = b[0], b1 = b[1], b2 = b[2], b3 = b[3], b4 = b[4], b5 = b[5]] {
                 const auto [cx, cy] = objectCentre(b0, b1, b2, b3, b4, b5);

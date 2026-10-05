@@ -81,7 +81,8 @@ void Science::aimSearch(const char* spec) {
     // a hole takes the ball (or 750 ticks); the aims that reach the hole
     // leading to room `to` are logged ("aim x,y power p: hole to at tick t"),
     // for a shot to replay in the original; a negative `to`, the first
-    // point target of kind -to hit (-100: the ball near a magnet). An
+    // point target of kind -to hit (-100: the ball near a magnet; -101: a
+    // switch turned over). An
     // eighth number, the ball type. Then
     // the game ends.)
     int to = 0, power = 5, x0 = 0, x1 = 0, y0 = 0, y1 = 0, step = 1, type = -1;
@@ -123,6 +124,17 @@ void Science::aimSearch(const char* spec) {
                         }
                     if (near) {
                         logLine("aim " + std::to_string(x) + "," + std::to_string(y) + " power " + std::to_string(panel_.power) + ": near a magnet at tick " +
+                                std::to_string(t));
+                        ++found;
+                        break;
+                    }
+                } else if (to == -101) {
+                    // (A switch turned over instead.)
+                    bool turned = false;
+                    for (size_t i = 0; i < table_.objects.size(); ++i)
+                        turned |= table_.objects[i].type == 7 && table_.objects[i].state != objects[i].state;
+                    if (turned) {
+                        logLine("aim " + std::to_string(x) + "," + std::to_string(y) + " power " + std::to_string(panel_.power) + ": a switch at tick " +
                                 std::to_string(t));
                         ++found;
                         break;
