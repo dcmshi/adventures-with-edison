@@ -917,6 +917,32 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   room's box too, `f06_028a`), no completion bonus (`+F7B` 0) and event 9
   to this room (so the room's end runs, with nothing to give). Its step
   (`f04_06e3`) turns it off on its sixth tick. Checked in room 2.
+- **Type 12, the electromagnet** (`f02_00c2`; `a` its period): its motion
+  part at `+0` (sphere `+2`), its power part at `+0C` (`f04_0000`, table
+  `260`: `+0C` the plain `f04_008e`, `+10` says 2, so its switch sounds
+  6026), its core at `+20` (`f02_0000`: a box 44 wide, 2 deep, 52 high at
+  (x, y, the ground); mass 1, soft). Its sphere (`f10_1582`) radius 13 at
+  the box's centre in x and y, resting on the ground there (centre 13 up).
+  `+16` the head's drop, `+18` the box's height less 12 (40), `+1A` `a`,
+  `+1C` the way (1 down), `+1E` the frame since a catch (-1), the core's
+  `+7C` caught. Its step (`f02_03fb`), only while powered: every `a` room
+  ticks (`[FFE]`) the way turned; every 6, caught, the next frame (to 3),
+  else the drop 2 more or less, kept within 0 and 39 (redrawn unless it
+  stopped there). Met (`f02_02a0`) by the player's ball (`+2A` 1) with
+  none caught: if the head's bottom (the ground + 40 - drop, unsigned) is
+  at most the ball's top + 1, an Iron ball is caught (`+7C`, frame -1,
+  redrawn) and any other breaks (its core's `+7C` 1); a Rubber one also
+  gets its motion part's `+2A`, which draws its break from `DS:14B6`
+  (every type's `+26`) instead of its own `+22`. A caught ball isn't held:
+  it rolls on (room 25: into the hole under it). Drawn (`f13_0dc1`) from its
+  rectangle: caught, `115F` + the frame (from 0) at the centre; else the
+  head `13D4` (`f14_1179`) at the rectangle's corner lowered by the drop,
+  then the frame `13D3` centred over it. Checked: room 90 (the head going
+  down and up, `[FFE]` read from the original, pixel for pixel), room 25
+  (an Iron ball caught, Glass and Rubber ones broken, traced state for
+  state). The original redraws only an object's rectangle (`f08_07a7`), so
+  the burst's pieces outside it (and the frame's post) differ from the
+  port's, which redraws the view.
 - **Magnets** (segment 5; the rooms built by `f61_09bd`, segment 26's
   class): each has a magnetic part (`f05_0003`, registered with the room,
   `f26_00c0`; its strength `+6` / `+A`, a ratio of longs). The field at a
@@ -995,7 +1021,7 @@ through the run time's streams in segment 90). Text, in three parts:
    | 9 and others | `f28_15a1` | 4 | |
    | 10 | `f03_002c`, kind 6 `f02_0be1` | 267 | point targets (`c` the kind); kind 6 a suckhole |
    | 11 | `f03_0865` | 9 | `a` up to 10000 |
-   | 12, 13 | `f02_00c2`, `f02_05f2` | 2, 9 | power (`+F94`): an electromagnet that lifts Iron, a fan (`a` its way) |
+   | 12, 13 | `f02_00c2`, `f02_05f2` | 2, 9 | power (`+F94`): an electromagnet that catches Iron and breaks other balls (see above), a fan (`a` its way) |
    | 14 | `f02_1234` | 6 | |
    | 15 | `f05_233e` | 53 | a magnet on a wall |
    | 16 | `f07_17f2` | 9 | |

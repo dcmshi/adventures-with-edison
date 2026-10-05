@@ -82,12 +82,12 @@ void Science::aimSearch(const char* spec) {
     // leading to room `to` are logged ("aim x,y power p: hole to at tick t"),
     // for a shot to replay in the original; a negative `to`, the first
     // point target of kind -to hit (-100: the ball near a magnet; -101: a
-    // switch turned over). An
-    // eighth number, the ball type. Then
-    // the game ends.)
-    int to = 0, power = 5, x0 = 0, x1 = 0, y0 = 0, y1 = 0, step = 1, type = -1;
-    if (std::sscanf(spec, "%d,%d,%d,%d,%d,%d,%d,%d", &to, &power, &x0, &x1, &y0, &y1, &step, &type) < 6 || step < 1) {
-        logLine("SCI_AIMSEARCH: to,power,x0,x1,y0,y1[,step[,ball type]]");
+    // switch turned over; -102: an electromagnet catching or breaking it). An
+    // eighth number, the ball type; a ninth, ticks played before each
+    // shot. Then the game ends.)
+    int to = 0, power = 5, x0 = 0, x1 = 0, y0 = 0, y1 = 0, step = 1, type = -1, wait = 0;
+    if (std::sscanf(spec, "%d,%d,%d,%d,%d,%d,%d,%d,%d", &to, &power, &x0, &x1, &y0, &y1, &step, &type, &wait) < 6 || step < 1) {
+        logLine("SCI_AIMSEARCH: to,power,x0,x1,y0,y1[,step[,ball type[,wait]]]");
         return;
     }
     if (type >= 0) panel_.ballType = type, ball_.kind = type;
@@ -105,6 +105,7 @@ void Science::aimSearch(const char* spec) {
             shadowShown_ = shadow, ballMoving_ = moving, exitRoom_ = 0, roomBusy_ = false;
             for (int k = 0; k < 3; ++k) lastCentre_[k] = shadowSeen_[k] = (k == 0 ? ball_.cx : k == 1 ? ball_.cy : ball_.cz);
             if (power >= 0) setSlider(Control::Power, power);
+            for (int k = 0; k < wait; ++k) tickRoom();
             Mouse m;
             m.x = x, m.y = y, m.held = true, m.click = true;
             aim(m);
@@ -125,6 +126,16 @@ void Science::aimSearch(const char* spec) {
                     if (near) {
                         logLine("aim " + std::to_string(x) + "," + std::to_string(y) + " power " + std::to_string(panel_.power) + ": near a magnet at tick " +
                                 std::to_string(t));
+                        ++found;
+                        break;
+                    }
+                } else if (to == -102) {
+                    // (An electromagnet catching the ball or breaking it.)
+                    bool met = ball_.state != 0;
+                    for (const Object& o : table_.objects) met |= o.type == 12 && o.emCaught;
+                    if (met) {
+                        logLine("aim " + std::to_string(x) + "," + std::to_string(y) + " power " + std::to_string(panel_.power) + ": " +
+                                (ball_.state ? "broken" : "caught") + " at tick " + std::to_string(t));
                         ++found;
                         break;
                     }
@@ -517,7 +528,7 @@ void Science::tickRoom() {
         Object& o = table_.objects[i];
         if (o.type == 8) holeTick(o);
         else if (o.type == 10 && o.args[2] != 6) pointTick(o);
-        else if (o.type == 7 || o.type == 4) thingTick(o);
+        else if (o.type == 7 || o.type == 4 || o.type == 12) thingTick(o);
         else if ((o.type == 1 || o.type == 3) && hasBall_) {
             targetTick();
             shadowTick();

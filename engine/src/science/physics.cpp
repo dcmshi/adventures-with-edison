@@ -548,7 +548,7 @@ void Science::ballTick() {
         } else {
             if (++b.frame > 13) b.frame = 0;
             if (++b.state > 13) {
-                b.state = 0, b.frame = 0, b.drawFrame = 0;
+                b.state = 0, b.frame = 0, b.drawFrame = 0, b.zapped = false;
                 viewDirty_ = true;
                 ballLost();
                 return;

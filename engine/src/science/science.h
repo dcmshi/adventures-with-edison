@@ -103,6 +103,7 @@ private:
         bool onGround = true;                   // +5E
         int lastHit = 0, hitFlag = 0;           // +56, +54
         int state = 0;                          // +7C: 1.. breaking
+        bool zapped = false;                    // the motion part's +2A: broken by an electromagnet (frames 14B6)
         int kind = 2;                           // its type record (+52)
         int kickTicks = 0;                      // the motion part's +E
         int32_t rollAcc = 0;                    // +A
@@ -160,6 +161,12 @@ private:
         int coreBox[6] = {};
         int wall = 0;
         bool powered = false;
+        // Type 12, the electromagnet (f02_00c2): its head lowered (+16, by
+        // 2 every 6 ticks, below +18: its box's height less 12), the way
+        // (+1C: 1 down; turned every a ticks, +1A), the ball caught (its
+        // core's +7C) and the frame since (+1E, -1 to 3).
+        int emDrop = 0, emMax = 0, emWay = 1, emFrame = -1;
+        bool emCaught = false;
     };
     // The room as its camera (segment 25) and the root of its boxes.
     struct Table {
@@ -310,6 +317,7 @@ private:
     bool thingClick(Object& o, const Mouse& m);
     bool thingBox(const Object& o, int box[6]) const;
     uint16_t thingSprite(const Object& o) const;
+    void thingDraw(Object& o, const Rect& r);      // its core's +04, r its rectangle
     void switchSet(Object& o, int on);              // f04_008e
     void switchTurn(Object& o, int on);             // f04_0321: a switch's method 3
     void holeEntered(Object& o);

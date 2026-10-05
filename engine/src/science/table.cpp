@@ -279,7 +279,7 @@ void Science::drawObjects() {
     // hides one).
     auto area = [](const Rect& r) { return Drawable::Area{r.x, r.y, r.w, r.h}; };
     std::vector<Drawable> list;
-    for (const Object& o : table_.objects) {
+    for (Object& o : table_.objects) {
         if (o.type == 8) {
             // A hole (f28_00f3, g28_0003, drawn by f28_0d82): a = the room
             // it leads to, b = its wall (0 the left one), c = big, d = its
@@ -344,8 +344,7 @@ void Science::drawObjects() {
             // (a hidden one's rectangle is empty, f08_0469).
             Drawable dr{{b[0], b[1], b[2], b[3], b[4], b[5]}, area(objectRect(b[0], b[1], b[2], b[3], b[4], b[5])), 0, 0, {}};
             dr.draw = [this, &o, b0 = b[0], b1 = b[1], b2 = b[2], b3 = b[3], b4 = b[4], b5 = b[5]] {
-                const auto [cx, cy] = objectCentre(b0, b1, b2, b3, b4, b5);
-                objectSprite(cx, cy, thingSprite(o));
+                thingDraw(o, objectRect(b0, b1, b2, b3, b4, b5));
             };
             list.push_back(dr);
         } else if ((o.type == 1 || o.type == 3) && hasBall_) {
@@ -360,9 +359,10 @@ void Science::drawObjects() {
                 if (b.state != 0) {
                     // Breaking (f13_01ce, +7C): its type's frames (+22: DS:13E4
                     // Ice, 13BA Stone, 1390 Rubber, 1438 Iron, 1462 Glass, 140E
-                    // Magic; 6 bytes each, the sprite first), no shadow.
+                    // Magic; 6 bytes each, the sprite first; +26, 14B6 for every
+                    // type, when an electromagnet broke it: +2A), no shadow.
                     static const uint16_t kBreak[6] = {0x13E4, 0x13BA, 0x1390, 0x1438, 0x1462, 0x140E};
-                    const size_t at = kBreak[std::clamp(b.kind, 0, 5)] + 6u * static_cast<size_t>(b.drawFrame >> 1);
+                    const size_t at = (b.zapped ? 0x14B6u : kBreak[std::clamp(b.kind, 0, 5)]) + 6u * static_cast<size_t>(b.drawFrame >> 1);
                     const auto [bx, by] = objectCentre(b.cx - b.r, b.cy - b.r, b.cz - b.r, 2 * b.r + 1, 2 * b.r + 1, 2 * b.r + 1);
                     objectSprite(bx, by, static_cast<uint16_t>(data_[at] | data_[at + 1] << 8));
                     return;

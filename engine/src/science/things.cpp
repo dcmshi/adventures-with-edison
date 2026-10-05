@@ -18,6 +18,13 @@ void Science::thingsBuilt() {
             o.powered = false;
             power = static_cast<int>(i);
         }
+        if (o.type == 12) {
+            // The electromagnet (f02_00c2): a its period (+1A); its box
+            // (f02_0000) 44 wide, 2 deep, 52 high at (x, y, the ground), its
+            // head up (+16 0, the way down: +1C 1), no ball caught (+7C).
+            o.emDrop = 0, o.emMax = 52 - 12, o.emWay = 1, o.emFrame = -1, o.emCaught = false;
+            continue;
+        }
         if (o.type == 4 || o.type == 5) {
             // A magnet (f05_1749, type 5 f05_210d: the same, but it doesn't
             // move): a its size and strength (a byte), b its pole (+1 N, -1
@@ -106,6 +113,12 @@ bool Science::thingBox(const Object& o, int box[6]) const {
         box[0] = b.cx - b.r, box[1] = b.cy - b.r, box[2] = b.cz - b.r + 1;
         return true;
     }
+    if (o.type == 12) {
+        // f02_0000: at (x, y, the ground under it), 44 x 2 x 52.
+        box[0] = o.x, box[1] = o.y, box[2] = heightUnder(o.x, o.y);
+        box[3] = 44, box[4] = 2, box[5] = 52;
+        return true;
+    }
     if (o.type == 7) {
         // f04_00ba: a 34 cube at (x, y, b), b -1 the face's under it.
         box[0] = o.x, box[1] = o.y, box[2] = o.args[1] == -1 ? heightUnder(o.x, o.y) : o.args[1];
@@ -131,6 +144,25 @@ uint16_t Science::thingSprite(const Object& o) const {
     // f13_0a5b / f13_0b03: the switch's +14 table, a's pair, by its state.
     const size_t at = static_cast<size_t>(o.sprites) + 4u * static_cast<size_t>(o.args[0]) + 2u * static_cast<size_t>(o.state != 0);
     return static_cast<uint16_t>(data_[at] | data_[at + 1] << 8);
+}
+
+void Science::thingDraw(Object& o, const Rect& r) {
+    // Its core's +04, r its rectangle (+0): most a sprite at its centre.
+    const int cx = r.x + (r.w >> 1), cy = r.y + (r.h >> 1);
+    if (o.type == 12) {
+        // f13_0dc1: caught, 115F + its frame (+1E, from 0) at the centre;
+        // else the head (13D4, f14_1179) at the rectangle's corner lowered
+        // by +16, the frame (13D3) over it at the centre.
+        if (o.emCaught) {
+            if (o.emFrame < 0) o.emFrame = 0;
+            objectSprite(cx, cy, static_cast<uint16_t>(0x115F + o.emFrame));
+        } else {
+            panelSprite(r.x, r.y + o.emDrop, 0x13D4);
+            objectSprite(cx, cy, 0x13D3);
+        }
+        return;
+    }
+    objectSprite(cx, cy, thingSprite(o));
 }
 
 void Science::switchSet(Object& o, int on) {
@@ -161,6 +193,25 @@ void Science::thingTick(Object& o) {
     if (o.type == 4) {
         // A loose magnet's step (its core's +00: f05_1f76 → f08_1a42).
         ballStep(o.body);
+        return;
+    }
+    if (o.type == 12) {
+        // The electromagnet's step (f02_03fb), while powered (+10): every a
+        // room ticks ([FFE]) the way turned; every 6, caught, the next
+        // frame (to 3), else the head 2 lower or higher, within 0 and below
+        // +18 (redrawn unless it stopped there).
+        if (!o.powered) return;
+        const int period = static_cast<uint16_t>(o.args[0]);
+        if (period != 0 && roomTicks_ % period == 0) o.emWay = o.emWay == 0;
+        if (roomTicks_ % 6 != 0) return;
+        if (o.emCaught) {
+            if (o.emFrame < 3) ++o.emFrame, viewDirty_ = true;
+            return;
+        }
+        o.emDrop += o.emWay ? 2 : -2;
+        if (o.emDrop < 0) o.emDrop = 0;
+        else if (o.emDrop >= o.emMax) o.emDrop = o.emMax - 1;
+        else viewDirty_ = true;
         return;
     }
     if (o.type == 7 && o.args[3] == 2) {
@@ -244,6 +295,14 @@ bool Science::contactOf(Object& o, Contact& c) {
         c.body = &o.body, c.movable = o.type == 4;
         return true;
     }
+    if (o.type == 12) {
+        // The electromagnet: soft (+34 / +38 1); its sphere (f02_00c2's
+        // end, f10_1582) radius 13 at its box's centre in x and y, resting
+        // on the ground there.
+        c.s[0] = o.x + 22, c.s[1] = o.y + 1, c.s[2] = heightUnder(o.x + 22, o.y + 1) + 13, c.s[3] = 13;
+        c.ratio = 1;
+        return true;
+    }
     if (o.type == 7) {
         // A switch: its sphere at its box's centre a unit lower, radius 10
         // (f04_01a1's f10_1523); the bullseyes (kinds 1 and 2) 20, the lever
@@ -280,6 +339,24 @@ void Science::contactMet(Object& o, Ball& by) {
         // body, its mass 0).
         if (player) pointHit(o);
         else if (o.kind == 3) by.hidden = true, by.mass = 0;
+        return;
+    }
+    if (o.type == 12) {
+        // f02_02a0: the player's ball (+2A 1), none caught yet, and the head
+        // down to its top (the head's bottom, its sphere's bottom (the
+        // ground) plus +18 less +16, at most the ball's top + 1, unsigned): Iron
+        // (its record's first byte 3) caught (+7C, redrawn, frame -1); any
+        // other breaks (+7C 1), Rubber (2) zapped (its motion part's +2A).
+        if (!player || o.emCaught) return;
+        const uint16_t head = static_cast<uint16_t>(heightUnder(o.x + 22, o.y + 1) + o.emMax - o.emDrop);
+        if (head > static_cast<uint16_t>(2 * by.r + (by.cz - by.r) + 1)) return;
+        if (by.kind == 3) {
+            o.emCaught = true, o.emFrame = -1;
+            viewDirty_ = true;
+        } else {
+            by.state = 1;
+            if (by.kind == 2) by.zapped = true;
+        }
         return;
     }
     if (o.type == 7 && (o.args[3] == 1 || o.args[3] == 2)) {
