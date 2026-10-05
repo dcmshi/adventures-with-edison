@@ -16,7 +16,8 @@
 #   otvdm.ps1 click X Y          left click at game coordinates (rclick: right)
 #   otvdm.ps1 down X Y / up X Y  press / release the left button there (to hold it)
 #   otvdm.ps1 move X Y           move the mouse there (button up)
-#   otvdm.ps1 type TEXT          type TEXT ('|' is Enter; no Shift, so lower case)
+#   otvdm.ps1 type TEXT          type TEXT ('|' is Enter; capitals with Shift held,
+#                                its scan code too: the arcade's S key, a room)
 #   otvdm.ps1 run SCRIPT [DIR]   run a script of the commands above, one a line,
 #                                plus `wait SECONDS`; shots go to DIR; # comments
 #
@@ -130,10 +131,13 @@ function TypeText($text) {
         $code = if ($c -eq '|') { 13 } else { [int]$c }
         $vk = [int][char]::ToUpper([char]$code)
         $sc = [int][W]::MapVirtualKey([uint32]$vk, 0)
+        $shift = $c -cmatch '[A-Z]'
+        if ($shift) { Post $h 0x100 0x10 (1 -bor (0x2A -shl 16)) }  # Shift down (left, scan 2Ah)
         Post $h 0x100 $vk (1 -bor ($sc -shl 16))           # WM_KEYDOWN
         Post $h 0x102 $code (1 -bor ($sc -shl 16))         # WM_CHAR
         Start-Sleep -Milliseconds 40
         Post $h 0x101 $vk ([int64]0xC0000001 -bor ($sc -shl 16))  # WM_KEYUP
+        if ($shift) { Post $h 0x101 0x10 ([int64]0xC0000001 -bor (0x2A -shl 16)) }
         Start-Sleep -Milliseconds 60
     }
 }

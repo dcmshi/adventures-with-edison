@@ -7,6 +7,11 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
 `tools/reference/wmain_skip.py` goes there too), and run winevdm from
 `$OTVDM` (its `otvdmw.exe`, unless it's on the PATH).
 
+- Other rooms in the original: `otvdm.ps1 type S02` (the arcade's S key
+  and two digits; `type` holds Shift for capitals), then the shot. The
+  ball's remainders for `memwatch.py`: `[[[5ffc+ae]+f77]+2]+68` (`+6a`,
+  `+6c`). `memwatch.py` finds the ball when it starts: start it after the
+  room is up.
 - `trace.sh NAME "ms x y hold;..." [ms]`: the same presses (times from the
   room's start) in the port (`SCI_DEBUG` log) and in the original
   (`WMAINSKP.EXE`, traced by `memwatch.py`), then `tracecmp.py`.
@@ -25,7 +30,7 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
   the original's data segment (`--dump`, default `build/scratch/dg1.bin`).
 
 The port's test switches (environment): `SCI_DEBUG=1` logs the ball each
-tick (and holes, targets); `SCI_RUNNER=1` the panel's walking figure
+tick (centre, velocity and remainder: `c`, `v`, `r`) (and holes, targets); `SCI_RUNNER=1` the panel's walking figure
 (for `tracecmp.py --port-pattern`); `SCI_TICKSHOTS=DIR` saves the display
 after every tick (`DIR/t<tick>.bmp`: no frame missed, whatever the load);
 `SCI_SHOOT_WHEN=cx,cy,cz,vx,vy,vz` holds a shot till the ball's in that

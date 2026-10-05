@@ -766,7 +766,9 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   mouth (back wall: x - radius, y - radius - 10; left wall: x, y + 1; its
   bottom the sphere's) and shot at the hole's place 50 out of its wall
   (`f27_27a3`, no shot counted). Then the hole stays "leaving" (`+25`)
-  till the ball is clear.
+  till the ball is clear, its physical part's `+34` 0 meanwhile (1 again
+  after): out of the ball's step's reach, so it neither takes the ball
+  nor clears its remainder.
 - **The room's end** (`f38_020f`, event 9 runs it for the old table when
   the next is another table but room 1, or a lesson after a room that set
   `+F71`; room 59 runs it itself): once (`+F3B`); the warp points (`+F7F`)
@@ -807,17 +809,19 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
     (0 pixels with the same random picture);
   - the warp to room 57 through lesson 8 (60000 and the bonus ball in the
     right tube, the room's end after a lesson); room 1's boxes;
-  - spit mode 0 (room 35's door back into itself): the ball's launch, read
-    from the original (`memwatch.py`), is the same state for state; three
-    ticks later, after it bounces off the hole's own wall, the original's
-    is a unit higher and it comes to rest some 5 units away (the bounce's
-    re-step, in the physics).
-- Not yet: mode 1 (room 35's hint hole 105 needs power 5 with power
-  locked at 3; room 57's are behind its moving objects). Rooms 18 (`+FC4`),
-  34 (`+FA4`, `+FA6`), 35 (`+FC0`) and 55 (`+FB4`, `+FB6`) read fields
-  their own code (not ported) sets. Room 35 shows a "POW" sack (one of its
-  objects, not ported) and its middle walls in a different order (the
-  standing boxes' painter's order).
+  - spit mode 0 (room 35's door back into itself): the launch, the
+    bounce off the hole's own wall and the rest, every state the same
+    (`memwatch.py`, remainders `+68`-`+6C` too);
+  - spit mode 1, both walls: room 2's hint holes 100 (left wall, aim
+    (156, 212)) and 101 (back wall, (400, 176)), power 6, reached in the
+    original with the S key (`S02`): the box, the ball set down
+    (317, 226, 10) and (529, 292, 10), and the holes drawn shut.
+- Rooms 18 (`+FC4`), 34 (`+FA4`, `+FA6`), 35 (`+FC0`) and 55 (`+FB4`,
+  `+FB6`) read fields their own code (not ported) sets. Room 35 shows a
+  "POW" sack (one of its objects, not ported) and its middle walls in a
+  different order (the standing boxes' painter's order). Room 2's own
+  objects (the circuit, the gate shutting its door to 9, RETRY) aren't
+  ported, and the port draws a dark line along its ramp's edge.
 
 ## The rooms (`S<n>.SRF`)
 

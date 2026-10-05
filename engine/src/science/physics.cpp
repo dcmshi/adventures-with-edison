@@ -306,8 +306,12 @@ void Science::ballStep() {
     if (!b.hidden)
         for (Object& o : table_.objects) {
             int s[4];
-            if (o.type == 8) holeSphere(o, s);
-            else if (o.type == 10 && o.live) {
+            if (o.type == 8) {
+                // (While the ball leaves it, the hole's +34 is 0: out of
+                // the list's reach, f28_0671.)
+                if (o.leaving) continue;
+                holeSphere(o, s);
+            } else if (o.type == 10 && o.live) {
                 // A point target's sphere: its box's centre a unit lower,
                 // radius 13 (f03_002c's f07_1082).
                 const int g = heightUnder(o.x, o.y);
