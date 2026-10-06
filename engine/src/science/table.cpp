@@ -190,6 +190,24 @@ std::pair<int, int> Science::objectCentre(int x, int y, int z, int w, int d, int
     return {a.first + (rw >> 1), b.second + (rh >> 1)};
 }
 
+void Science::ballSprite(const Ball& b, uint16_t rolling) {
+    // f13_01ce, the ball itself: breaking (+7C), its type's frames (+22:
+    // DS:13E4 Ice, 13BA Stone, 1390 Rubber, 1438 Iron, 1462 Glass, 140E
+    // Magic; 6 bytes each, the sprite first; +24, 148C, for Ice a fan broke
+    // (+28); +26, 14B6 for every type, when an electromagnet broke it: +2A);
+    // else its rolling frames (+20).
+    const auto [bx, by] = objectCentre(b.cx - b.r, b.cy - b.r, b.cz - b.r, 2 * b.r + 1, 2 * b.r + 1, 2 * b.r + 1);
+    if (b.state != 0) {
+        static const uint16_t kBreak[6] = {0x13E4, 0x13BA, 0x1390, 0x1438, 0x1462, 0x140E};
+        const uint16_t frames = b.heated && b.kind == 0 ? 0x148C : b.zapped ? 0x14B6 : kBreak[std::clamp(b.kind, 0, 5)];
+        const size_t at = frames + 6u * static_cast<size_t>(b.drawFrame >> 1);
+        objectSprite(bx, by, static_cast<uint16_t>(data_[at] | data_[at + 1] << 8));
+        return;
+    }
+    const size_t at = rolling + 2u * static_cast<size_t>(b.drawFrame >> 1);
+    objectSprite(bx, by, static_cast<uint16_t>(data_[at] | data_[at + 1] << 8));
+}
+
 void Science::objectSprite(int cx, int cy, uint16_t id) {
     // f14_0d69 at 1:1: centred, colour 0 left out, and only when it lies
     // wholly inside the clip ([1706]: the whole screen, as for the lines;
@@ -344,18 +362,26 @@ void Science::drawObjects() {
                 };
                 list.push_back(dr);
             }
-        } else if (o.type == 10) {
+        } else if (o.type == 10 || o.type == 11) {
             // A point target (drawn by f13_0bb1): its box a cube (twice its
             // kind's size: 26, kind 2 34, kind 7 20) on the ground at its
             // corner (8 bigger each way once hit); idle its
             // kind's frames (DS:15CE + 24 a kind), hit its sequence, scored
             // its points (1236 + hundreds - 1).
             const int g = heightUnder(o.x, o.y), grow = o.grow;
-            const int bx = o.x - grow, by = o.y - grow, bz = g - grow, side = 2 * o.size + 2 * grow;
+            // (Type 11's core is its own, a 34 cube (f03_0865); its sphere
+            // is still its kind's, f03_002c's.)
+            const int bx = o.x - grow, by = o.y - grow, bz = g - grow, side = (o.type == 11 ? 34 : 2 * o.size) + 2 * grow;
             Drawable dr{{bx, by, bz, side, side, side}, area(objectRect(bx, by, bz, side, side, side)), 0, 0, {}};
             dr.draw = [this, &o, bx, by, bz, side] {
                 if (!o.shown) return;
                 const auto [cx, cy] = objectCentre(bx, by, bz, side, side, side);
+                if (o.type == 11) {
+                    // f13_0d4e: first 1357 with its corner at the rectangle's
+                    // left, 9 above its bottom (f14_1179).
+                    const Rect r = objectRect(bx, by, bz, side, side, side);
+                    panelSprite(r.x, r.y + r.h - 9, 0x1357);
+                }
                 const int frame = std::max(o.frame, 0);
                 size_t at;
                 uint16_t id;
@@ -367,6 +393,14 @@ void Science::drawObjects() {
                 }
                 objectSprite(cx, cy, id);
             };
+            list.push_back(dr);
+        } else if (o.type == 0) {
+            // Another ball (f13_01ce): its frames, no shadow; gone, not drawn.
+            const Ball& b = o.body;
+            if (b.hidden) continue;
+            const int s = 2 * b.r + 1;
+            Drawable dr{{b.cx - b.r, b.cy - b.r, b.cz - b.r, s, s, s}, area(objectRect(b.cx - b.r, b.cy - b.r, b.cz - b.r, s, s, s)), 1, 0, {}};
+            dr.draw = [this, &o] { ballSprite(o.body, 0x1300); };
             list.push_back(dr);
         } else if (int b[6]; !o.hiddenSwitch && thingBox(o, b)) {
             // The others (things.cpp): their sprite at their box's centre
@@ -385,29 +419,15 @@ void Science::drawObjects() {
             ball.draw = [this] {
                 const Ball& b = ball_;
                 if (b.hidden) return;
-                if (b.state != 0) {
-                    // Breaking (f13_01ce, +7C): its type's frames (+22: DS:13E4
-                    // Ice, 13BA Stone, 1390 Rubber, 1438 Iron, 1462 Glass, 140E
-                    // Magic; 6 bytes each, the sprite first; +24, 148C, for Ice
-                    // a fan broke (+28); +26, 14B6 for every type, when an
-                    // electromagnet broke it: +2A), no shadow.
-                    static const uint16_t kBreak[6] = {0x13E4, 0x13BA, 0x1390, 0x1438, 0x1462, 0x140E};
-                    const uint16_t frames = b.heated && b.kind == 0 ? 0x148C : b.zapped ? 0x14B6 : kBreak[std::clamp(b.kind, 0, 5)];
-                    const size_t at = frames + 6u * static_cast<size_t>(b.drawFrame >> 1);
-                    const auto [bx, by] = objectCentre(b.cx - b.r, b.cy - b.r, b.cz - b.r, 2 * b.r + 1, 2 * b.r + 1, 2 * b.r + 1);
-                    objectSprite(bx, by, static_cast<uint16_t>(data_[at] | data_[at + 1] << 8));
-                    return;
-                }
+                // f13_01ce: not breaking, its shadow first (1040, the radius
+                // less one below the centre: while the shadow object, its
+                // +16, is hidden (its +60), and not [14E0]); then the ball in
+                // its type's rolling frames (f07_04d5: DS:1348 Ice, 1330
+                // Stone, 1300 Rubber, 1378 Iron, 1318 Glass, 1360 Magic).
                 const auto [bx, by] = objectCentre(b.cx - b.r, b.cy - b.r, b.cz - b.r, 2 * b.r + 1, 2 * b.r + 1, 2 * b.r + 1);
-                // f13_01ce: its shadow first (1040, the radius less one
-                // below the centre: while the shadow object, its +16, is
-                // hidden (its +60), and not [14E0]), then the ball in its
-                // type's rolling frames (f07_04d5: DS:1348 Ice, 1330 Stone,
-                // 1300 Rubber, 1378 Iron, 1318 Glass, 1360 Magic).
-                if (!shadowShown_ && !noShadow_) objectSprite(bx, by + b.r - 1, 0x1040);
+                if (b.state == 0 && !shadowShown_ && !noShadow_) objectSprite(bx, by + b.r - 1, 0x1040);
                 static const uint16_t kFrames[6] = {0x1348, 0x1330, 0x1300, 0x1378, 0x1318, 0x1360};
-                const size_t table = kFrames[std::clamp(panel_.ballType, 0, 5)] + 2u * static_cast<size_t>(b.drawFrame >> 1);
-                objectSprite(bx, by, static_cast<uint16_t>(data_[table] | data_[table + 1] << 8));
+                ballSprite(b, kFrames[std::clamp(panel_.ballType, 0, 5)]);
             };
             list.push_back(ball);
             // The shadow object (f07_12d6; drawn by f13_04ab): 1040 at its
@@ -947,16 +967,21 @@ void Science::enterRoom(int room) {
     for (Object& o : table_.objects) {
         o.id = made;
         made += (o.type == 1 || o.type == 3) ? 3 : (o.type == 10 && o.args[2] == 6) ? 2 : 1;
-        if (o.type != 10) continue;
-        o.kind = std::min(o.args[2], 10);
-        o.points = std::min(o.args[1], 1000) / 100 * 100;
+        if (o.type != 10 && o.type != 11) continue;
+        // (Type 11, f03_0865: a kind 0 target, `a` its points.)
+        o.kind = o.type == 11 ? 0 : std::min(o.args[2], 10);
+        o.points = std::min(o.type == 11 ? o.args[0] : o.args[1], 1000) / 100 * 100;
         o.size = data_[0x2F4 + 2 * o.kind];
         o.frames = static_cast<int16_t>(data_[0x15CC + 0x18 * o.kind] | data_[0x15CC + 0x18 * o.kind + 1] << 8);
         o.hit = o.scored = o.frame = o.sequence = o.grow = 0;
         o.grip = -1;
         o.live = true, o.shown = true;
         ++targets_;
-        if (o.kind == 6) {
+        if (o.type == 11) {
+            // Its own state (+1E, 0 idle) and frames (f03_01bf: DS:16BC, 2).
+            o.state = 0, o.sequence = 0x16BC, o.frames = 2, o.frame = -1;
+        }
+        if (o.type == 10 && o.kind == 6) {
             // The suckhole (f02_0be1): its fuse (f07_12d6) made from the
             // ball (its sphere at the ball's x, y and 0; the ball's centre
             // seen), its core the target's; its spark (f03_002c: kind 7, no

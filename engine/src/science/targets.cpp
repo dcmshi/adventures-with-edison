@@ -257,6 +257,63 @@ void Science::lipsTurn(Object& o) {
 
 namespace edison {
 
+void Science::creatureTick(Object& o) {
+    // f03_091b, every 11 ticks (by [FFE] and its +1E, as its f03_0207 after
+    // it): unless hit (+1E 3), with d from the ball's foot to its sphere's
+    // (centre less radius) and v the ball's velocity: d along v (the cross
+    // terms dx vy and dy vx, the smaller over the larger, above 40 in a
+    // hundred), v not away from it in x or z, and |dz| under 60: it faces
+    // the ball (+28, f03_0c52: state 2, DS:16C4 + 2 (3 - |d| / (8r + 4)),
+    // the nearer the later, 2 frames); else, the ball about still (each
+    // part of v under 50): f03_0cfb, by the ball's x: not a multiple of 3,
+    // idle (state 0, 16BC); else odd, state 1 (16C0); else moving away
+    // (f03_0ccd), from state 2 idle again.
+    if ((o.id + roomTicks_) % kTargetPeriod != 0 || !hasBall_) return;
+    auto frames = [&](uint16_t sequence, int count) {
+        if (o.sequence != sequence) viewDirty_ = true;
+        o.sequence = sequence, o.frames = count, o.frame = -1;
+    };
+    const Ball& b = ball_;
+    const int r = o.size;
+    const int16_t d[3] = {static_cast<int16_t>(o.x + r - b.cx), static_cast<int16_t>(o.y + r - b.cy),
+                          static_cast<int16_t>((heightUnder(o.x, o.y) + r - 1 - r) - (b.cz - b.r))};
+    const int32_t a = static_cast<int32_t>(d[0]) * b.v[1], c = static_cast<int32_t>(d[1]) * b.v[0];
+    const int32_t lo = std::min(a, c), hi = std::max(a, c);
+    const int ratio = hi == 0 ? 0 : static_cast<int>(lo * 100 / hi);
+    if (ratio > 40 && static_cast<int32_t>(b.v[0]) * d[0] >= 0 && static_cast<int32_t>(b.v[2]) * d[2] >= 0 && std::abs(d[2]) < 60) {
+        if (o.state == 3) return;
+        const unsigned len = static_cast<uint16_t>(libLength(d));
+        const unsigned step = len / static_cast<unsigned>((r * 2 + 1) * 4);
+        const int near = 3 - static_cast<int>(std::min(step, 3u));
+        o.state = 2;
+        frames(static_cast<uint16_t>(0x16C4 + 2 * near), 2);
+    } else if (b.v[0] / 50 == 0 && b.v[1] / 50 == 0 && b.v[2] / 50 == 0) {
+        if (o.state == 3) return;
+        if (b.cx % 3 != 0) o.state = 0, frames(0x16BC, 2);
+        else if (b.cx % 2 != 0) o.state = 1, frames(0x16C0, 2);
+    } else if (o.state == 2) {
+        o.state = 0, frames(0x16BC, 2);
+    }
+}
+
+void Science::creatureMet(Object& o) {
+    // f03_0bc9, met by the player's ball: a Rubber one (its record's first
+    // byte 2) is broken (+7C), its state 1 (16C0, 2 frames); any other hits
+    // it (f03_0593) and it shows 1356 (state 3, 16CE, 1 frame).
+    auto frames = [&](uint16_t sequence, int count) {
+        if (o.sequence != sequence) viewDirty_ = true;
+        o.sequence = sequence, o.frames = count, o.frame = -1;
+    };
+    if (ball_.kind == 2) {
+        o.state = 1, frames(0x16C0, 2);
+        ball_.state = 1;
+        return;
+    }
+    o.state = 3;
+    pointHit(o);
+    frames(0x16CE, 1);
+}
+
 void Science::sparkTick(Object& o) {
     // f03_0207 for a suckhole's spark (kind 7, its creation number the
     // suckhole's + 1): never hit, so every 11 ticks its next idle frame.

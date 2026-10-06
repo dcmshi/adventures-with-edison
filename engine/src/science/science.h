@@ -304,7 +304,8 @@ private:
     void ballCollide(Ball& a, Contact& b);          // f08_0d3e
     void contactMet(Object& o, Ball& by);           // the object's +34: met by a body
     void fieldAt(const int p[3], const Ball* self, int16_t out[3]);  // f26_02e2
-    void ballTick();                                // f07_077e
+    void ballTick(Ball& b);                         // f07_077e (the player's ball or a type 0)
+    void ballSprite(const Ball& b, uint16_t rolling);  // f13_01ce: the ball (+20 its rolling frames)
     void ballLaunch(int tx, int ty, int tz);        // f07_0ca0
     void crackGlass();                              // f27_0772 (not yet)
     void shoot();                                   // f27_27a3 → f06_09a1
@@ -328,6 +329,11 @@ private:
         bool held = false;       // [6EC4]
     };
     void saveTickShot(const std::string& dir);    // (testing: SCI_TICKSHOTS)
+    // (Testing: with EDISON_LOG set, a line every 2 s saying what the game
+    // is doing, so a run that waits on something shows it.)
+    void heartbeat(const std::string& where);
+    uint64_t lastHeartbeat_ = 0;
+    static std::string hexWord(unsigned v);
     void aimSearch(const char* spec);             // (testing: SCI_AIMSEARCH)
     int playRoom(int room);                         // the arcade's loop (f32_0c1d) in a room: the next room
     void arcade(int room);                          // event 9 from room to room (f31_0783)
@@ -518,6 +524,8 @@ private:
     void lipsTurn(Object& o);           // kind 3's frames done (f03_0207)
     void pointHit(Object& o);           // f03_0593: hit by the ball
     void addScore(long points);         // f06_0208
+    void creatureTick(Object& o);       // f03_091b: type 11 watching the ball
+    void creatureMet(Object& o);        // f03_0bc9
     void suckholeTick(Object& o);       // f13_1036
     void fuseFollow(Object& o);         // f07_15ba, the fuse's
     void sparkTick(Object& o);          // f03_0207, the spark's (kind 7, idle)

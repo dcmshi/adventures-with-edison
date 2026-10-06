@@ -19,8 +19,13 @@
 //     --drag T X0 Y0 X1 Y1 MS   press at X0, Y0 at T, move to X1, Y1 over MS, release
 //     --type T TEXT       type TEXT at T milliseconds ('|' is Enter; repeatable)
 //     --quit-after MS     close after MS milliseconds
-//     --hidden            no window shown and the sound muted (test runs in the background)
+//     --hidden            no window shown, nothing drawn but the captures, the sound
+//                         muted (test runs in the background)
 //     --volume N          the sound's volume, 0-100 (default 100; 0 with --hidden)
+//     --virtual-clock     time is 1 ms per event pump, not the wall clock (the
+//                         times above, the captures and the game's ticks the
+//                         same on every run, however busy the machine; a
+//                         sample plays as long as its length says)
 //
 // The folder defaults to original/cd/DSK3 (needs EDISON.EXE, SHELL.D01 and
 // CADLIB.DLL from the CD). Mystery at the Museums is ported; picking one of
@@ -62,6 +67,7 @@ struct Automation {
     uint64_t quitAfter = 0;
     bool hidden = false;  // --hidden: no window shown, sound muted (for test runs in the background)
     int volume = -1;      // --volume N: 0-100 (default 100; 0 with --hidden)
+    bool virtualClock = false;  // --virtual-clock: 1 ms per pumpEvents (deterministic test runs)
 };
 
 class SdlPlatform : public edison::Platform {
@@ -108,6 +114,7 @@ public:
     }
 
     bool pumpEvents() override {
+        if (automation.virtualClock) ++virtualNow_;
         const uint64_t now = milliseconds();
         if (automation.quitAfter && now >= automation.quitAfter) return false;
         for (auto& t : automation.typed)
@@ -194,9 +201,13 @@ public:
         return true;
     }
 
-    uint64_t milliseconds() override { return SDL_GetTicks() - start_; }
+    uint64_t milliseconds() override { return automation.virtualClock ? virtualNow_ : SDL_GetTicks() - start_; }
 
     void present(const edison::Screen& screen, const edison::Palette& palette) override {
+        if (automation.hidden) {  // (no window to show: only the captures)
+            capture(screen, palette);
+            return;
+        }
         void* pixels;
         int pitch;
         if (SDL_LockTexture(texture_, nullptr, &pixels, &pitch)) {
@@ -269,8 +280,12 @@ public:
         }
     }
 
-    bool wavPlaying() override { return wavStream_ && SDL_GetAudioStreamQueued(wavStream_) > 0; }
+    bool wavPlaying() override {
+        if (automation.virtualClock) return virtualNow_ < wavEnd_;
+        return wavStream_ && SDL_GetAudioStreamQueued(wavStream_) > 0;
+    }
     void stopWav() override {
+        wavEnd_ = 0;
         if (wavStream_) SDL_ClearAudioStream(wavStream_);
     }
 
@@ -293,6 +308,9 @@ public:
         SDL_PutAudioStreamData(wavStream_, data, static_cast<int>(length));
         SDL_FlushAudioStream(wavStream_);  // so the resampler's tail drains and wavPlaying() ends
         SDL_free(data);
+        // (--virtual-clock: it plays for its length in that clock.)
+        const uint64_t bytesPerSecond = static_cast<uint64_t>(spec.freq) * spec.channels * SDL_AUDIO_BYTESIZE(spec.format);
+        if (bytesPerSecond) wavEnd_ = virtualNow_ + length * 1000ull / bytesPerSecond;
     }
 
     void setFmDriver(const std::string& dllPath) override {
@@ -386,6 +404,7 @@ private:
     std::string fmDll_;
     std::vector<int> keys_;
     uint64_t start_ = 0;
+    uint64_t virtualNow_ = 0, wavEnd_ = 0;  // --virtual-clock
     uint64_t nextCapture_ = 0;
     bool clicked_ = false;
     bool rightClicked_ = false;
@@ -438,6 +457,8 @@ int main(int argc, char** argv) {
             automation.typed.push_back({at, argv[++i]});
         } else if (a == "--room" && i + 1 < argc) {
             startRoom = std::atoi(argv[++i]);
+        } else if (a == "--virtual-clock") {
+            automation.virtualClock = true;
         } else if (a == "--hidden") {
             automation.hidden = true;
         } else if (a == "--volume" && i + 1 < argc) {

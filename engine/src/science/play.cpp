@@ -35,9 +35,10 @@ int Science::playRoom(int room) {
                 o.swallow = 1, o.spit = 0, o.swallowDone = false;
             }
     }
-    if (const char* search = std::getenv("SCI_AIMSEARCH"); search && hasBall_) {
-        aimSearch(search);
-        return -1;
+    if (const char* search = std::getenv("SCI_AIMSEARCH")) {
+        if (hasBall_) aimSearch(search);
+        else logLine("SCI_AIMSEARCH: room " + std::to_string(room) + " has no ball to shoot");
+        std::exit(0);  // (done: the log has the aims)
     }
     Mouse last;
     ctx_.platform.mouse(&last.x, &last.y, &last.held);
@@ -60,6 +61,8 @@ int Science::playRoom(int room) {
             mouseEvent(m);
             last = m;
         }
+        heartbeat("room " + std::to_string(currentRoom_) + " tick " + std::to_string(timerTicks_) +
+                  (hasBall_ ? " ball " + std::to_string(ball_.cx) + "," + std::to_string(ball_.cy) + "," + std::to_string(ball_.cz) : ""));
         // The 50 Hz timer's tick (event 4).
         const uint64_t now = ctx_.platform.milliseconds();
         if (now >= next) {
@@ -82,7 +85,9 @@ void Science::aimSearch(const char* spec) {
     // leading to room `to` are logged ("aim x,y power p: hole to at tick t"),
     // for a shot to replay in the original; a negative `to`, the first
     // point target of kind -to hit (-100: the ball near a magnet; -101: a
-    // switch turned over; -102: the ball broken (heated by a fan, zapped by
+    // switch turned over; -103: a type 11 met; -104: a type 0 ball or a
+    // block moved; -105: a block met;
+    // -102: the ball broken (heated by a fan, zapped by
     // an electromagnet) or caught by one). An
     // eighth number, the ball type; a ninth, ticks played before each
     // shot. Then the game ends.)
@@ -140,6 +145,37 @@ void Science::aimSearch(const char* spec) {
                         ++found;
                         break;
                     }
+                } else if (to == -105) {
+                    // (A block (type 16) met by the ball.)
+                    bool met = false;
+                    for (const Object& o : table_.objects) met |= o.type == 16 && o.ticks > 0;
+                    if (met) {
+                        logLine("aim " + std::to_string(x) + "," + std::to_string(y) + " power " + std::to_string(panel_.power) + ": a block at tick " +
+                                std::to_string(t));
+                        ++found;
+                        break;
+                    }
+                } else if (to == -104) {
+                    // (Another ball (type 0) or a block (16) set moving.)
+                    bool moved = false;
+                    for (size_t i = 0; i < table_.objects.size(); ++i)
+                        moved |= (table_.objects[i].type == 0 || table_.objects[i].type == 16) && (table_.objects[i].body.cx != objects[i].body.cx || table_.objects[i].body.cy != objects[i].body.cy);
+                    if (moved) {
+                        logLine("aim " + std::to_string(x) + "," + std::to_string(y) + " power " + std::to_string(panel_.power) + ": a type 0 ball at tick " +
+                                std::to_string(t));
+                        ++found;
+                        break;
+                    }
+                } else if (to == -103) {
+                    // (A type 11 met: hit, or the Rubber ball it broke.)
+                    bool met = false;
+                    for (const Object& o : table_.objects) met |= o.type == 11 && (o.state == 3 || (o.state == 1 && ball_.state != 0));
+                    if (met) {
+                        logLine("aim " + std::to_string(x) + "," + std::to_string(y) + " power " + std::to_string(panel_.power) + ": type 11 met at tick " +
+                                std::to_string(t));
+                        ++found;
+                        break;
+                    }
                 } else if (to == -101) {
                     // (A switch turned over instead.)
                     bool turned = false;
@@ -175,6 +211,25 @@ void Science::aimSearch(const char* spec) {
             }
         }
     logLine("SCI_AIMSEARCH: " + std::to_string(found) + " aims reach hole " + std::to_string(to));
+}
+
+void Science::heartbeat(const std::string& where) {
+    static const bool on = std::getenv("EDISON_LOG") != nullptr;
+    if (!on) return;
+    const uint64_t now = ctx_.platform.milliseconds();
+    if (lastHeartbeat_ != 0 && now < lastHeartbeat_ + 2000) return;
+    if (lastHeartbeat_ == 0) {
+        lastHeartbeat_ = now;
+        return;
+    }
+    lastHeartbeat_ = now;
+    logLine("heartbeat " + std::to_string(now / 1000) + "s: " + where);
+}
+
+std::string Science::hexWord(unsigned v) {
+    char s[8];
+    std::snprintf(s, sizeof s, "%04X", v & 0xFFFF);
+    return s;
 }
 
 void Science::saveTickShot(const std::string& dir) {
@@ -446,6 +501,7 @@ void Science::aim(const Mouse& m) {
         y = static_cast<int>(static_cast<long>(uy) * step / 0x7FFE);
         h = baseH + static_cast<int>(static_cast<long>(uh) * step / 0x7FFE);
         const int d = h - heightUnder(x, y);
+        if (std::getenv("SCI_AIMDEBUG")) logLine("aim step " + std::to_string(step) + " " + std::to_string(x) + "," + std::to_string(y) + "," + std::to_string(h) + " ground " + std::to_string(h - d) + " face " + std::to_string(faceUnder(x, y).type) + " faceHeight " + std::to_string(faceHeight(faceUnder(x, y), x, y)));
         if (d <= 1 && d >= -1) break;
     }
     const int dx = targetX_ - x, dy = targetY_ - y;
@@ -530,11 +586,13 @@ void Science::tickRoom() {
         if (o.type == 8) holeTick(o);
         else if (o.type == 10 && o.kind == 6) sparkTick(o), suckholeTick(o);
         else if (o.type == 10) pointTick(o);
-        else if (o.type == 7 || o.type == 4 || o.type == 12 || o.type == 13) thingTick(o);
+        else if (o.type == 11) creatureTick(o), pointTick(o);
+        else if (o.type == 7 || o.type == 4 || o.type == 12 || o.type == 13 || o.type == 16) thingTick(o);
+        else if (o.type == 0) ballTick(o.body);
         else if ((o.type == 1 || o.type == 3) && hasBall_) {
             targetTick();
             shadowTick();
-            ballTick();
+            ballTick(ball_);
         }
         if (exitRoom_) return;
     }
@@ -552,14 +610,16 @@ void Science::tickRoom() {
                 " r " + std::to_string(b.rem[0]) + "," + std::to_string(b.rem[1]) + "," + std::to_string(b.rem[2]));
     }
     if (std::getenv("SCI_DEBUG")) {
-        // (Testing: the loose magnets with the ball, for tracecmp.py: the
-        // ball's centre and velocity, then each magnet's box corner and
-        // velocity, as the original's cores have them, +6E and +62.)
+        // (Testing: the loose magnets and other balls (type 0) with the
+        // ball, for tracecmp.py: the ball's centre and velocity, then each
+        // body's box corner and velocity, as the original's cores have them,
+        // +6E and +62.)
         std::string line;
         for (const Object& o : table_.objects)
-            if (o.type == 4) {
+            if (o.type == 4 || o.type == 0 || o.type == 16) {
                 int b[6];
-                thingBox(o, b);
+                if (o.type != 0) thingBox(o, b);
+                else b[0] = o.body.cx - o.body.r, b[1] = o.body.cy - o.body.r, b[2] = o.body.cz - o.body.r;
                 line += " " + std::to_string(b[0]) + "," + std::to_string(b[1]) + "," + std::to_string(b[2]) + "," + std::to_string(o.body.v[0]) +
                         "," + std::to_string(o.body.v[1]) + "," + std::to_string(o.body.v[2]);
             }

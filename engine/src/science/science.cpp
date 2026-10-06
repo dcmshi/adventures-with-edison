@@ -3,6 +3,7 @@
 #include "science/science.h"
 
 #include <algorithm>
+#include <cstdlib>
 #include <fstream>
 #include <iterator>
 
@@ -53,6 +54,11 @@ void Science::run() {
         showTable(start);
         if (options_.music) ctx_.platform.setFmDriver(std::string());
         return;
+    }
+    if (std::getenv("SCI_AIMSEARCH")) {
+        // (Testing: the search is of a table room's shots, from --room.)
+        logLine("SCI_AIMSEARCH: --room " + std::to_string(start) + " isn't a table room (1-110)");
+        std::exit(0);
     }
     if (start < 0) {
         title();

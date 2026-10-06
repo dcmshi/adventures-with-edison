@@ -1046,6 +1046,32 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   ball broken, 227 states traced; with `[FFE]`'s phase read from the
   original (`SCI_ROOMTICKS`), the fuse before the spark and the scorched
   trail after it pixel for pixel).
+- **Type 11, the smiley** (`f03_0865`): a kind 0 point target (`a` its
+  points) with its own core, a cube of 34 (size 11h), its sphere kind 0's
+  (radius 13). Drawn: `1357` at its rectangle's left, 9 above its bottom
+  (`f14_1179`), then the target's draw. Four states, each a sequence
+  (`f03_01bf`): 0 `16BC`, 1 `16C0`, 2 `16C4` + 2 near, 3 `16CE`. Its tick
+  (`f03_091b`), from the ball's foot to its sphere's foot (d) and the
+  ball's velocity (v): coming at it (min(dx vy, dy vx) * 100 / the larger
+  over 40, vx dx and vz dz not negative, |dz| under 60): state 2, near = 3
+  less min(length / ((2r + 1) 4), 3); else with every v / 50 0 (the ball
+  at rest): state 0 if cx % 3, else state 1 if cx % 2; else from state 2,
+  state 0. Met (`f03_0bc9`): a Rubber ball state 1 and broken; any other
+  state 3, the points scored, `16CE` for a frame. Checked: room 46 (a
+  Rubber ball broken, 228 states; a Glass one scoring, 170), frames
+  matched given `[FFE]`'s phase.
+- **Type 0, a loose ball** (`f07_0000`): a Rubber ball (type record
+  `28B8`) of radius `a`, mass 10, no shadow, on the ground at (x, y); its
+  tick the ball's (`f07_077e`: rolling, breaking), hidden once broken (soft
+  then). Drawn as the player's ball is (`1300` rolling, the breaking
+  frames). Checked: room 71 (a rack of six, 236 states of all seven
+  bodies; frames within 6 pixels, a grid line of the table's).
+- **Type 16, a block** (`f07_17f2`): a cube of side 2`a` on the ground at
+  (x, y) (its core's type record Rubber), `b` its picture at the
+  rectangle's corner, `c` draggable, `d` stepped as a body (`f08_1a42`),
+  `e` its mass (0: 1, soft). Checked: room 96 (253 states, the block met
+  at tick 8); later in the shot the original's pit at z -388 near x 298
+  isn't the port's yet.
 - **Redrawing** (`f29_0380` at the room's tick's end): the changed areas
   (`f27_16ae`, an object's `+10`: its old and new rectangles queued, 32 at
   most) are redrawn every `+180` ticks: each room's builder sets 2, but the
@@ -1080,7 +1106,7 @@ through the run time's streams in segment 90). Text, in three parts:
 
    | Type | Made by | Objects | Notes |
    |---|---|---|---|
-   | 0 | `f07_0000` | 9 | draggable in room 0 only |
+   | 0 | `f07_0000` | 9 | a loose Rubber ball, `a` its radius (draggable in room 0 only) |
    | 1 | `f06_0043` (+ `f07_0456`) | 37 | the ball (only one: "can't init more than one player") |
    | 2 | `f05_11c1` | | a magnetic ball (the field's) |
    | 3 | `f06_0348` (`f61_09bd`) | 50 | the ball with a magnetic part (`f05_11c1` at its `+6`) |
@@ -1090,11 +1116,11 @@ through the run time's streams in segment 90). Text, in three parts:
    | 8 | `f28_00f3` / `f28_0391` | 263 | a hole: `a` is the room it leads to (in `S1`: 502 high scores, 501 lab, 503 credits, 31, 21, 508, 509, 504 EXIT); `e` not 0: the second of a door |
    | 9 and others | `f28_15a1` | 4 | |
    | 10 | `f03_002c`, kind 6 `f02_0be1` | 267 | point targets (`c` the kind); kind 6 a suckhole |
-   | 11 | `f03_0865` | 9 | `a` up to 10000 |
+   | 11 | `f03_0865` | 9 | the smiley: a kind 0 target, `a` its points (up to 10000) |
    | 12, 13 | `f02_00c2`, `f02_05f2` | 2, 9 | power (`+F94`): an electromagnet that catches Iron and breaks other balls, a fan (`a` its way) that breaks Ice, Rubber, Glass and Magic ones (see above) |
    | 14 | `f02_1234` | 6 | |
    | 15 | `f05_233e` | 53 | a magnet on a wall |
-   | 16 | `f07_17f2` | 9 | |
+   | 16 | `f07_17f2` | 9 | a block: `a` half its side, `b` its picture, `c` draggable, `d` stepped, `e` its mass |
 
    Types 2-6 and 15 are made by `f61_09bd` (which hands the rest to
    `f61_011d`), the magnets' rooms (segment 26's class, `f26_0000`: a

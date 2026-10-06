@@ -207,6 +207,13 @@ int Science::dialogRun(Dialog& d) {
     // pass after that; the buttons are tried one a pass, in turn, so a
     // click only counts when it's on the one being tried then ([6EC4] is
     // the button held, [6EC0] / [6EC2] where it went down).
+    // (Testing: with SCI_SKIPDIALOGS, or in an aim search, no one clicks, so
+    // a box answers its first button at once, and says so in the log.)
+    const std::string what = "dialog (message " + hexWord(d.message) + ")";
+    if (std::getenv("SCI_SKIPDIALOGS") || std::getenv("SCI_AIMSEARCH")) {
+        logLine(what + " skipped");
+        return 0;
+    }
     d.mouth = d.mouthShown = 0;
     clearInput();
     int x, y;
@@ -215,7 +222,8 @@ int Science::dialogRun(Dialog& d) {
     int key = 0;                         // [9558] / [955C]
     int mx = 0, my = 0;
     auto message = [&] {
-        // f36_0000: one message.
+        // f36_0000: one message. (Testing: a heartbeat while it waits.)
+        heartbeat("waiting in " + what + " for a click or a key");
         bool down;
         ctx_.platform.mouse(&x, &y, &down);
         if (held && !down) {

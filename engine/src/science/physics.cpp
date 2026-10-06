@@ -534,17 +534,17 @@ void Science::ballCollide(Ball& a, Contact& c) {
     }
 }
 
-void Science::ballTick() {
+void Science::ballTick(Ball& b) {
     // f07_077e: the step, then the rolling frames (a turn of frames every
     // r * r / 16 * [DFA] / [DFE] of squared move across), the kick's last
-    // tick.
-    Ball& b = ball_;
+    // tick. (The player's ball, or a type 0's.)
+    if (b.hidden && &b != &ball_) return;
     ballStep(b);
     if (b.state != 0) {
         // Breaking (+7C), on the room's even ticks ([FFE]): first its sound
         // (6028 with +28 set, a fan's; else 6019 glass, else 601A), then 13
-        // frames (+1A, its +22 table: f13_01ce); then it's gone (+7C 0) and,
-        // the player's ball, lost (f31_0504).
+        // frames (+1A, its +22 table: f13_01ce); then it's gone (+7C 0,
+        // hidden: its +14, f07_03be) and, the player's ball, lost (f31_0504).
         if (roomTicks_ % 2 != 0) return;
         if (b.state == 1) {
             sound(b.heated ? 0x6028 : b.kind == 4 ? 0x6019 : 0x601A);
@@ -554,7 +554,8 @@ void Science::ballTick() {
             if (++b.state > 13) {
                 b.state = 0, b.frame = 0, b.drawFrame = 0, b.zapped = false, b.heated = false;
                 viewDirty_ = true;
-                ballLost();
+                if (&b == &ball_) ballLost();
+                else b.hidden = true;
                 return;
             }
         }

@@ -30,6 +30,37 @@ void Science::thingsBuilt() {
             o.emDrop = 0, o.emMax = 52 - 12, o.emWay = 1, o.emFrame = -1, o.emCaught = false;
             continue;
         }
+        if (o.type == 16) {
+            // A block (f07_17f2): a its size (a byte), b its sprite, c its
+            // drag (+E: the generic f08_07c6 when set), d its step (+10:
+            // the generic body step f08_1a42 when set), e its mass (+34 / +38,
+            // when above 0; else 1). Its box a cube of side 2a, its corner at
+            // (x, y) on the ground (f08_0384); its sphere at the box's centre
+            // a unit lower, radius a (f07_0ed0); its type the core's own
+            // (Rubber); not magnetic.
+            const int a = static_cast<int8_t>(o.args[0]);
+            Ball& b = o.body;
+            b = Ball{};
+            b.r = a;
+            b.cx = o.x + a, b.cy = o.y + a, b.cz = heightUnder(o.x, o.y) + a - 1;
+            b.kind = 2, b.mass = o.args[4] > 0 ? o.args[4] : 1, b.self = static_cast<int>(i);
+            continue;
+        }
+        if (o.type == 0) {
+            // Another ball (f07_0000, the balls' own class): a its radius,
+            // resting on the ground at (x, y) (f10_1582); its type the
+            // core's own (+52 28B8: Rubber), so Rubber's frames (+20 1300,
+            // breaking +22 1390); its mass 10 (+34 / +38); no shadow object
+            // (+16 0: it draws none); its roll a frame every r * r / 16 of
+            // squared move.
+            Ball& b = o.body;
+            b = Ball{};
+            b.r = o.args[0];
+            b.cx = o.x, b.cy = o.y, b.cz = heightUnder(o.x, o.y) + b.r;
+            b.kind = 2, b.mass = 10, b.self = static_cast<int>(i);
+            b.rollThreshold = (b.r * b.r) >> 4;  // ([DFA] / [DFE] is 9 / 9, set at start-up)
+            continue;
+        }
         if (o.type == 4 || o.type == 5) {
             // A magnet (f05_1749, type 5 f05_210d: the same, but it doesn't
             // move): a its size and strength (a byte), b its pole (+1 N, -1
@@ -111,8 +142,8 @@ bool Science::thingBox(const Object& o, int box[6]) const {
         for (int k = 0; k < 6; ++k) box[k] = o.coreBox[k];
         return true;
     }
-    if (o.type == 4 || o.type == 5) {
-        // A magnet's follows its sphere (f07_04d5).
+    if (o.type == 4 || o.type == 5 || o.type == 16) {
+        // A magnet's (and a block's) follows its sphere (f07_04d5).
         const Ball& b = o.body;
         box[3] = box[4] = box[5] = 2 * b.r;
         box[0] = b.cx - b.r, box[1] = b.cy - b.r, box[2] = b.cz - b.r + 1;
@@ -174,6 +205,11 @@ void Science::thingDraw(Object& o, const Rect& r) {
         }
         return;
     }
+    if (o.type == 16) {
+        // f13_0589: its sprite (b) with its corner at the rectangle's (f14_1179).
+        panelSprite(r.x, r.y, static_cast<uint16_t>(o.args[1]));
+        return;
+    }
     if (o.type == 12) {
         // f13_0dc1: caught, 115F + its frame (+1E, from 0) at the centre;
         // else the head (13D4, f14_1179) at the rectangle's corner lowered
@@ -218,6 +254,11 @@ void Science::thingTick(Object& o) {
     if (o.type == 4) {
         // A loose magnet's step (its core's +00: f05_1f76 → f08_1a42).
         ballStep(o.body);
+        return;
+    }
+    if (o.type == 16) {
+        // A block's (f07_1920): the body's step, if d (+10) is set.
+        if (o.args[3] != 0) ballStep(o.body);
         return;
     }
     if (o.type == 13) {
@@ -333,8 +374,8 @@ bool Science::contactOf(Object& o, Contact& c) {
         c.ratio = o.leaving ? 0 : 1;
         return true;
     }
-    if (o.type == 10) {
-        // A point target (a suckhole too: its target part's, f02_0dfb): its
+    if (o.type == 10 || o.type == 11) {
+        // A point target (a suckhole and type 11 too: its target part's, f02_0dfb): its
         // box's centre a unit lower, radius its kind's size (f03_002c's f07_1082); soft
         // while live. (A suckhole's spark: soft and no points, so nothing.)
         const int g = heightUnder(o.x, o.y);
@@ -347,6 +388,23 @@ bool Science::contactOf(Object& o, Contact& c) {
         c.s[0] = ball_.cx, c.s[1] = ball_.cy, c.s[2] = ball_.cz, c.s[3] = ball_.r;
         c.ratio = ballKinds_[ball_.kind].mass;
         c.body = &ball_, c.movable = true;
+        return true;
+    }
+    if (o.type == 16) {
+        // A block: its sphere and mass (e); its velocity takes the change
+        // (its core's +2C, f08_1371).
+        const Ball& b = o.body;
+        c.s[0] = b.cx, c.s[1] = b.cy, c.s[2] = b.cz, c.s[3] = b.r;
+        c.ratio = b.mass;
+        c.body = &o.body, c.movable = true;
+        return true;
+    }
+    if (o.type == 0) {
+        // Another ball: its sphere and mass (10); out of reach once gone.
+        const Ball& b = o.body;
+        c.s[0] = b.cx, c.s[1] = b.cy, c.s[2] = b.cz, c.s[3] = b.r;
+        c.ratio = b.hidden ? 0 : b.mass;
+        c.body = &o.body, c.movable = true;
         return true;
     }
     if (o.type == 4 || o.type == 5 || o.type == 15 || o.type == 6) {
@@ -402,6 +460,15 @@ void Science::contactMet(Object& o, Ball& by) {
         if (std::getenv("SCI_DEBUG")) logLine("hole " + std::to_string(o.args[0]) + " takes the ball at t" + std::to_string(timerTicks_));
         roomBusy_ = true;
         viewDirty_ = true;
+        return;
+    }
+    if (o.type == 11) {
+        if (player) creatureMet(o);
+        return;
+    }
+    if (o.type == 16) {
+        // A block: the generic +34 (f08_122b), nothing. (Testing: counted.)
+        if (player) ++o.ticks;
         return;
     }
     if (o.type == 10) {

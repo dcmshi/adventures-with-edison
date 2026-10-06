@@ -17,14 +17,31 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
   `otvdm.ps1 volume N` while it runs; Windows keeps the level for
   `otvdmw.exe`).
 - `EDISON_LOG` appends: remove the file before a run whose log is read.
-- `retrace.sh [NAME...]`: replays the shots checked before in the port
-  and compares them with the original's traces kept in `build/scratch`
-  (holes' spits, the lips, the magnets of rooms 3 and 13, the
-  levers of rooms 61 and 62 and their powered magnets, room 29's
+- `python tools/testing/check.py [unit regress retrace smoke]`: every
+  check below, each timed and limited (a step still running at its limit
+  is reported HUNG), PASS or FAIL each, exit 1 if any failed; about 10 s.
+  Run it before a commit.
+  `smoke`: the aim search finds room 22's suckhole, room 96's greeting box
+  shows in the heartbeat when unanswered and is skipped with
+  `SCI_SKIPDIALOGS`.
+- Test runs of the port: `--hidden` (no window, no sound, no drawing but
+  the captures) and `--virtual-clock` (1 ms per event pump: the inputs'
+  times, the captures and the ticks the same on every run however busy
+  the machine, and as fast as it goes; a sample plays for its length).
+  The Python scripts below (their helpers in `testlib.py`) run their cases
+  at once, each a copy of `edison.exe` (the build can go on), each killed
+  at its `--quit-after` plus 20 s and then reported HUNG with its log's
+  last lines.
+- `retrace.py [--accept] [NAME...]`: replays the shots checked before in
+  the port and compares them with the original's traces kept in
+  `build/scratch` (holes' spits, the lips, the magnets of rooms 3, 13 and
+  33, the levers of rooms 61 and 62 and their powered magnets, room 29's
   bullseye, room 25's electromagnet catching an Iron ball and breaking
   Glass and Rubber ones, the fans of rooms 98 and 25 breaking a Rubber
   ball and melting an Ice one, room 22's suckhole: its spark breaking the
-  ball).
+  ball, room 46's smiley breaking a Rubber ball and scoring a Glass one,
+  room 71's rack of balls); each result against `retrace.expected`
+  (`--accept` writes the new ones there once they're checked).
 - Tracing across a change of room: `memwatch.py watch --follow 0.3` (the
   data segment moves as the room is built). Expressions are hex: a list
   entry i is at `[[5ffc+ae]+18e]+` 2i in hex. The room's object list
@@ -33,9 +50,16 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
 - `trace.sh NAME "ms x y hold;..." [ms]`: the same presses (times from the
   room's start) in the port (`SCI_DEBUG` log) and in the original
   (`WMAINSKP.EXE`, traced by `memwatch.py`), then `tracecmp.py`.
-- `regress.sh`: room 1 at rest, sliders, aims, ball types and a shot
+- `regress.py`: room 1 at rest, sliders, aims, ball types and a shot
   against the original's reference shots (`build/scratch/orig_*`, taken
-  with `otvdm.ps1 run`; not in the repository).
+  with `otvdm.ps1 run`; not in the repository): every frame exact, the
+  two whole screens no worse than their known counts. `E=path` tests
+  another build (also for `retrace.py`).
+- `aimsearch.py SPEC [--jobs N] [--limit S] -- ARGS...`: `SCI_AIMSEARCH`
+  split by rows over N processes (default half the cores), dialogs
+  skipped; progress per process to stderr, the aims found to stdout; a
+  process past S seconds (default 60) is reported HUNG with its log's
+  last lines; a room with no ball, or not a table room, fails at once.
 - `cmp.py PORTDIR ORIGDIR MS:NAME...`: view and panel differences of the
   port's capture at a time against an original screenshot.
 - `bestframe.py PORTDIR SHOT.png [x0 y0 x1 y1]`: the port's capture nearest
@@ -53,6 +77,11 @@ The port's test switches (environment): `SCI_DEBUG=1` logs the ball each
 tick (centre, velocity and remainder: `c`, `v`, `r`) (and holes, targets); `SCI_RUNNER=1` the panel's walking figure
 (for `tracecmp.py --port-pattern`); `SCI_TICKSHOTS=DIR` saves the display
 after every tick (`DIR/t<tick>.bmp`: no frame missed, whatever the load);
+`SCI_SKIPDIALOGS=1` answers every box with its first button at once
+(logged: "dialog (message XXXX) skipped"); with `EDISON_LOG` set, a
+heartbeat every 2 s (of the game's clock) says what the game is doing
+("room R tick T ball x,y,z", or "waiting in dialog (message XXXX)"), so a
+run that hangs shows where;
 `SCI_SHOOT_WHEN=cx,cy,cz,vx,vy,vz` holds a shot till the ball's in that
 state; `SCI_HOLE=n` has the first room's hole to room n take the ball at
 once (room 1: 504 EXIT's question, 508 / 509 the warp codes; 501-503 the
@@ -66,7 +95,10 @@ the room as built, without drawing, and logs those whose ball a hole
 leading to room `to` takes ("aim x,y power p: hole to at tick t"; a
 negative `to`: the first point target of kind -`to` hit, -100 the
 ball near a magnet, -101 a switch turned over, -102 the ball broken (logged as heated by a
-fan, zapped by an electromagnet, or broken) or caught by an electromagnet; an eighth
+fan, zapped by an electromagnet, or broken) or caught by an electromagnet, -103 a
+smiley (type 11) met, -104 a loose ball (type 0) or block (type 16) moved,
+-105 a block met; an eighth
 number sets the ball type, a ninth the ticks played before each shot): for
 bank shots to replay in the original (with `--click`s for a greeting
-first; it ends the game when done).
+first; dialogs are skipped; it ends the game when done, or at once if
+the room has no ball).
