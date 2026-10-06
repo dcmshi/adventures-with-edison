@@ -104,6 +104,7 @@ private:
         int lastHit = 0, hitFlag = 0;           // +56, +54
         int state = 0;                          // +7C: 1.. breaking
         bool zapped = false;                    // the motion part's +2A: broken by an electromagnet (frames 14B6)
+        bool heated = false;                    // the motion part's +28: broken by a fan (sound 6028; Ice frames 148C)
         int kind = 2;                           // its type record (+52)
         int kickTicks = 0;                      // the motion part's +E
         int32_t rollAcc = 0;                    // +A
@@ -167,6 +168,8 @@ private:
         // core's +7C) and the frame since (+1E, -1 to 3).
         int emDrop = 0, emMax = 0, emWay = 1, emFrame = -1;
         bool emCaught = false;
+        // Type 13, the fan (f02_05f2): its blades' frame (+1B, -1 still).
+        int fanFrame = -1;
     };
     // The room as its camera (segment 25) and the root of its boxes.
     struct Table {
@@ -243,6 +246,7 @@ private:
         int32_t bounceNum, bounceDen;  // +1, +5
         int fragility;                 // +21: breaks above 100h / this
         int mass;                      // the core's +34 / +38
+        int heat;                      // +23 (f33_0263): a fan breaks it at 200 or less
     };
     static constexpr int kTimerRate = 50, kTimerK = 42;  // [27B0] (f32_0777), [27B2]
     static constexpr int kStepNum = 10, kStepDen = 100;  // [1010], [1014] (seg8:3A98)
@@ -444,7 +448,7 @@ private:
     PanelState panel_;
     Ball ball_;
     static constexpr BallKind ballKinds_[6] = {
-        {4, 10, 20, 5}, {4, 10, 4, 15}, {9, 10, 0, 5}, {2, 10, 0, 20}, {4, 10, 32, 5}, {15, 10, 0, 5}};
+        {4, 10, 20, 5, 100}, {4, 10, 4, 15, 1000}, {9, 10, 0, 5, 100}, {2, 10, 0, 20, 1000}, {4, 10, 32, 5, 100}, {15, 10, 0, 5, 100}};
     int gravity_ = -200;                // the room's +EFF / +F03
     int32_t frictionNum_ = 45, frictionDen_ = 255;  // +F07, +F0B
     int power_ = 0;                     // +F0F

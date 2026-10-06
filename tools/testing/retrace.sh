@@ -24,6 +24,8 @@ cases=(
 "emCatch25|build/scratch/em/c25/ball.txt||--room 25 --drag 5000 400 140 400 140 80 --move 5180 404 140 --drag 6600 540 340 540 340 80 --move 6730 544 340 --quit-after 9000"
 "emGlass25|build/scratch/em/c25r/ball.txt||--room 25 --drag 1000 330 345 330 345 80 --move 1300 335 345 --drag 5000 400 140 400 140 80 --move 5180 404 140 --drag 8300 540 340 540 340 80 --move 8430 544 340 --quit-after 10500"
 "emRubber25|build/scratch/em/c25z/ball.txt||--room 25 --drag 1000 330 345 330 345 80 --move 1300 335 345 --drag 1600 330 345 330 345 80 --move 1900 335 345 --drag 2200 330 345 330 345 80 --move 2500 335 345 --drag 2800 330 345 330 345 80 --move 3100 335 345 --drag 5000 400 140 400 140 80 --move 5180 404 140 --drag 8300 540 340 540 340 80 --move 8430 544 340 --quit-after 10500"
+"fan98|build/scratch/fan/o98/ball.txt||--room 98 --drag 2000 460 80 460 80 80 --move 2180 464 80 --drag 3000 540 340 540 340 80 --move 3130 544 340 --quit-after 7000"
+"fanIce25|build/scratch/fan/o25i/ball.txt||--room 25 --drag 1000 330 345 330 345 80 --move 1300 335 345 --drag 1600 330 345 330 345 80 --move 1900 335 345 --drag 3000 200 150 200 150 80 --move 3180 204 150 --drag 4000 540 340 540 340 80 --move 4130 544 340 --quit-after 8000"
 "lipsIce|build/scratch/t7/olips0/trace.txt||--room 2 --drag 4000 334 330 334 330 80 --move 4150 330 300 --drag 4600 334 330 334 330 80 --move 4750 330 300 --drag 5200 334 330 334 330 80 --move 5350 330 300 --drag 5800 334 330 334 330 80 --move 5950 330 300 --drag 6400 122 236 122 236 80 --move 6580 126 236 --drag 7400 540 340 540 340 80 --move 7530 544 340 --quit-after 20000"
 )
 for c in "${cases[@]}"; do

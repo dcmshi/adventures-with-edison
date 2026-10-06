@@ -18,6 +18,11 @@ void Science::thingsBuilt() {
             o.powered = false;
             power = static_cast<int>(i);
         }
+        if (o.type == 13) {
+            // The fan (f02_05f2): a its way (+14: 0-3), its blades still.
+            o.fanFrame = -1;
+            continue;
+        }
         if (o.type == 12) {
             // The electromagnet (f02_00c2): a its period (+1A); its box
             // (f02_0000) 44 wide, 2 deep, 52 high at (x, y, the ground), its
@@ -113,6 +118,12 @@ bool Science::thingBox(const Object& o, int box[6]) const {
         box[0] = b.cx - b.r, box[1] = b.cy - b.r, box[2] = b.cz - b.r + 1;
         return true;
     }
+    if (o.type == 13) {
+        // f02_0530: a 26 cube at (x, y, the ground under it).
+        box[0] = o.x, box[1] = o.y, box[2] = heightUnder(o.x, o.y);
+        box[3] = box[4] = box[5] = 26;
+        return true;
+    }
     if (o.type == 12) {
         // f02_0000: at (x, y, the ground under it), 44 x 2 x 52.
         box[0] = o.x, box[1] = o.y, box[2] = heightUnder(o.x, o.y);
@@ -149,6 +160,20 @@ uint16_t Science::thingSprite(const Object& o) const {
 void Science::thingDraw(Object& o, const Rect& r) {
     // Its core's +04, r its rectangle (+0): most a sprite at its centre.
     const int cx = r.x + (r.w >> 1), cy = r.y + (r.h >> 1);
+    if (o.type == 13) {
+        // f13_0f2b: the fan by its way (+1D: DS:16DC + 2a) at the centre;
+        // turning (+1B), its wind (+19: DS:16E4 + 8a, by the frame) with
+        // its corner at the rectangle's plus +1F, +21 (f14_1179).
+        const int way = std::clamp(o.args[0], 0, 3);
+        static const int kWind[4][2] = {{18, -17}, {-47, 11}, {22, 0}, {-60, 0}};
+        const size_t body = 0x16DC + 2u * static_cast<size_t>(way);
+        objectSprite(cx, cy, static_cast<uint16_t>(data_[body] | data_[body + 1] << 8));
+        if (o.fanFrame >= 0) {
+            const size_t at = 0x16E4 + 8u * static_cast<size_t>(way) + 2u * static_cast<size_t>(o.fanFrame);
+            panelSprite(r.x + kWind[way][0], r.y + kWind[way][1], static_cast<uint16_t>(data_[at] | data_[at + 1] << 8));
+        }
+        return;
+    }
     if (o.type == 12) {
         // f13_0dc1: caught, 115F + its frame (+1E, from 0) at the centre;
         // else the head (13D4, f14_1179) at the rectangle's corner lowered
@@ -193,6 +218,43 @@ void Science::thingTick(Object& o) {
     if (o.type == 4) {
         // A loose magnet's step (its core's +00: f05_1f76 → f08_1a42).
         ballStep(o.body);
+        return;
+    }
+    if (o.type == 13) {
+        // The fan's step (f02_08e9), while powered (+10) or its blades still
+        // turn: d the ball's centre from its sphere's (radius r). Every 10
+        // room ticks ([FFE]): powered and d within 8r, the next frame (0-3)
+        // and sound 601B; else, turning, the next till still (-1). Each
+        // tick, d within 4r, |dz| at most r, and d's heading (f87_0804) in
+        // its quarter (+15 to +17: from 2000h, A000h, E000h, 6000h by its
+        // way; way 2's across 0), the ball heated (f07_030e with 200).
+        if (!o.powered && o.fanFrame < 0) return;
+        if (!hasBall_) return;
+        Contact c;
+        contactOf(o, c);
+        const int r = c.s[3];
+        const int dx = static_cast<int16_t>(ball_.cx - c.s[0]), dy = static_cast<int16_t>(ball_.cy - c.s[1]),
+                  dz = static_cast<int16_t>(ball_.cz - c.s[2]);
+        const int32_t r2 = r * r;
+        const int32_t d2 = static_cast<int32_t>(dx) * dx + static_cast<int32_t>(dy) * dy + static_cast<int32_t>(dz) * dz;
+        if (roomTicks_ % 10 == 0) {
+            if (d2 > r2 * 64 || !o.powered) {
+                if (o.fanFrame >= 0) {
+                    if (++o.fanFrame > 3) o.fanFrame = -1;
+                    viewDirty_ = true;
+                }
+            } else {
+                if (++o.fanFrame > 3) o.fanFrame = 0;
+                viewDirty_ = true;
+                sound(0x601B);
+            }
+        }
+        if (d2 > r2 * 16 || std::abs(dz) > r) return;
+        static const uint16_t kFrom[4] = {0x2000, 0xA000, 0xE000, 0x6000};
+        const uint16_t from = kFrom[std::clamp(o.args[0], 0, 3)], to = static_cast<uint16_t>(from + 0x4000);
+        const uint16_t heading = dx == 0 && dy == 0 ? 0 : static_cast<uint16_t>(libAtan2(dx, dy));
+        const bool in = o.args[0] == 2 ? !(heading < from && heading > to) : !(heading < from || heading > to);
+        if (in && ballKinds_[ball_.kind].heat <= 200 && ball_.state == 0) ball_.state = 1, ball_.heated = true;
         return;
     }
     if (o.type == 12) {
@@ -293,6 +355,13 @@ bool Science::contactOf(Object& o, Contact& c) {
         c.s[0] = b.cx, c.s[1] = b.cy, c.s[2] = b.cz, c.s[3] = b.r;
         c.ratio = b.mass;
         c.body = &o.body, c.movable = o.type == 4;
+        return true;
+    }
+    if (o.type == 13) {
+        // The fan: solid (+34 / +38 25); its sphere (f07_0ed0) at its box's
+        // centre a unit lower, radius 13. It doesn't move.
+        c.s[0] = o.x + 13, c.s[1] = o.y + 13, c.s[2] = heightUnder(o.x, o.y) + 12, c.s[3] = 13;
+        c.ratio = 25;
         return true;
     }
     if (o.type == 12) {

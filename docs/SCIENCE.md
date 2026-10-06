@@ -943,6 +943,31 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   state). The original redraws only an object's rectangle (`f08_07a7`), so
   the burst's pieces outside it (and the frame's post) differ from the
   port's, which redraws the view.
+- **Type 13, the fan** (`f02_05f2`; `a` its way, 0-3): its motion part at
+  `+0` (sphere `+2`: a 26 cube's centre a unit lower, radius 13), its power
+  part at `+0C` (table `1C4`: `+0C` the plain `f04_008e`, `+10` says 2), its
+  core at `+27` (`f02_0530`: a 26 cube at (x, y, the ground); mass 25,
+  solid; met: the generic `f08_122b`). `+14` `a`; `+15` / `+17` its quarter
+  of headings (from `2000h`, `A000h`, `E000h`, `6000h` by way, to that +
+  `4000h`); `+19` its wind's sprites (`DS:16E4` + 8a: `13FF`-`1402`,
+  `1409`-`140C`, `13FA`-`13FD`, `1404`-`1407`); `+1B` the blades' frame
+  (-1 still); `+1D` its picture (`DS:16DC` + 2a: `13FE`, `1408`, `13F9`,
+  `1403`); `+1F` its wind's corner from its rectangle's ((18, -17), (-47,
+  11), (22, 0), (-60, 0)) and its size. Its step (`f02_08e9`), while
+  powered or its blades still turn, with the player's ball: d from its
+  sphere's centre to the ball's. Every 10 room ticks (`[FFE]`), powered
+  and d within 8r, the next frame (0-3, round) and sound 601B; else,
+  turning, the next till still. Each tick, d within 4r, |dz| at most r and
+  d's heading (`f87_0804`) in its quarter (way 2's across 0): `f07_030e`
+  with 200, which breaks a ball whose type's `+23` (`f33_0263`: Ice 100,
+  Stone 1000, Rubber 100, Iron 1000, Glass 100, Magic 100, from `f33_02a8`)
+  is at most 200 and that isn't breaking (`+7C` 1), and sets its motion
+  part's `+28`: its break sounds 6028, and an Ice ball's draws from its
+  `+24` (`DS:148C`, melting). Drawn (`f13_0f2b`): its picture at its
+  rectangle's centre, then, turning, its wind (`f14_1179`) at its corner.
+  Checked: room 98 (a Rubber ball broken, 40 states; the fan's area pixel
+  for pixel at rest), room 25 (an Ice ball melted, the fan spinning down
+  frame for frame).
 - **Magnets** (segment 5; the rooms built by `f61_09bd`, segment 26's
   class): each has a magnetic part (`f05_0003`, registered with the room,
   `f26_00c0`; its strength `+6` / `+A`, a ratio of longs). The field at a
@@ -1021,7 +1046,7 @@ through the run time's streams in segment 90). Text, in three parts:
    | 9 and others | `f28_15a1` | 4 | |
    | 10 | `f03_002c`, kind 6 `f02_0be1` | 267 | point targets (`c` the kind); kind 6 a suckhole |
    | 11 | `f03_0865` | 9 | `a` up to 10000 |
-   | 12, 13 | `f02_00c2`, `f02_05f2` | 2, 9 | power (`+F94`): an electromagnet that catches Iron and breaks other balls (see above), a fan (`a` its way) |
+   | 12, 13 | `f02_00c2`, `f02_05f2` | 2, 9 | power (`+F94`): an electromagnet that catches Iron and breaks other balls, a fan (`a` its way) that breaks Ice, Rubber, Glass and Magic ones (see above) |
    | 14 | `f02_1234` | 6 | |
    | 15 | `f05_233e` | 53 | a magnet on a wall |
    | 16 | `f07_17f2` | 9 | |

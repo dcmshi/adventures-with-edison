@@ -538,17 +538,17 @@ void Science::ballTick() {
     ballStep(b);
     if (b.state != 0) {
         // Breaking (+7C), on the room's even ticks ([FFE]): first its sound
-        // (6019 glass, else 601A; 6028 with +28 set, not ported), then 13
+        // (6028 with +28 set, a fan's; else 6019 glass, else 601A), then 13
         // frames (+1A, its +22 table: f13_01ce); then it's gone (+7C 0) and,
         // the player's ball, lost (f31_0504).
         if (roomTicks_ % 2 != 0) return;
         if (b.state == 1) {
-            sound(b.kind == 4 ? 0x6019 : 0x601A);
+            sound(b.heated ? 0x6028 : b.kind == 4 ? 0x6019 : 0x601A);
             b.frame = 0, b.state = 2;
         } else {
             if (++b.frame > 13) b.frame = 0;
             if (++b.state > 13) {
-                b.state = 0, b.frame = 0, b.drawFrame = 0, b.zapped = false;
+                b.state = 0, b.frame = 0, b.drawFrame = 0, b.zapped = false, b.heated = false;
                 viewDirty_ = true;
                 ballLost();
                 return;

@@ -359,10 +359,12 @@ void Science::drawObjects() {
                 if (b.state != 0) {
                     // Breaking (f13_01ce, +7C): its type's frames (+22: DS:13E4
                     // Ice, 13BA Stone, 1390 Rubber, 1438 Iron, 1462 Glass, 140E
-                    // Magic; 6 bytes each, the sprite first; +26, 14B6 for every
-                    // type, when an electromagnet broke it: +2A), no shadow.
+                    // Magic; 6 bytes each, the sprite first; +24, 148C, for Ice
+                    // a fan broke (+28); +26, 14B6 for every type, when an
+                    // electromagnet broke it: +2A), no shadow.
                     static const uint16_t kBreak[6] = {0x13E4, 0x13BA, 0x1390, 0x1438, 0x1462, 0x140E};
-                    const size_t at = (b.zapped ? 0x14B6u : kBreak[std::clamp(b.kind, 0, 5)]) + 6u * static_cast<size_t>(b.drawFrame >> 1);
+                    const uint16_t frames = b.heated && b.kind == 0 ? 0x148C : b.zapped ? 0x14B6 : kBreak[std::clamp(b.kind, 0, 5)];
+                    const size_t at = frames + 6u * static_cast<size_t>(b.drawFrame >> 1);
                     const auto [bx, by] = objectCentre(b.cx - b.r, b.cy - b.r, b.cz - b.r, 2 * b.r + 1, 2 * b.r + 1, 2 * b.r + 1);
                     objectSprite(bx, by, static_cast<uint16_t>(data_[at] | data_[at + 1] << 8));
                     return;
