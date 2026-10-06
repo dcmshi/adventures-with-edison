@@ -234,7 +234,7 @@ void Science::lipsTurn(Object& o) {
     }
     if (o.grip == 1) {
         // Its sphere (f03_002c's f07_1082): the box's centre a unit lower.
-        const int cx = o.x + 13, cy = o.y + 13, cz = heightUnder(o.x, o.y) + 12;
+        const int cx = o.x + o.size, cy = o.y + o.size, cz = heightUnder(o.x, o.y) + o.size - 1;
         Ball& b = ball_;
         const int x = cx, y = cy - 0x22;
         const int dx = b.cx - x, dy = b.cy - y;
@@ -251,6 +251,166 @@ void Science::lipsTurn(Object& o) {
     o.frame = 0;
     o.grow -= 8;
     viewDirty_ = true;
+}
+
+}  // namespace edison
+
+namespace edison {
+
+void Science::sparkTick(Object& o) {
+    // f03_0207 for a suckhole's spark (kind 7, its creation number the
+    // suckhole's + 1): never hit, so every 11 ticks its next idle frame.
+    if ((o.id + 1 + roomTicks_) % kTargetPeriod != 0) return;
+    if (++o.sparkFrame >= o.sparkFrames) o.sparkFrame = 0;
+    if (o.sparkShown) viewDirty_ = true;
+}
+
+void Science::suckholeTick(Object& o) {
+    // f13_1036. Till its points are scored (its target part's +14), a
+    // point target's tick (f03_0207).
+    if (o.scored == 0) {
+        pointTick(o);
+        return;
+    }
+    if (!o.fuseStarted) {
+        // Started when no other fuse burns ([76]): the track's start ([8CCA]
+        // 0), the spark not out; the fuse shown, its box 6 x 6 x 2 at the
+        // ball's corner (its centre less its radius) on the ground there,
+        // its sphere the box's centre, the track's first point.
+        if (fuseBusy_) return;
+        o.fuseStarted = true, fuseBusy_ = true;
+        fuseWrite_ = 0, o.sparkAt = -1, o.fuseTicks = 0;
+        o.fuseHidden = false;
+        const int x = ball_.cx - ball_.r, y = ball_.cy - ball_.r, z = heightUnder(x, y);
+        const int box[6] = {x, y, z, 6, 6, 2};
+        std::copy(box, box + 6, o.fuseBox);
+        o.fuse[0] = x + 3, o.fuse[1] = y + 3, o.fuse[2] = z;
+        fuseTrack_[0][0] = o.fuse[0], fuseTrack_[0][1] = o.fuse[1];
+        viewDirty_ = true;
+        return;
+    }
+    if (o.fuseDone) return;
+    // The fuse follows the ball (f07_15ba); 300 ticks counted; each tick it
+    // moved, its sphere's x and y the track's next (300 kept, round).
+    fuseFollow(o);
+    if (o.fuseTicks < 300) ++o.fuseTicks;
+    if (o.fuseMoved) {
+        if (++fuseWrite_ >= 300) fuseWrite_ = 0;
+        fuseTrack_[fuseWrite_][0] = o.fuse[0], fuseTrack_[fuseWrite_][1] = o.fuse[1];
+    }
+    // Past 130 ticks the spark comes out (+38; shown, f08_04b3) at the
+    // track's start; then each tick it moves on one along it.
+    if (o.fuseTicks > 0x82 && !o.sparkOut) {
+        o.sparkOut = true, o.sparkShown = true;
+        sparkMove(o, fuseTrack_[0][0], fuseTrack_[0][1]);
+    }
+    if (!o.sparkOut) return;
+    if (++o.sparkAt >= 300) o.sparkAt = 0;
+    sparkMove(o, fuseTrack_[o.sparkAt][0], fuseTrack_[o.sparkAt][1]);
+    // Where the table seen 8 below its rectangle's centre (f27_304c) is
+    // within 6 of the ground under it, and its rectangle's corner in the
+    // view: the burnt fuse (141B) there on screen 3.
+    const int s = o.sparkSize;
+    const Rect r = objectRect(o.spark[0] - s, o.spark[1] - s, o.spark[2] - s + 1, 2 * s, 2 * s, 2 * s);
+    const int px = r.x + (r.w >> 1), py = r.y + (r.h >> 1) + 8;
+    int seen[3];
+    if (surfaceAt(px, py, seen) && std::abs(seen[2] - heightUnder(o.spark[0], o.spark[1])) <= 6 && inside(table_.view, r.x, r.y)) {
+        const int was = current();
+        select(3);
+        objectSprite(px, py, 0x141B);
+        select(was);
+    }
+    // At the track's end, the ball's there: the spark hidden (f08_0469), the
+    // ball broken (its core's +7C), the suckhole done (+3A) and its fuse
+    // hidden; another fuse may burn.
+    if (o.sparkAt == fuseWrite_ && hasBall_) {
+        o.sparkShown = false;
+        ball_.state = 1;
+        o.fuseDone = true, o.fuseHidden = true;
+        fuseBusy_ = false;
+        if (std::getenv("SCI_DEBUG")) logLine("spark at the ball at t" + std::to_string(timerTicks_));
+    }
+    viewDirty_ = true;
+}
+
+void Science::fuseFollow(Object& o) {
+    // f07_15ba with the fuse's +16 [14E4]: the ball's centre unchanged, not
+    // moved (+14); the fuse shown while the ball breaks (+7C): hidden, not
+    // moved. Else moved: shown again once the ball is (its +60), at the
+    // ball's x and y on the ground (+1) there (f02_0dc2 → f07_11c5: its box
+    // round that point, its centre a unit lower), the centre seen.
+    const Ball& b = ball_;
+    o.fuseMoved = false;
+    if (b.cx == o.fuseSeen[0] && b.cy == o.fuseSeen[1] && b.cz == o.fuseSeen[2]) return;
+    if (!o.fuseHidden && b.state != 0) {
+        o.fuseHidden = true;
+        viewDirty_ = true;
+        return;
+    }
+    o.fuseMoved = true;
+    if (o.fuseHidden && !b.hidden) o.fuseHidden = false;
+    const int z = heightUnder(b.cx, b.cy) + 1;
+    o.fuse[0] = b.cx, o.fuse[1] = b.cy, o.fuse[2] = z;
+    const int box[6] = {b.cx - 3, b.cy - 3, z, 6, 6, 2};
+    std::copy(box, box + 6, o.fuseBox);
+    o.fuseSeen[0] = b.cx, o.fuseSeen[1] = b.cy, o.fuseSeen[2] = b.cz;
+    viewDirty_ = true;
+}
+
+void Science::sparkMove(Object& o, int x, int y) {
+    // f08_056e (with 0): sound 6026 for a move of more than 15 across; its
+    // sphere at (x, y), its radius above the ground there (its box a unit
+    // above it).
+    const int dx = o.spark[0] - x, dy = o.spark[1] - y;
+    if (dx * dx + dy * dy > 15 * 15) sound(0x6026);
+    o.spark[0] = x, o.spark[1] = y, o.spark[2] = heightUnder(x, y) + o.sparkSize;
+}
+
+bool Science::sparkContact(const Object& o, Contact& c) const {
+    // A suckhole's spark, the list's next entry: soft, radius its size (10); met
+    // (f03_0593), no points and not kind 3, it does nothing.
+    if (o.type != 10 || o.kind != 6) return false;
+    c.s[0] = o.spark[0], c.s[1] = o.spark[1], c.s[2] = o.spark[2], c.s[3] = o.sparkSize;
+    c.ratio = 1;
+    return true;
+}
+
+void Science::fuseDraw(const Object& o) {
+    // f13_15e0 once scored: where the table seen at its rectangle's centre
+    // (f27_304c) is within 4 of the ground under its sphere, 1412 (f13_04ab
+    // with +16 [14E4]) at its box's centre projected, on screen 3.
+    const int* b = o.fuseBox;
+    const Rect r = objectRect(b[0], b[1], b[2], b[3], b[4], b[5]);
+    int seen[3];
+    if (!surfaceAt(r.x + (r.w >> 1), r.y + (r.h >> 1), seen)) return;
+    if (std::abs(seen[2] - heightUnder(o.fuse[0], o.fuse[1])) > 4) return;
+    const auto [x, y] = project(b[0] + (b[3] >> 1), b[1] + (b[4] >> 1), b[2] + (b[5] >> 1) - 1);
+    const int was = current();
+    select(3);
+    objectSprite(x, y, 0x1412);
+    select(was);
+}
+
+bool Science::surfaceAt(int sx, int sy, int out[3]) const {
+    // f27_304c: from the point at depth 0 under a screen point (x less the
+    // view's left and scroll, height the view's bottom less y) along the
+    // line of sight (-100, 282, -100: f11_02f7 to 1, 9, 17, ... long) to
+    // the first point below the ground under it; none past depth 314h.
+    const Rect& v = table_.view;
+    const int baseX = sx - v.x - table_.scrollX, baseH = v.y + v.h - 1 - sy;
+    static const int kSight[3] = {-100, 282, -100};
+    int unit[3];
+    libNormalize(kSight, unit);
+    int x = baseX, y = 0, h = baseH;
+    for (int step = 1;; step += 8) {
+        if (y > 0x314) return false;
+        x = baseX + static_cast<int>(static_cast<long>(unit[0]) * step / 0x7FFE);
+        y = static_cast<int>(static_cast<long>(unit[1]) * step / 0x7FFE);
+        h = baseH + static_cast<int>(static_cast<long>(unit[2]) * step / 0x7FFE);
+        if (h - heightUnder(x, y) < 0) break;
+    }
+    out[0] = x, out[1] = y, out[2] = h;
+    return true;
 }
 
 }  // namespace edison

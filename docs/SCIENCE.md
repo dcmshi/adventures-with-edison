@@ -643,10 +643,11 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   in room 1) and two tables of 6 bytes (from a shot count on,
   `f27_088b`: `+F8D` the targets', `f27_0859`: `+F87` the completion's;
   128ths, 128 by default). `tools/testing/roompics.py` takes them all.
-- **Point targets** (type 10 but kind 6, a suckhole; `f03_002c`: `c` the
-  kind, at most 10; `b` the points, at most 1000, in hundreds): a 26 cube
-  on the ground at its corner, sphere at its centre a unit lower, radius
-  13; soft (the ball goes on). Counted in `[30A]`, hits in `[308]` (`f03_0014`:
+- **Point targets** (type 10; `f03_002c`: `c` the kind, at most 10; `b`
+  the points, at most 1000, in hundreds; `a` unused): a cube on the ground
+  at its corner, twice its kind's size (`DS:2F4`, a word a kind: 13, kind 2
+  17, kind 7 10; `f08_0384`), sphere at its centre a unit lower, radius the
+  size; soft (the ball goes on). Counted in `[30A]`, hits in `[308]` (`f03_0014`:
   all hit, which some rooms' holes ask before letting the ball through).
   Its tick (`f03_0207`) every 11 ticks, by `[FFE]` and its creation number
   (`+1E`: the ball makes three): idle, the next of its kind's frames
@@ -1006,6 +1007,50 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   Checked: room 3 (the Iron ball pulled across to a type-5 magnet and
   held inside it, 868 states) and room 13 (three loose magnets and the
   ball, 625 states), traced (`memwatch.py --follow`) state for state.
+- **Type 10 kind 6, the suckhole** (`f02_0be1`; the factory insists the
+  player's ball is made first): a fuse that a spark burns along to the ball.
+  Its core is shared by its motion part at `+0` (`f07_12d6`, the shadow's
+  class, made from the ball: the fuse) and a kind 6 point target at `+18`
+  (`f03_002c`, `b` its points); a second target of its own at `+40` (kind
+  7, no points: the spark, `f03_002c` with its own core, hidden where the
+  suckhole is). So it makes two entries in the room's list and counts two
+  targets in `[30A]` (and as the spark is never hit, `[308]` can't reach
+  `[30A]` in its rooms); the spark stays soft while hidden, so the ball's
+  step meets it (clearing the ball's remainder, as any soft body does). Its
+  step (`f13_1036`): till its target's points are scored (`+2C`, the
+  target's `+14`), the target's (`f03_0207`); its draw (`f13_15e0`) the
+  target's too. Then, when no other fuse burns (`[76]`; `f02_0d35` clears
+  it if this one started): the fuse shown, its box 6 x 6 x 2 at the ball's
+  centre less its radius on the ground there, its sphere that box's centre
+  (`f11_1523`, radius 1), the first point of the track (`DS:881A`, 300 x
+  and y; `[8CCA]` its last). Each tick after: the fuse follows the ball
+  (`f07_15ba` with `+16` [14E4], so never hidden for being near the ground:
+  to the ball's x, y, the ground + 1, each tick the ball's centre changed;
+  hidden while the ball breaks, shown again once it's not hidden); `+3E`
+  counts to 300; a tick it moved, its sphere's x, y the track's next. Past
+  130 ticks the spark is shown and put at the track's start (`f08_056e`:
+  sound 6026 for a move of more than 15; its sphere the ground + 10 there),
+  then each tick moves on one along the track (`+3C`); where the table seen
+  8 below its rectangle's centre (`f27_304c`) is within 6 of the ground
+  under it and its rectangle's corner is in the view, the burnt fuse `141B`
+  there on screen 3. At the track's last point, the ball still in the room:
+  the spark hidden, the ball broken (`+7C`), the suckhole done (`+3A`), the
+  fuse hidden, `[76]` clear. The fuse is drawn (`f13_15e0`) on screen 3,
+  `1412` at its box's centre projected, where the table seen at its
+  rectangle's centre is within 4 of the ground under its sphere: so it's
+  left on the table wherever it was redrawn. `f27_304c` (a screen point to
+  the table): from depth 0 under the point (x less the view's left and
+  scroll, height the view's bottom less y) along the line of sight scaled
+  1, 9, 17, ... long, to the first point below the ground; none past depth
+  314h. Checked: room 22 (the suckhole hit, the fuse laid, burnt and the
+  ball broken, 227 states traced; with `[FFE]`'s phase read from the
+  original (`SCI_ROOMTICKS`), the fuse before the spark and the scorched
+  trail after it pixel for pixel).
+- **Redrawing** (`f29_0380` at the room's tick's end): the changed areas
+  (`f27_16ae`, an object's `+10`: its old and new rectangles queued, 32 at
+  most) are redrawn every `+180` ticks: each room's builder sets 2, but the
+  room's tick sets it from `[27E6]` (1, nothing changes it) whenever that's
+  not 0, so every tick.
 - **Room 2's own** (`f41_076c`, the builder; segment 41): a closed hole
   to room 1000 at (606, 329, back wall, small) as the gate (`+FBA`), the
   hole to 1001 closed and hidden (`+FBC`); its face method (`+24`,

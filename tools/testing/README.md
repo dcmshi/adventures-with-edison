@@ -12,6 +12,10 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
   ball's remainders for `memwatch.py`: `[[[5ffc+ae]+f77]+2]+68` (`+6a`,
   `+6c`). `memwatch.py` finds the ball when it starts: start it after the
   room is up.
+- The original's sound: `otvdm.ps1` scripts mute the game in the Windows
+  mixer as soon as it plays a sound (`EDISON_VOLUME`, 0-100, default 0;
+  `otvdm.ps1 volume N` while it runs; Windows keeps the level for
+  `otvdmw.exe`).
 - `EDISON_LOG` appends: remove the file before a run whose log is read.
 - `retrace.sh [NAME...]`: replays the shots checked before in the port
   and compares them with the original's traces kept in `build/scratch`
@@ -19,7 +23,8 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
   levers of rooms 61 and 62 and their powered magnets, room 29's
   bullseye, room 25's electromagnet catching an Iron ball and breaking
   Glass and Rubber ones, the fans of rooms 98 and 25 breaking a Rubber
-  ball and melting an Ice one).
+  ball and melting an Ice one, room 22's suckhole: its spark breaking the
+  ball).
 - Tracing across a change of room: `memwatch.py watch --follow 0.3` (the
   data segment moves as the room is built). Expressions are hex: a list
   entry i is at `[[5ffc+ae]+18e]+` 2i in hex. The room's object list
@@ -51,7 +56,10 @@ after every tick (`DIR/t<tick>.bmp`: no frame missed, whatever the load);
 `SCI_SHOOT_WHEN=cx,cy,cz,vx,vy,vz` holds a shot till the ball's in that
 state; `SCI_HOLE=n` has the first room's hole to room n take the ball at
 once (room 1: 504 EXIT's question, 508 / 509 the warp codes; 501-503 the
-lab, high scores, credits), for what follows without a measured shot; `SCI_DIALOGPIC=k` gives the
+lab, high scores, credits), for what follows without a measured shot; `SCI_ROOMTICKS=n` starts `[FFE]` (the room
+ticks, which the original counts from its start: the targets' and other
+animations' phases) at n, as read from the original (`memwatch.py`
+`t=d:ffe`); `SCI_DIALOGPIC=k` gives the
 framed boxes picture `1359` + k (the original picks one at random); `SCI_AIMSEARCH=to,power,x0,x1,y0,y1,step`
 plays every aim of the grid (screen points, power -1 the room's own) from
 the room as built, without drawing, and logs those whose ball a hole

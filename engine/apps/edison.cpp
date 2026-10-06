@@ -20,6 +20,7 @@
 //     --type T TEXT       type TEXT at T milliseconds ('|' is Enter; repeatable)
 //     --quit-after MS     close after MS milliseconds
 //     --hidden            no window shown and the sound muted (test runs in the background)
+//     --volume N          the sound's volume, 0-100 (default 100; 0 with --hidden)
 //
 // The folder defaults to original/cd/DSK3 (needs EDISON.EXE, SHELL.D01 and
 // CADLIB.DLL from the CD). Mystery at the Museums is ported; picking one of
@@ -60,6 +61,7 @@ struct Automation {
     std::vector<Typed> typed;
     uint64_t quitAfter = 0;
     bool hidden = false;  // --hidden: no window shown, sound muted (for test runs in the background)
+    int volume = -1;      // --volume N: 0-100 (default 100; 0 with --hidden)
 };
 
 class SdlPlatform : public edison::Platform {
@@ -88,6 +90,9 @@ public:
             std::fprintf(stderr, "no audio: %s\n", SDL_GetError());
             return true;
         }
+        // --volume, or muted for --hidden: the whole device's gain.
+        const int volume = automation.volume >= 0 ? automation.volume : automation.hidden ? 0 : 100;
+        SDL_SetAudioDeviceGain(device_, static_cast<float>(std::clamp(volume, 0, 100)) / 100.0f);
         start_ = SDL_GetTicks();
         return true;
     }
@@ -435,6 +440,8 @@ int main(int argc, char** argv) {
             startRoom = std::atoi(argv[++i]);
         } else if (a == "--hidden") {
             automation.hidden = true;
+        } else if (a == "--volume" && i + 1 < argc) {
+            automation.volume = std::atoi(argv[++i]);
         } else if (a == "--quit-after" && i + 1 < argc) {
             automation.quitAfter = std::strtoull(argv[++i], nullptr, 10);
         } else if (a == "--puzzle" && i + 1 < argc) {

@@ -333,11 +333,12 @@ bool Science::contactOf(Object& o, Contact& c) {
         c.ratio = o.leaving ? 0 : 1;
         return true;
     }
-    if (o.type == 10 && o.args[2] != 6) {
-        // A point target: its box's centre a unit lower, radius 13 (f03_002c's
-        // f07_1082); soft while live.
+    if (o.type == 10) {
+        // A point target (a suckhole too: its target part's, f02_0dfb): its
+        // box's centre a unit lower, radius its kind's size (f03_002c's f07_1082); soft
+        // while live. (A suckhole's spark: soft and no points, so nothing.)
         const int g = heightUnder(o.x, o.y);
-        c.s[0] = o.x + 13, c.s[1] = o.y + 13, c.s[2] = g + 12, c.s[3] = 13;
+        c.s[0] = o.x + o.size, c.s[1] = o.y + o.size, c.s[2] = g + o.size - 1, c.s[3] = o.size;
         c.ratio = o.live ? 1 : 0;
         return true;
     }

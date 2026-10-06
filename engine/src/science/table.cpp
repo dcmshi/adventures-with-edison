@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdlib>
 #include <fstream>
 #include <functional>
 #include <iterator>
@@ -316,13 +317,41 @@ void Science::drawObjects() {
                 objectSprite(cx, cy, id);
             };
             list.push_back(dr);
-        } else if (o.type == 10 && o.args[2] != 6) {
-            // A point target (drawn by f13_0bb1): its box a 26 cube on the
-            // ground at its corner (8 bigger each way once hit); idle its
+        } else if (o.type == 10 && o.kind == 6 && o.scored) {
+            // A suckhole once scored (f13_15e0): its fuse, drawn on screen 3
+            // (hidden: not drawn); then its spark.
+            if (!o.fuseHidden) {
+                // Till the fuse starts, the core's box is still the target's.
+                if (!o.fuseStarted) {
+                    const int g = heightUnder(o.x, o.y), side = 2 * o.size + 2 * o.grow;
+                    const int box[6] = {o.x - o.grow, o.y - o.grow, g - o.grow, side, side, side};
+                    std::copy(box, box + 6, o.fuseBox);
+                }
+                const int* b = o.fuseBox;
+                Drawable dr{{b[0], b[1], b[2], b[3], b[4], b[5]}, area(objectRect(b[0], b[1], b[2], b[3], b[4], b[5])), 0, 0, {}};
+                dr.draw = [this, &o] { fuseDraw(o); };
+                list.push_back(dr);
+            }
+            if (o.sparkShown) {
+                // The spark (a kind 7 target, f13_0bb1): its idle frames.
+                const int s = o.sparkSize, side = 2 * s;
+                const int bx = o.spark[0] - s, by = o.spark[1] - s, bz = o.spark[2] - s + 1;
+                Drawable dr{{bx, by, bz, side, side, side}, area(objectRect(bx, by, bz, side, side, side)), 0, 0, {}};
+                dr.draw = [this, &o, bx, by, bz, side] {
+                    const auto [cx, cy] = objectCentre(bx, by, bz, side, side, side);
+                    const size_t at = 0x15CEu + 0x18u * 7 + 2u * std::max(o.sparkFrame, 0);
+                    objectSprite(cx, cy, static_cast<uint16_t>(data_[at] | data_[at + 1] << 8));
+                };
+                list.push_back(dr);
+            }
+        } else if (o.type == 10) {
+            // A point target (drawn by f13_0bb1): its box a cube (twice its
+            // kind's size: 26, kind 2 34, kind 7 20) on the ground at its
+            // corner (8 bigger each way once hit); idle its
             // kind's frames (DS:15CE + 24 a kind), hit its sequence, scored
             // its points (1236 + hundreds - 1).
             const int g = heightUnder(o.x, o.y), grow = o.grow;
-            const int bx = o.x - grow, by = o.y - grow, bz = g - grow, side = 26 + 2 * grow;
+            const int bx = o.x - grow, by = o.y - grow, bz = g - grow, side = 2 * o.size + 2 * grow;
             Drawable dr{{bx, by, bz, side, side, side}, area(objectRect(bx, by, bz, side, side, side)), 0, 0, {}};
             dr.draw = [this, &o, bx, by, bz, side] {
                 if (!o.shown) return;
@@ -908,23 +937,40 @@ void Science::enterRoom(int room) {
     captured_ = Control::None;
     ballTypePressed_ = shootPressed_ = false;
     roomBusy_ = false, exitRoom_ = 0, exitHole_ = -1;
-    // The builder's settings; the targets (type 10 but kind 6, a suckhole:
-    // not ported) counted ([30A]); each drawable's creation number (+1E:
-    // the ball makes three, its shadow and target).
+    // The builder's settings; the targets counted ([30A]); each drawable's
+    // creation number (+1E: the ball makes three, its shadow and target; a
+    // suckhole two, its own and its spark's).
     roomConfig(room);
     targetsHit_ = targets_ = 0;
+    fuseBusy_ = false;  // (f02_0d35, the last room's suckhole gone)
     int made = 0;
     for (Object& o : table_.objects) {
         o.id = made;
-        made += (o.type == 1 || o.type == 3) ? 3 : 1;
-        if (o.type != 10 || o.args[2] == 6) continue;
+        made += (o.type == 1 || o.type == 3) ? 3 : (o.type == 10 && o.args[2] == 6) ? 2 : 1;
+        if (o.type != 10) continue;
         o.kind = std::min(o.args[2], 10);
         o.points = std::min(o.args[1], 1000) / 100 * 100;
+        o.size = data_[0x2F4 + 2 * o.kind];
         o.frames = static_cast<int16_t>(data_[0x15CC + 0x18 * o.kind] | data_[0x15CC + 0x18 * o.kind + 1] << 8);
         o.hit = o.scored = o.frame = o.sequence = o.grow = 0;
         o.grip = -1;
         o.live = true, o.shown = true;
         ++targets_;
+        if (o.kind == 6) {
+            // The suckhole (f02_0be1): its fuse (f07_12d6) made from the
+            // ball (its sphere at the ball's x, y and 0; the ball's centre
+            // seen), its core the target's; its spark (f03_002c: kind 7, no
+            // points, a target counted too) hidden where it is.
+            o.fuseStarted = o.sparkOut = o.fuseDone = o.fuseMoved = o.fuseHidden = false;
+            o.fuseTicks = 0, o.sparkAt = -1;
+            o.fuse[0] = ball_.cx, o.fuse[1] = ball_.cy, o.fuse[2] = 0;
+            o.fuseSeen[0] = ball_.cx, o.fuseSeen[1] = ball_.cy, o.fuseSeen[2] = ball_.cz;
+            o.sparkSize = data_[0x2F4 + 2 * 7];
+            o.spark[0] = o.x + o.sparkSize, o.spark[1] = o.y + o.sparkSize, o.spark[2] = heightUnder(o.x, o.y) + o.sparkSize - 1;
+            o.sparkFrame = 0, o.sparkShown = false;
+            o.sparkFrames = static_cast<int16_t>(data_[0x15CC + 0x18 * 7] | data_[0x15CC + 0x18 * 7 + 1] << 8);
+            ++targets_;
+        }
     }
     thingsBuilt();
     for (int i = 0; i < 5; ++i) crackStage_[i] = 0;
@@ -947,6 +993,9 @@ void Science::showTable(int room) {
     // For testing (--room 1): the rooms from there, played till Escape.
     loadLook();
     looksConverted_ = true;
+    // (SCI_ROOMTICKS=n: [FFE] to start from, as the original's was, for the
+    // animations' phases.)
+    if (const char* t = std::getenv("SCI_ROOMTICKS")) roomTicks_ = std::atoi(t);
     arcade(room);
 }
 

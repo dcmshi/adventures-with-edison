@@ -103,7 +103,7 @@ void Science::aimSearch(const char* spec) {
         for (int x = x0; x <= x1; x += step) {
             ball_ = ball, table_.objects = objects, panel_ = panel;
             shots_ = shots, roomTicks_ = roomTicks, timerTicks_ = timerTicks, score_ = score, totalScore_ = total;
-            shadowShown_ = shadow, ballMoving_ = moving, exitRoom_ = 0, roomBusy_ = false;
+            shadowShown_ = shadow, ballMoving_ = moving, exitRoom_ = 0, roomBusy_ = false, fuseBusy_ = false;
             for (int k = 0; k < 3; ++k) lastCentre_[k] = shadowSeen_[k] = (k == 0 ? ball_.cx : k == 1 ? ball_.cy : ball_.cz);
             if (power >= 0) setSlider(Control::Power, power);
             for (int k = 0; k < wait; ++k) tickRoom();
@@ -528,7 +528,8 @@ void Science::tickRoom() {
     for (size_t i = table_.objects.size(); i-- > 0;) {
         Object& o = table_.objects[i];
         if (o.type == 8) holeTick(o);
-        else if (o.type == 10 && o.args[2] != 6) pointTick(o);
+        else if (o.type == 10 && o.kind == 6) sparkTick(o), suckholeTick(o);
+        else if (o.type == 10) pointTick(o);
         else if (o.type == 7 || o.type == 4 || o.type == 12 || o.type == 13) thingTick(o);
         else if ((o.type == 1 || o.type == 3) && hasBall_) {
             targetTick();

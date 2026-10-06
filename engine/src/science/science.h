@@ -136,6 +136,9 @@ private:
         // drawables' creation number (+1E: the animations' phase); live
         // (its +34 / +38 not 0) and shown.
         int kind = 0, points = 0, hit = 0, scored = 0, frame = 0, frames = 0, sequence = 0, id = 0;
+        // Its size by its kind (DS:2F4, a word a kind: 13, kind 2 17, kind 7
+        // 10): its box a cube twice that (f08_0384), its sphere's radius.
+        int size = 13;
         bool live = false, shown = true;
         // Its box grown (8 each way a hit); kind 3's hold on the ball (+10:
         // -1 none, 0 holding it, 1 spitting it out).
@@ -170,6 +173,25 @@ private:
         bool emCaught = false;
         // Type 13, the fan (f02_05f2): its blades' frame (+1B, -1 still).
         int fanFrame = -1;
+        // Type 10 kind 6, the suckhole (f02_0be1, its step f13_1036): a
+        // point target till its points are scored (its part at +18; +2C
+        // its +14); then a fuse (its motion part, f07_12d6: a 6 x 6 x 2 box
+        // under the ball, +2 its sphere, drawn on screen 3) follows the
+        // ball, and 130 ticks on a spark (a kind 7 target of its own, +40)
+        // runs along the fuse's track; reaching the ball, it breaks it.
+        // +36 not started, +38 the spark out, +3A done, +3C the spark's
+        // place on the track, +3E the ticks since the start (to 300); the
+        // fuse's +14 (moved this tick), +E-+12 (the ball's centre it last
+        // saw) and its core's +60 (hidden).
+        bool fuseStarted = false, sparkOut = false, fuseDone = false, fuseMoved = false, fuseHidden = false;
+        int fuseTicks = 0, sparkAt = -1;
+        int fuse[3] = {}, fuseSeen[3] = {}, fuseBox[6] = {};
+        // The spark: its sphere (its box a 26 cube round it, the centre a
+        // unit lower: on the ground at its corner as made, then a unit above
+        // it, f08_056e), its kind 7 frame, shown. Hidden or not, it's soft
+        // (+34 / +38 1), so it's in the ball's step's reach.
+        int spark[3] = {}, sparkSize = 10, sparkFrame = 0, sparkFrames = 0;
+        bool sparkShown = false;
     };
     // The room as its camera (segment 25) and the root of its boxes.
     struct Table {
@@ -278,6 +300,7 @@ private:
         bool movable = false;
     };
     bool contactOf(Object& o, Contact& c);
+    bool sparkContact(const Object& o, Contact& c) const;  // a suckhole's spark (its second entry)
     void ballCollide(Ball& a, Contact& b);          // f08_0d3e
     void contactMet(Object& o, Ball& by);           // the object's +34: met by a body
     void fieldAt(const int p[3], const Ball* self, int16_t out[3]);  // f26_02e2
@@ -495,6 +518,15 @@ private:
     void lipsTurn(Object& o);           // kind 3's frames done (f03_0207)
     void pointHit(Object& o);           // f03_0593: hit by the ball
     void addScore(long points);         // f06_0208
+    void suckholeTick(Object& o);       // f13_1036
+    void fuseFollow(Object& o);         // f07_15ba, the fuse's
+    void sparkTick(Object& o);          // f03_0207, the spark's (kind 7, idle)
+    void sparkMove(Object& o, int x, int y);  // f08_056e
+    void fuseDraw(const Object& o);     // f13_15e0 once scored
+    bool surfaceAt(int x, int y, int out[3]) const;  // f27_304c: the table seen at a screen point
+    int fuseTrack_[300][2] = {};        // DS:881A: the fuse's track (its sphere's x, y)
+    int fuseWrite_ = 0;                 // [8CCA]: the track's last
+    bool fuseBusy_ = false;             // [76]: a suckhole's fuse burns (one at a time)
     void roomConfig(int room);          // the builder's [30C], +F7B, +F8D, +F87
     int shots_ = 0;                     // +F39
     bool gridFaces_[6] = {};            // [11F0] 1, [11EE] 2, [11EC] 3, [11E8] 4, [11EA] 5

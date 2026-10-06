@@ -338,8 +338,11 @@ void Science::ballStep(Ball& b) {
             for (size_t i = 0; i < table_.objects.size(); ++i) {
                 if (static_cast<int>(i) == b.self) continue;
                 Object& o = table_.objects[i];
+                // (A suckhole's spark is the list's next entry: met after it.)
+                for (int part = 0; part < 2; ++part) {
                 Contact t;
-                if (!contactOf(o, t) || t.ratio == 0) continue;
+                if (part == 0 ? !contactOf(o, t) : !sparkContact(o, t)) continue;
+                if (t.ratio == 0) continue;
                 const int dx = t.s[0] - c[0], dy = t.s[1] - c[1], dz = t.s[2] - c[2];
                 if (dx >= 35 || dx <= -35 || dy >= 35 || dy <= -35 || dz >= 35 || dz <= -35) continue;
                 const int64_t rr = static_cast<int64_t>(w(b.r + t.s[3])) * w(b.r + t.s[3]);
@@ -355,11 +358,12 @@ void Science::ballStep(Ball& b) {
                     ballCollide(b, t);
                     b.hitFlag = 1;
                 }
-                contactMet(o, b);
+                if (part == 0) contactMet(o, b);
                 for (int j = 0; j < 3; ++j) b.disp[j] = 0, b.rem[j] = 0, b.kick[j] = 0;
                 if (solid) {
                     if (stepDepth_) --stepDepth_;
                     return;
+                }
                 }
             }
         }
