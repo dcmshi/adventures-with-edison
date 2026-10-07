@@ -4,6 +4,27 @@ A clean-room, native reimplementation of the engine behind *Corel's Adventures w
 
 **This repository contains no original game data.** You need your own copy of the CD. Place the ISO in `original/` (ignored by git).
 
+## Screenshots
+
+Captured from the port (`edison --capture`); the artwork is the original games'.
+
+| | | |
+|---|---|---|
+| ![The main menu](screenshots/menu.png) | ![The opening's PUSH ME](screenshots/opening.png) | ![Mystery at the Museums: the office](screenshots/mystery-office.png) |
+| The main menu | The opening | Mystery at the Museums: the office |
+| ![Mystery: the circuit analyzer](screenshots/mystery-circuit.png) | ![Mystery: the sign language puzzle](screenshots/mystery-signs.png) | ![Mystery: a picture puzzle](screenshots/mystery-picture.png) |
+| Mystery: the circuit analyzer | Mystery: sign language | Mystery: a picture puzzle |
+| ![Mystery: the smileys](screenshots/mystery-smileys.png) | ![Mystery: the bonus maze](screenshots/mystery-maze.png) | ![Rock and Bach: the hallway](screenshots/rockbach-hallway.png) |
+| Mystery: the smileys | Mystery: the bonus maze | Rock and Bach: the hallway |
+| ![Rock and Bach: the jukebox](screenshots/rockbach-jukebox.png) | ![Rock and Bach: the Drum Clinic](screenshots/rockbach-drums.png) | ![Rock and Bach: the Music Library](screenshots/rockbach-library.png) |
+| Rock and Bach: the jukebox | Rock and Bach: the Drum Clinic | Rock and Bach: the Music Library |
+| ![Rock and Bach: the Instrument Room](screenshots/rockbach-instruments.png) | ![Wild Science Arcade: the title](screenshots/science-title.png) | ![Wild Science Arcade: the laboratory](screenshots/science-lab.png) |
+| Rock and Bach: the Instrument Room | Wild Science Arcade: the title | Wild Science Arcade: the laboratory |
+| ![Wild Science Arcade: a lesson](screenshots/science-lesson.png) | ![Wild Science Arcade: the arcade's menu table](screenshots/science-arcade.png) | ![Wild Science Arcade: room 54's magnets](screenshots/science-magnets.png) |
+| Wild Science Arcade: a lesson | Wild Science Arcade: the menu table | Wild Science Arcade: magnets |
+| ![Wild Science Arcade: room 5's lava](screenshots/science-lava.png) | ![Wild Science Arcade: room 96](screenshots/science-garden.png) | |
+| Wild Science Arcade: lava | Wild Science Arcade: the garden | |
+
 ## Games on the disc
 
 | Executable | Game |
@@ -33,7 +54,7 @@ cmake --build build
 
 ### Launcher
 
-`edison` is the native version of EDISON.EXE: the opening, the main menu and Mystery at the Museums (the whole game), with FM music and sound effects. Rock and Bach is ported; Wild Science Arcade has started (`--game science`: its title, story and laboratory). Open items are tracked in [TODO.md](TODO.md).
+`edison` is the native version of EDISON.EXE: the opening, the main menu and Mystery at the Museums (the whole game), with FM music and sound effects. Rock and Bach is ported; Wild Science Arcade is well along (`--game science`: its title, story, laboratory, lessons and the arcade's tables and rooms, checked against the original; `--room N` starts in a room). Open items are tracked in [TODO.md](TODO.md).
 
 ```sh
 build/engine/edison original/cd/DSK3        # -O skips the opening, -A turns FM music off
