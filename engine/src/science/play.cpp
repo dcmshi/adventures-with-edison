@@ -104,12 +104,17 @@ void Science::aimSearch(const char* spec) {
     const int shots = shots_, roomTicks = roomTicks_, timerTicks = timerTicks_;
     const long score = score_, total = totalScore_;
     const bool shadow = shadowShown_, moving = ballMoving_;
+    // (The target too: an aim whose line of sight misses the ground leaves
+    // it where it was, as the original does, not at the last aim's.)
+    const int targetX = targetX_, targetY = targetY_;
+    const bool targetMoved = targetMoved_;
     int found = 0;
     for (int y = y0; y <= y1; y += step)
         for (int x = x0; x <= x1; x += step) {
             ball_ = ball, table_.objects = objects, panel_ = panel;
             shots_ = shots, roomTicks_ = roomTicks, timerTicks_ = timerTicks, score_ = score, totalScore_ = total;
             shadowShown_ = shadow, ballMoving_ = moving, exitRoom_ = 0, roomBusy_ = false, fuseBusy_ = false;
+            targetX_ = targetX, targetY_ = targetY, targetMoved_ = targetMoved;
             for (int k = 0; k < 3; ++k) lastCentre_[k] = shadowSeen_[k] = (k == 0 ? ball_.cx : k == 1 ? ball_.cy : ball_.cz);
             if (power >= 0) setSlider(Control::Power, power);
             for (int k = 0; k < wait; ++k) tickRoom();
@@ -201,7 +206,7 @@ void Science::aimSearch(const char* spec) {
                     }
                 }
                 if (taken) {
-                    if (taken->args[0] == to) {
+                    if (taken->args[0] == to || (to == -106 && taken->type == 9)) {
                         logLine("aim " + std::to_string(x) + "," + std::to_string(y) + " power " + std::to_string(panel_.power) + ": hole " +
                                 std::to_string(to) + " at tick " + std::to_string(t));
                         ++found;

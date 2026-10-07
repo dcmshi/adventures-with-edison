@@ -218,7 +218,7 @@ private:
     std::pair<int, int> objectCentre(int x, int y, int z, int w, int d, int h) const;  // f25_0a51
     Rect objectRect(int x, int y, int z, int w, int d, int h) const;               // f27_16ae
     void objectSprite(int cx, int cy, uint16_t id);  // f14_0d69 at 1:1
-    void drawObjects();                             // the drawables at rest
+    void drawObjects(const Rect& area);             // the drawables at rest
     void roomPictures(int room);                    // the room's method 4 (room 1: f41_0126)
     void redrawTable(const Rect& area);             // f27_1e36, the room's method 3
     void enterRoom(int room);                       // f31_0783 for rooms 1-100
@@ -449,6 +449,8 @@ private:
     void flushRoom();                               // the areas marked changed, redrawn
     void markButton(Control c);                     // a button's sprite (and the name box)
     void drawBox(const Box& box);                   // f12_2a09
+    void cutBox(const Box& box, const Rect& area);  // f12_220d: a box over what's behind it
+    bool boxBehind(const Box& box, int x, int y, int z) const;  // f12_3bd4
     void drawStanding(const Box& box);              // f12_38ad: on screen 3, the pits cut out
     void drawPits(const Box& box);                  // f12_39b5: on screen 2
     void faceFill(std::vector<std::pair<int, int>> points, int look, bool texture);  // f12_0ddf

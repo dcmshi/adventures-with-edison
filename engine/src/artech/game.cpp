@@ -48,7 +48,8 @@ void ArtechGame::fillPolygonWith(const std::vector<std::pair<int, int>>& pts, ui
     });
 }
 
-bool ArtechGame::librarySpans(const std::vector<std::pair<int, int>>& pts, int& top, std::vector<std::pair<int, int>>& span) const {
+bool ArtechGame::librarySpans(const std::vector<std::pair<int, int>>& pts, int& top, std::vector<std::pair<int, int>>& span, bool needArea,
+                               size_t maxPoints) const {
     // WMAIN.EXE's library polygon (f81_0280 / f63_20e4): cut to the clip,
     // an edge of it at a time (f83_0065); then each row's leftmost and
     // rightmost x along the edges (f81_0000).
@@ -78,6 +79,12 @@ bool ArtechGame::librarySpans(const std::vector<std::pair<int, int>>& pts, int& 
     if (!poly.empty()) cut([&](auto p) { return p.second >= clip_.y0; }, atY(clip_.y0));
     if (!poly.empty()) cut([&](auto p) { return p.second <= clip_.y1; }, atY(clip_.y1));
     if (poly.size() < 3) return false;
+    if (maxPoints && poly.size() > maxPoints) return false;
+    if (needArea) {
+        bool wide = false, tall = false;
+        for (auto& p : poly) wide |= p.first != poly[0].first, tall |= p.second != poly[0].second;
+        if (!wide || !tall) return false;
+    }
     top = poly[0].second;
     int bottom = top;
     for (auto [x, y] : poly) top = std::min(top, y), bottom = std::max(bottom, y);
@@ -125,12 +132,12 @@ bool ArtechGame::librarySpans(const std::vector<std::pair<int, int>>& pts, int& 
     return true;
 }
 
-void ArtechGame::fillPolygonSolid(const std::vector<std::pair<int, int>>& pts, uint8_t colour) {
+void ArtechGame::fillPolygonSolid(const std::vector<std::pair<int, int>>& pts, uint8_t colour, bool needArea, size_t maxPoints) {
     // draw_poly as WMAIN.EXE's library has it (f63_1fbf → f81_0280): the
     // spans above, each filled with the colour.
     int top = 0;
     std::vector<std::pair<int, int>> span;
-    if (current_ == 1 || !librarySpans(pts, top, span)) return;
+    if (current_ == 1 || !librarySpans(pts, top, span, needArea, maxPoints)) return;
     Screen& s = ctx_.screens[current_];
     for (size_t r = 0; r < span.size(); ++r) {
         const auto [left, right] = span[r];

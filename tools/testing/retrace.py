@@ -67,6 +67,8 @@ CASES = {
     "smileyRubber46": ("t11/r46/ball.txt", None, f"--room 46 {shot(2000, 300, 130)} {fire(3000)} --quit-after 10000"),
     "smileyGlass46": ("t11/g46/ball.txt", None, f"--room 46 {ball_type(1000)} {ball_type(1600)} {shot(3000, 300, 125)} {fire(4000)} --quit-after 11000"),
     "rack71": ("t0/o71/ball.txt", "rack", f"--room 71 {shot(2000, 400, 150)} {fire(3000)} --quit-after 12000"),
+    "pull11": ("t9/p11/ball.txt", None, f"--room 11 {shot(2000, 308, 124)} {fire(3000)} --quit-after 14000"),
+    "pull6": ("t9/p6/ball.txt", None, f"--room 6 --click 1000 300 184 {shot(2000, 180, 212)} {fire(3000)} --quit-after 16000"),
     "lipsIce": ("t7/olips0/trace.txt", None, f"--room 2 {power(4000)} {power(4600)} {power(5200)} {power(5800)} {shot(6400, 122, 236)} {fire(7400)} --quit-after 20000"),
 }
 

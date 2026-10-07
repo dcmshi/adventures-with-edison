@@ -226,7 +226,10 @@ constexpr int kHoleTicks = 22;  // [212C]
 
 // A drawable of the room's list (+1AD, 0x17 bytes each): its box (x, y, z,
 // w, d, h; at its object's +6E), its rectangle on the screen, its kind (the
-// object's +2A: 3 a hole, whose +24 is its wall) and how it's drawn.
+// object's +2A: 3 a hole, whose +24 is its wall) and how it's drawn. Or one
+// of the table's boxes (its +A 1): its extent (+18, f12_3aba) and
+// rectangle (+26), whether it's a pit, whether it's behind a point
+// (f12_3bd4), and itself and its parents (f12_40fd).
 struct Drawable {
     struct Area {
         int x, y, w, h;
@@ -235,6 +238,9 @@ struct Drawable {
     Area rect;
     int kind = 0, wall = 0;
     std::function<void()> draw;
+    bool table = false, pit = false;
+    std::function<bool(int, int, int)> behind;
+    std::vector<const void*> lineage;
 };
 
 bool spans(int a, int aw, int c, int cw) {
@@ -244,8 +250,26 @@ bool spans(int a, int aw, int c, int cw) {
     return (c <= a && a <= ce) || (c <= ae && ae <= ce) || (a <= c && ce <= ae);
 }
 
-// f35_0744 for two objects (not table boxes): 0 when a is in front of c
-// (drawn after it), 2 when it's behind, 1 when they don't overlap.
+// f35_0744 for a box of the table (a) and an object (c) overlapping on
+// every axis: 0 when the box is in front. Standing up, by the face under
+// the object's centre (f12_3bd4); a pit, in front unless the object is
+// above its rectangle's slanted top edge.
+int boxFirst(const Drawable& a, const Drawable& c) {
+    if (!a.pit) {
+        const int x = c.box[0] + (c.box[3] >> 1), y = c.box[1] + (c.box[4] >> 1), z = c.box[2] + (c.box[5] >> 1) - 1;
+        return a.behind(x, y, z) ? 2 : 0;
+    }
+    const int aBottom = a.rect.y + a.rect.h - 1, cBottom = c.rect.y + c.rect.h - 1;
+    const int top = aBottom - a.box[5];
+    const int64_t run = (a.rect.x + a.rect.w - 1) - (a.rect.x + a.box[3]);
+    if (cBottom <= top && run != 0 &&
+        static_cast<int64_t>((c.rect.x + c.box[3]) - (a.rect.x + a.box[3])) * (top - a.rect.y) / run <= top - cBottom)
+        return 1;
+    return 0;
+}
+
+// f35_0744: 0 when a is in front of c (drawn after it), 2 when it's
+// behind, 1 when they don't overlap.
 int depthOrder(const Drawable& a, const Drawable& c) {
     const Drawable::Area& A = a.rect;
     const Drawable::Area& B = c.rect;
@@ -260,6 +284,14 @@ int depthOrder(const Drawable& a, const Drawable& c) {
     if (!spans(a.box[1], a.box[4], c.box[1], c.box[4])) return a.box[1] <= c.box[1] ? 0 : 2;
     if (!spans(a.box[0], a.box[3], c.box[0], c.box[3])) return c.box[0] <= a.box[0] ? 0 : 2;
     if (!spans(a.box[2], a.box[5], c.box[2], c.box[5])) return c.box[2] <= a.box[2] ? 0 : 2;
+    // The table's boxes: against an object (above); two, the parent behind
+    // (f12_40fd: a is c or one of its parents).
+    if (a.table && !c.table) return boxFirst(a, c);
+    if (c.table && !a.table) {
+        const int o = boxFirst(c, a);
+        return o == 1 ? 1 : 2 - o;
+    }
+    if (a.table) return std::find(c.lineage.begin(), c.lineage.end(), a.lineage[0]) != c.lineage.end() ? 2 : 0;
     // A hole: by the centres across its wall.
     if (a.kind == 3) {
         if (a.wall == 0) return (a.box[3] >> 1) + a.box[0] <= (c.box[3] >> 1) + c.box[0] ? 2 : 0;
@@ -288,16 +320,37 @@ Science::Rect Science::objectRect(int x, int y, int z, int w, int d, int h) cons
     return {a.first, b.second, b.first - a.first + 2, a.second - b.second + 2};
 }
 
-void Science::drawObjects() {
+void Science::drawObjects(const Rect& redraw) {
     // f27_1e36: the room's drawables (+1AD) in the painter's order: each
     // pair compared (f27_1af3 → f27_19d9 → f35_0744) into "drawn after"
     // (+5FD, 48 x 48); then, in the list's order, each with nothing in
     // front of it is drawn after (f27_1d2f) all those behind it, then any
-    // left. The table's own boxes (type 1) aren't in it here: the port
-    // draws the table under all the objects (enough while no standing box
-    // hides one).
+    // left. The table's boxes first (the room's method 1, f27_12b6 →
+    // f27_1864, as the shape's read: 24 at most, not the root), each
+    // drawn (f35_04ca) by cutting what's behind it (f12_220d), so the table
+    // shows over it. (Only once an object has been drawn, [2982]: before,
+    // there's nothing to cut.)
     auto area = [](const Rect& r) { return Drawable::Area{r.x, r.y, r.w, r.h}; };
     std::vector<Drawable> list;
+    std::function<void(const Box&, std::vector<const void*>)> boxes = [&](const Box& box, std::vector<const void*> lineage) {
+        for (const auto& child : box.children) {
+            if (list.size() >= 24) return;
+            const Box& b = *child;
+            std::vector<const void*> mine{&b};
+            mine.insert(mine.end(), lineage.begin(), lineage.end());
+            // f12_3aba: the bottom, from the lower of the two heights.
+            const int P = b.parentHeight(), h = b.height - P;
+            const int z = h < 0 ? b.height : P;
+            const Rect& B = b.bottom;
+            Drawable d{{B.x, B.y, z, B.w, B.h, std::abs(h)}, area(objectRect(B.x, B.y, z, B.w, B.h, std::abs(h))), 0, 0, {}};
+            d.table = true, d.pit = h < 0, d.lineage = mine;
+            d.behind = [this, &b](int x, int y, int zz) { return boxBehind(b, x, y, zz); };
+            d.draw = [this, &b, &redraw] { cutBox(b, redraw); };
+            list.push_back(std::move(d));
+            boxes(b, mine);
+        }
+    };
+    boxes(table_.root, {});
     for (Object& o : table_.objects) {
         if (isHole(o)) {
             // A hole (f28_00f3, g28_0003, drawn by f28_0d82): a = the room
@@ -306,7 +359,9 @@ void Science::drawObjects() {
             // a cube of side 2r, r to the left on the left wall.
             const int wall = o.args[1], big = o.args[2] != 0;
             const int r = big ? 17 : 11;
-            const int z = o.args[3] != -1 && o.type != 9 ? o.args[3] : heightUnder(o.x, o.y);
+            // (A pulling hole's at d too: f28_15a1 builds its core with d,
+            // f28_0000.)
+            const int z = o.args[3] != -1 ? o.args[3] : heightUnder(o.x, o.y);
             const int x = o.x - (wall == 0 ? r : 0);
             // (A pulling hole's sprites: DS:212E small, DS:2146 big.)
             const size_t small = o.type == 9 ? 0x212Eu : 0x20FCu, large = o.type == 9 ? 0x2146u : 0x2114u;
@@ -719,6 +774,70 @@ void Science::drawBox(const Box& box) {
     }
 }
 
+void Science::cutBox(const Box& box, const Rect& area) {
+    // f12_220d: within the redraw's area, the faces the camera can't see
+    // (+3E-+44) cut to colour 0 on screen 2 (f12_10cd, f12_0f0b), so the
+    // table (screen 3) shows there over whatever was drawn behind the box:
+    // standing up, its back, its left and its bottom (together all it
+    // covers); a pit, its front with all below it and its right with all
+    // right of it, out to the area's edges. (A face with a look, f12_00de,
+    // draws the look instead: not read yet.) Only the standing boxes here:
+    // their cut stays within their rectangle, the same whatever the area;
+    // a pit's reaches the area's edges, which the original keeps small
+    // (f29_0380 redraws each changed object's old and new rectangles, not
+    // the whole view as the port does: there it would wipe whatever moves
+    // beside a pit for good).
+    const Rect& T = box.top;
+    const Rect& B = box.bottom;
+    const int H = box.height, P = box.parentHeight();
+    const int tx = T.x + T.w - 1, ty = T.y + T.h - 1, bx = B.x + B.w - 1, by = B.y + B.h - 1;
+    const int right = area.x + area.w - 1, bottom = area.y + area.h - 1;
+    setPolygonClip(area.x, area.y, area.w, area.h);
+    auto cut = [&](const std::vector<std::pair<int, int>>& pts, size_t most = 0) { fillPolygonSolid(pts, 0, true, most); };
+    if (box.hideBack) cut({project(T.x, ty, H), project(tx, ty, H), project(bx, by, P), project(B.x, by, P)});  // 4
+    if (box.hideLeft) cut({project(T.x, ty, H), project(T.x, T.y, H), project(B.x, B.y, P), project(B.x, by, P)});  // 2
+    if (P <= H && box.hideLeft) cut({project(B.x, B.y, P), project(B.x, by, P), project(bx, by, P), project(bx, B.y, P)});  // 6
+    if (H < P) return clearPolygonClip();  // (a pit: not yet, above)
+    if (box.hideFront) {
+        // 5, from the area's left and bottom.
+        auto p = std::vector<std::pair<int, int>>{project(T.x, T.y, H), project(tx, T.y, H), project(bx, B.y, P), project(B.x, B.y, P)};
+        p[0] = {area.x, bottom}, p[1].second = bottom, p[3].first = area.x;
+        cut(p);
+    }
+    if (box.hideRight) {
+        // 3, then all right of it to the area's edge (f12_0fe8).
+        const std::vector<std::pair<int, int>> p{project(tx, ty, H), project(tx, T.y, H), project(bx, B.y, P), project(bx, by, P)};
+        cut(p);
+        cut({{right, p[1].second}, p[1], p[2], p[3], {right, p[3].second}}, 10);
+    }
+    clearPolygonClip();
+}
+
+bool Science::boxBehind(const Box& box, int x, int y, int z) const {
+    // f12_3bd4: a box is behind a point over its top, or over a side the
+    // camera sees (a pit: any of its faces); elsewhere by f25_0205 (its
+    // extent, f12_3aba, against the point: f25_027a's 2).
+    const int P = box.parentHeight(), h = box.height - P;
+    if (h >= 0) {
+        switch (faceAt(box, x, y)) {
+            case 1: return !box.hideFront && !box.hideRight;  // (+24 set: angles under 0x4000)
+            case 2: return !box.hideLeft;
+            case 3: return !box.hideRight;
+            case 4: return !box.hideBack;
+            case 5: return !box.hideFront;
+            default: break;
+        }
+    } else if (faceAt(box, x, y) != 0) {
+        return true;
+    }
+    const int ex = box.bottom.x, ey = box.bottom.y, ez = h < 0 ? box.height : P, ew = box.bottom.w, ed = box.bottom.h, eh = std::abs(h);
+    if (ew == 0 || ed == 0 || eh == 0) return true;
+    if (!spans(ey, ed, y, 1)) return y <= ey;
+    if (!spans(ex, ew, x, 1)) return ex < x;
+    if (!spans(ez, eh, z, 1)) return ez < z;
+    return y < ey;
+}
+
 void Science::drawStanding(const Box& box) {
     // f12_38ad: what stands up drawn, and where a pit is (its mouth, f12_10cd
     // case 6, and a side on the parent's edge) cleared to colour 0, which
@@ -888,7 +1007,7 @@ void Science::redrawTable(const Rect& area) {
     for (int y = a.y; y < a.y + a.h; ++y)
         std::fill_n(two.pixels.begin() + static_cast<size_t>(y) * Screen::kWidth + a.x, a.w, uint8_t{0});
     select(2);
-    drawObjects();
+    drawObjects(a);
     // The score (+F35, at +F25) and " shots: n" (+F39, at +F2D, DS:2040):
     // the yellow box 1425 and the number in colour 10 (f76_0021).
     const Bitmap& box = ctx_.bitmap(0x1425);

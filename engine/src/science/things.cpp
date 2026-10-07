@@ -450,10 +450,11 @@ void Science::contactMet(Object& o, Ball& by) {
     if (isHole(o)) {
         // f28_13fe: an idle hole takes the player's ball (f28_14a5, unless
         // shut, +2F): stopped (f07_0ead → f08_0721), hidden with its shadow
-        // (f07_03be), the room busy (+F6F).
+        // (f07_03be), the room busy (+F6F). (Its push, +4C, stays: only a
+        // pulling hole's tick sets or clears it, f28_18fd.)
         if (!player || o.swallow || o.leaving || o.spit || o.closed) return;
         Ball& b = ball_;
-        for (int k = 0; k < 3; ++k) b.v[k] = 0, b.kick[k] = 0, b.push[k] = 0;
+        for (int k = 0; k < 3; ++k) b.v[k] = 0, b.kick[k] = 0;
         b.kickTicks = 0;
         b.hidden = true, shadowShown_ = false;
         o.swallow = 1, o.spit = 0, o.swallowDone = false;

@@ -571,8 +571,27 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   right in front) or z (higher in front); a hole (kind 3, the loader's
   `+2A`) by the centres across its wall (`+24`: 0 the left one); else
   along the thinnest side of their common box (z first on a tie, then
-  y). The table's boxes aren't in the port's list (it draws the table
-  under every object; enough while no standing box hides one).
+  y). The table's boxes (kind 1, added as the shape's read, `f27_12b6`
+  → `f27_1864`: 24 at most, not the root) first in the list: their
+  extent (`+18`, `f12_3aba`: the bottom rectangle, from the lower of the
+  two heights, the difference high) and its rectangle (`+26`); against an
+  object (overlapping on every axis), a box standing up is behind it if
+  the object's centre (a unit lower) is over its top or a side the
+  camera sees, or else past its extent (`f12_3bd4`, `f25_027a`), a pit in
+  front unless the object is above its rectangle's slanted top edge; two
+  boxes, a parent behind (`f12_40fd`). A box is drawn (`f35_04ca`, once an
+  object has been, `[2982]`, and only if its rectangle meets the area) by
+  cutting to colour 0 on screen 2 (`f12_220d`, clipped to the area) the
+  polygons (`f12_10cd`) of the faces the camera can't see, so the table
+  shows there over what was drawn behind it: standing up, its back (4,
+  `+40`), its left (2, `+3E`) and its bottom (6, `+3E`), together its
+  whole outline (room 6's hole at 194, 236, behind the wall, isn't seen);
+  a pit, its front (5, `+44`) from the area's left and bottom edges and
+  its right (3, `+42`) and all right of it to the area's edge. (A face
+  with a look, `f12_00de`, draws the look instead, `f14_12e9` or
+  `f14_07a0`.) The port cuts the standing boxes only: a pit's cut needs
+  the redraw of changed rectangles (`f29_0380`, below), where the port
+  redraws the whole view.
 - Sprites are clipped to `[1706]`, the whole screen: only the view's part
   is copied to the display, so one past the view's edge shows cut off.
 - Checked against the original: a shot's frames, the ball at the
@@ -1049,16 +1068,23 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
 - **Type 9, a pulling hole** (`f28_15a1`, its class "suckHole"; rooms
   6, 11, 17): a hole (`f28_0391`: leads to no room, `+0C` 0) of its own
   sprites (`DS:212E` small, `2146` big) and colour cycle (`f32_0e7f(A0,
-  A6, 3)`); `a` and `d` unused, `b` the wall, `c` big; its pull (`+37`)
+  A6, 3)`); `a` unused, `b` the wall, `c` big, `d` its height as a
+  hole's (its core's box, `f28_0000`; -1 the ground's): `f28_0391` is
+  given -1, but its sphere is at `d` all the same (read in the original:
+  room 11's at (243, 219, 50), room 17's at (273, 448, 36) and (554,
+  270, -34)); its pull (`+37`)
   200 (big 400) times `[27B2]` over `[27B0]`; `+35` the player's ball. Its
   tick (`f28_18fd`): while idle (`+21`, `+23`, `+25` clear) and the ball
   within 16 times its sphere's radius, the ball pushed (`f08_15d2`, its
   `+4C`) towards the sphere's centre, on each axis the pull less |d| *
   the pull / 256 (`+39` set), then the hole's tick; farther, the push
   taken back once and no tick. Swallowed (`+20`, `f28_1b25`): sound
-  `602C`, a busy wait of 132 ticks, the ball lost (`f31_0504`). Its
-  height isn't `d` nor the ground's: still to find (room 17's are drawn
-  lower in the port).
+  `602C`, a busy wait of 132 ticks, the ball lost (`f31_0504`). The push
+  is only ever set or cleared there: a hole taking the ball, the spit and
+  the ball put back (`f07_0ead`, `f27_287d`) leave it, so the swallowed
+  ball is still pushed (stopped again each tick) and leaves for 0, 0 with
+  a tick's push in its velocity. Rooms 6 (a swallow and the ball lost)
+  and 11 (pulled round the hole, never in) traced state for state.
 - **Type 11, the smiley** (`f03_0865`): a kind 0 point target (`a` its
   points) with its own core, a cube of 34 (size 11h), its sphere kind 0's
   (radius 13). Drawn: `1357` at its rectangle's left, 9 above its bottom

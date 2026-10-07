@@ -180,7 +180,7 @@ void Science::ballHold() {
     Ball& b = ball_;
     if (b.cx * b.cx + b.cy * b.cy > 15 * 15) sound(0x6026);
     b.cx = 0, b.cy = 0, b.cz = heightUnder(0, 0) + b.r;
-    for (int k = 0; k < 3; ++k) b.v[k] = 0, b.rem[k] = 0, b.disp[k] = 0, b.kick[k] = 0, b.push[k] = 0;
+    for (int k = 0; k < 3; ++k) b.v[k] = 0, b.rem[k] = 0, b.disp[k] = 0, b.kick[k] = 0;
     b.kickTicks = 0;
     b.hidden = true, shadowShown_ = false;
     viewDirty_ = true;

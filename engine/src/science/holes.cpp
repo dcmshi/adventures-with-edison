@@ -21,8 +21,9 @@ void Science::holeSphere(const Object& o, int out[4]) const {
     // a unit lower), radius r / 2.
     const int wall = o.args[1], big = o.args[2] != 0;
     const int r = big ? 17 : 11;
-    // (Type 9's d isn't passed on: the face's height under it.)
-    const int z = o.args[3] != -1 && o.type != 9 ? o.args[3] : heightUnder(o.x, o.y);
+    // (Type 9's too: f28_0391 is given -1, but its sphere is at its core's
+    // d, f28_15a1 → f28_0000, as the original's rooms 11 and 17 show.)
+    const int z = o.args[3] != -1 ? o.args[3] : heightUnder(o.x, o.y);
     out[0] = o.x - (wall == 0 ? r : 0) + r;
     out[1] = o.y + r;
     out[2] = z + r - 1;
@@ -173,7 +174,7 @@ void Science::spitBall(Object& o, int mode) {
     // f28_1445: the ball stopped (f07_0ead) and hidden (f07_03be); the
     // hole spits it out (+1F the mode, +23 counting).
     Ball& b = ball_;
-    for (int k = 0; k < 3; ++k) b.v[k] = 0, b.rem[k] = 0, b.kick[k] = 0, b.push[k] = 0;
+    for (int k = 0; k < 3; ++k) b.v[k] = 0, b.rem[k] = 0, b.kick[k] = 0;
     b.kickTicks = 0;
     b.hidden = true, shadowShown_ = false;
     o.spitMode = mode, o.swallow = 0, o.spit = 1, o.spitDone = false;
@@ -187,7 +188,8 @@ void Science::ballToStart() {
     Ball& b = ball_;
     b.cx = b.startX, b.cy = b.startY;
     b.cz = faceHeight(faceUnder(b.cx, b.cy), b.cx, b.cy) + b.r;
-    for (int k = 0; k < 3; ++k) b.v[k] = 0, b.rem[k] = 0, b.disp[k] = 0, b.kick[k] = 0, b.push[k] = 0;
+    // (Not its push: a pulling hole's, f28_18fd, still on it.)
+    for (int k = 0; k < 3; ++k) b.v[k] = 0, b.rem[k] = 0, b.disp[k] = 0, b.kick[k] = 0;
     b.kickTicks = 0;
     b.hidden = false;
     lastCentre_[0] = shadowSeen_[0] = b.cx, lastCentre_[1] = shadowSeen_[1] = b.cy, lastCentre_[2] = shadowSeen_[2] = b.cz;
