@@ -154,16 +154,17 @@ void Science::pullTick(Object& o) {
 
 void Science::holeGo(Object& o) {
     // f27_2530: back out if it leads to this room (mode 0); a door within
-    // the room (0, 100-500) passes the ball to its other half (not
-    // ported); else event 9: that room, from this hole.
+    // the room (0, 100-500) passes the ball to its other half (its +0E:
+    // that hole's +2C, mode 0; none, nothing); else event 9: that room,
+    // from this hole.
     const int room = o.args[0];
     if (room == currentRoom_) {
         spitBall(o, 0);
         return;
     }
     if (room == 0 || (room >= 100 && room <= 500)) {
-        logLine("Wild Science Arcade: doors aren't ported yet");
-        spitBall(o, 0);
+        if (o.partner >= 0) spitBall(table_.objects[static_cast<size_t>(o.partner)], 0);
+        if (std::getenv("SCI_DEBUG")) logLine("door: the ball out of hole " + std::to_string(o.partner) + " at t" + std::to_string(timerTicks_));
         return;
     }
     exitRoom_ = room;

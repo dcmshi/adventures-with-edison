@@ -147,6 +147,10 @@ private:
         // Type 9, a pulling hole (f28_15a1, its class "suckHole"): its pull
         // (+37) and whether it's pushing the ball (+39).
         int pull = 0;
+        // A door's second half (the file's e, f28_0391): it leads to 0 and
+        // its other half (+0E) is the hole made before it (the room's
+        // +F96), whose list index this is.
+        int partner = -1;
         bool pulling = false;
         // A target (type 10, f03_002c; c its kind, b its points): hit (+12,
         // counting), scored (+14, counting), its frame (+18) of a sequence

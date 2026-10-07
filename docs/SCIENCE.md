@@ -618,7 +618,17 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   (`f41_02a4`, see the dialog boxes below) asks for EXIT (504) and the passwords of levels 4 and 5
   (508 "electric", 509 "wildway"; wrong: spat out, mode 2); others go
   to `f27_2530`: spat out (mode 0) if it leads to this room, a door within
-  the room (0, 100-500) passes it on, else event 9 to that room.
+  the room (0, 100-500) passes it on (its other half's `+2C`, mode 0),
+  else event 9 to that room.
+- **Doors** (`f61_011d`): a hole whose `e` isn't 0 is the second half of a
+  door (`f28_0391`, as `f28_00f3` but its `+C` 0 and its `+0E` the hole
+  the file made before it, the room's `+F96`; none: "improper door
+  construction"). The ball into it comes out of that hole (spit mode 0);
+  into the first half, as its own `+C` says (most lead back into the room:
+  spat out of itself). One way: rooms 3, 6, 7, 13, 35, 57, 58, 67, 70 and
+  others. `f` not 0 clears the hole's `+2D` (event 9 then isn't told the
+  hole). Checked: room 13's (in at OBJ5, out of OBJ4, the hole to 15), 189
+  states traced.
 - **Spitting out** (`+23`, `f28_1445`): the frames backwards (only one in
   modes 1 and 2); then mode 2 puts the ball back (`f27_287d`), 0 shoots it
   50 out of the wall (`f27_27a3`, no shot counted), 1 a door's.

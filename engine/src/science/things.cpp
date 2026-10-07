@@ -14,8 +14,16 @@ void Science::thingsBuilt() {
     // (Testing: Borland's rand() seed (DS:8454) as the room is built, as
     // read from the original; a second number, the seed once it's built.)
     if (const char* s = std::getenv("SCI_RANDSEED")) randSeed_ = static_cast<uint32_t>(std::strtoul(s, nullptr, 0));
+    int lastHole = -1;  // the room's +F96: the last hole the file made
     for (size_t i = 0; i < table_.objects.size(); ++i) {
         Object& o = table_.objects[i];
+        if (o.type == 8) {
+            // A door's second half (e, f61_011d → f28_0391; without a hole
+            // before it, "improper door construction"): its +C 0, its +0E
+            // the hole before it.
+            if (o.args[4] != 0) o.partner = lastHole, o.args[0] = 0;
+            lastHole = static_cast<int>(i);
+        }
         if (o.type == 14) {
             // The hot field (f02_1234): its sphere (+2) at (x, y) on the
             // ground there, radius a (+8); a 6 cube of a core at (x, y) on

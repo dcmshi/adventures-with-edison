@@ -105,6 +105,10 @@ CASES = {
     # the gate raised 50 steps, the hole to 60 opened.
     "slot18": ("r18/o2/bodies.txt", "bodies2", f"--room 18 {shot(2000, 340, 112)} {fire(3000)} --quit-after 9000", {"SCI_SKIPDIALOGS": "1"}),
     "gate18": ("r18/o2/gate.txt", "room18", f"--room 18 {shot(2000, 340, 112)} {fire(3000)} --quit-after 9000", {"SCI_SKIPDIALOGS": "1"}),
+    # Room 13: a door (its OBJ5, the second half): in at it, out of the hole
+    # before it (OBJ4, mode 0); the shot held for the original's state.
+    "door13": ("door13/o2/ball.txt", None, f"--room 13 {shot(2000, 76, 44)} {fire(3000)} --quit-after 22000",
+               {"SCI_SKIPDIALOGS": "1", "SCI_SHOOT_WHEN": "427,14,50,12,-26,0"}),
     "lipsIce": ("t7/olips0/trace.txt", None, f"--room 2 {power(4000)} {power(4600)} {power(5200)} {power(5800)} {shot(6400, 122, 236)} {fire(7400)} --quit-after 20000"),
 }
 
