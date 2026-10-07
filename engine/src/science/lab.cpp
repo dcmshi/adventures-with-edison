@@ -224,17 +224,94 @@ void Science::characterEnhancer() {
 
 // --- the players' files ---------------------------------------------------------
 
+void Science::sortPlayers(int lo, int hi) {
+    // f39_1183, through the list's compare (f19_1061: 0 less, 1 the same,
+    // 2 more, by score) and swap (f39_1940): none if all are the same;
+    // the pivot the first, unless the first different one after it is
+    // less: then that one. f39_129d partitions: the pivot to the end,
+    // the more ones to the front.
+    auto cmp = [&](int i, int j) {
+        const long a = players_[static_cast<size_t>(i)].score, b = players_[static_cast<size_t>(j)].score;
+        return a < b ? 0 : a == b ? 1 : 2;
+    };
+    auto swapAt = [&](int i, int j) { std::swap(players_[static_cast<size_t>(i)], players_[static_cast<size_t>(j)]); };
+    if (lo == hi) return;
+    int k = lo;
+    while (k <= hi) {
+        const int r = cmp(k, lo);
+        if (r != 1 && r != 2) break;
+        if (r == 2) {
+            k = lo;
+            break;
+        }
+        ++k;
+    }
+    if (k > hi) return;
+    int i = lo, j = hi;
+    swapAt(k, hi);
+    int p;
+    for (;;) {
+        bool done = false;
+        while (cmp(i, hi) == 2)
+            if (++i >= j) {
+                done = true;
+                break;
+            }
+        if (done) break;
+        while (cmp(j, hi) != 2)
+            if (--j == i) {
+                done = true;
+                break;
+            }
+        if (done) break;
+        swapAt(i, j);
+        if (++i >= j) break;
+    }
+    p = i;
+    sortPlayers(lo, p - 1);
+    sortPlayers(p, hi);
+}
+
+void Science::addPlayer(const PlayerEntry& p) {
+    // The list's add (f21_0041, f40_068b): appended; then its method +4,
+    // which swaps the first and the last (f39_1940), and the sort over
+    // all of it (f39_0e85, f39_0f00).
+    players_.push_back(p);
+    const int n = static_cast<int>(players_.size());
+    std::swap(players_.front(), players_.back());
+    sortPlayers(0, n - 1);
+}
+
 void Science::loadPlayers() {
-    // f19_115a ("HSFILE"): up to 50 lines of name, score, two numbers and
-    // the look; from the game's folder, else the CD's first table.
+    // f19_115a ("HSFILE"), f21_0041: up to 50 records of name, score, two
+    // numbers and the look (four strings, atol / atoi, four numbers), from
+    // the game's folder, else the CD's first table, each added in turn
+    // (addPlayer); a read past the end (before 50) makes one more, empty,
+    // score 0 (written back by the original as a broken line: here kept in
+    // the order, not saved); the list sorted once more.
     players_.clear();
     std::ifstream in(options_.saveDir + "/wscience.hs");
     if (!in) in.open(options_.cdDir + "/WSCIENCE.HS");
     std::string tag;
     if (!(in >> tag) || tag != "HSFILE") return;
-    PlayerEntry p;
-    while (players_.size() < 50 && in >> p.name >> p.score >> p.a >> p.b >> p.look[0] >> p.look[1] >> p.look[2] >> p.look[3])
-        players_.push_back(p);
+    std::vector<std::string> words;
+    for (std::string w; in >> w;) words.push_back(w);
+    size_t at = 0;
+    for (int n = 0; n < 50; ++n) {
+        PlayerEntry p;
+        if (at + 8 > words.size()) {
+            p.eof = true;
+            addPlayer(p);
+            break;
+        }
+        p.name = words[at];
+        p.score = std::atol(words[at + 1].c_str());
+        p.a = std::atoi(words[at + 2].c_str()), p.b = std::atoi(words[at + 3].c_str());
+        for (int t = 0; t < 4; ++t) p.look[t] = std::atoi(words[at + 4 + static_cast<size_t>(t)].c_str());
+        at += 8;
+        addPlayer(p);
+    }
+    if (!players_.empty()) sortPlayers(0, static_cast<int>(players_.size()) - 1);
 }
 
 void Science::savePlayers() const {
@@ -243,7 +320,8 @@ void Science::savePlayers() const {
     if (!out) return;
     out << "HSFILE ";
     for (const PlayerEntry& p : players_)
-        out << ' ' << p.name << ' ' << p.score << ' ' << p.a << ' ' << p.b << ' ' << p.look[0] << ' ' << p.look[1] << ' '
+        if (!p.eof)
+            out << ' ' << p.name << ' ' << p.score << ' ' << p.a << ' ' << p.b << ' ' << p.look[0] << ' ' << p.look[1] << ' '
             << p.look[2] << ' ' << p.look[3] << " \r\n";
 }
 
@@ -262,6 +340,111 @@ void Science::saveLook() const {
 }
 
 // --- room 501 -------------------------------------------------------------------
+
+void Science::recordGame() {
+    // f40_068b, the game over (f31_0504, f31_06c0): the list loaded, the
+    // player's game added (its score, the room's +F35; the level and
+    // screen from DS:26F6 by the room, the high and low nibbles, room 65's
+    // once the game's won, [26CC]; the name with its spaces as dots; the
+    // look, f21_0000), and saved (f21_0447).
+    static const uint8_t kLevelScreen[111] = {
+        0x00, 0x00, 0x31, 0x29, 0x49, 0x48, 0x2A, 0x2B, 0x00, 0x32, 0x37, 0x00, 0x38, 0x2C, 0x36, 0x2D, 0x39, 0x52, 0x3A, 0x00,
+        0x46, 0x11, 0x18, 0x13, 0x00, 0x00, 0x1A, 0x00, 0x45, 0x54, 0x4A, 0x00, 0x44, 0x21, 0x14, 0x12, 0x15, 0x1B, 0x1C, 0x20,
+        0x19, 0x5D, 0x1F, 0x16, 0x17, 0x1E, 0x1D, 0x22, 0x27, 0x5C, 0x21, 0x5E, 0x25, 0x26, 0x23, 0x24, 0x00, 0x41, 0x42, 0x2E,
+        0x3B, 0x00, 0x00, 0x00, 0x3C, 0x5F, 0x59, 0x51, 0x00, 0x3D, 0x43, 0x4B, 0x4D, 0x4E, 0x56, 0x55, 0x5A, 0x5B, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x35, 0x33, 0x34, 0x53, 0x00, 0x57, 0x4C, 0x47, 0x58,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    loadPlayers();
+    const int room = gameWon_ ? 65 : currentRoom_;
+    const uint8_t ls = room >= 0 && room < 111 ? kLevelScreen[room] : 0;
+    PlayerEntry p;
+    // (A game started in a room, --room, has had no lab: "Player", as the
+    // lab's default, DS:1D6F; the original would write an empty name,
+    // which shifts every field after it when the file's read again.)
+    p.name = playerName_.empty() ? dataString(0x1D6F) : playerName_;
+    for (char& c : p.name)
+        if (c == ' ') c = '.';
+    p.score = score_, p.a = ls >> 4, p.b = ls & 0xF;
+    for (int t = 0; t < 4; ++t) p.look[t] = look_[t];
+    addPlayer(p);
+    savePlayers();
+    if (std::getenv("SCI_DEBUG")) logLine("game over: " + p.name + " " + std::to_string(p.score) + " level " + std::to_string(p.a) + " screen " + std::to_string(p.b) + " recorded");
+}
+
+void Science::highScores() {
+    // f40_0000 (with 0: no game added): the display cleared, 200A on
+    // screen 2, the list loaded; ten rows from (100, 103), 25 apart: the
+    // name (dots as spaces), the score (12 wide, right-aligned, commas
+    // every three digits) at +146, the level at +316, the screen at +424,
+    // each in colour 0 two right and down, then over it in F; the first row
+    // with the player's name and the room's score in 1. Sound 6013, the
+    // screen shown; a key or a button ends it; the list saved (f21_0447).
+    // (Every 30000 polls the original also turns colours A0-BF a step,
+    // f14_0148, on a 256-colour display only: left out, its pace is the
+    // machine's.)
+    clearDisplay();
+    select(2);
+    showScreen(0x200A, 2);
+    loadPlayers();
+    std::string me = playerName_.empty() ? dataString(0x1D6F) : playerName_;
+    for (char& c : me)
+        if (c == '.') c = ' ';
+    bool marked = false;
+    int y = 0x67;
+    for (size_t i = 0; i < players_.size() && i < 10; ++i) {
+        const PlayerEntry& p = players_[i];
+        std::string name = p.eof ? std::string() : p.name;
+        for (char& c : name)
+            if (c == '.') c = ' ';
+        const std::string digits = p.eof ? std::string() : std::to_string(p.score);
+        std::string score(12, ' ');
+        int from = static_cast<int>(std::min<size_t>(digits.size(), 12)) - 1;
+        for (int k = 11; k >= 0; --k)
+            if (from < 0) score[static_cast<size_t>(k)] = ' ';
+            else if (k % 4 == 0) score[static_cast<size_t>(k)] = ',';
+            else score[static_cast<size_t>(k)] = digits[static_cast<size_t>(from--)];
+        int colour = 0x0F;
+        if (!marked && !p.eof && name == me && p.score == score_) colour = 1, marked = true;
+        const std::string level = p.eof ? std::string() : std::to_string(p.a), screen = p.eof ? std::string() : std::to_string(p.b);
+        auto both = [&](int x, const std::string& s) {
+            textAt(x + 2, y + 2, s, 0);
+            textAt(x, y, s, colour);
+        };
+        both(100, name), both(100 + 0x92, score), both(100 + 0x13C, level), both(100 + 0x1A8, screen);
+        y += 0x19;
+    }
+    sound(0x6013);
+    toDisplay(2);
+    int x, yy;
+    ctx_.platform.takeClick(&x, &yy), ctx_.platform.takeKey();
+    for (;;) {
+        ctx_.pump();
+        if (ctx_.platform.takeClick(&x, &yy) || ctx_.platform.takeKey() != 0) break;
+    }
+    clearDisplay();
+    select(1);
+    savePlayers();
+}
+
+void Science::credits() {
+    // f38_0eb9: the display cleared (f20_0094); 2009 on screen 2 with the
+    // player's look (f14_092c, f19_06bc), sound 6013 (f75_0380, with the
+    // sounds on), screen 2 shown (f20_00f3); then a key or a button ends
+    // it ([9558], [6EC5]), and event 9 to room 1.
+    clearDisplay();
+    select(2);
+    showScreenWithLook(0x2009, 2);
+    applyLook();
+    sound(0x6013);
+    toDisplay(2);
+    int x, y;
+    ctx_.platform.takeClick(&x, &y), ctx_.platform.takeKey();
+    for (;;) {
+        ctx_.pump();
+        if (ctx_.platform.takeClick(&x, &y) || ctx_.platform.takeKey() != 0) break;
+    }
+    select(1);
+}
 
 void Science::lab() {
     // f19_0a59.
@@ -287,7 +470,7 @@ void Science::lab() {
             return r;
         };
         for (size_t i = 0; i < players_.size(); ++i)
-            if (lower8(players_[i].name) == lower8(playerName_)) {
+            if (!players_[i].eof && lower8(players_[i].name) == lower8(playerName_)) {
                 for (int t = 0; t < 4; ++t) look_[t] = static_cast<uint8_t>(players_[i].look[t] & 7);
                 applyLook();
                 found = static_cast<int>(i);

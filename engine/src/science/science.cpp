@@ -84,12 +84,13 @@ void Science::arcade(int room) {
     // f31_0783, event 9: rooms 1-100 are tables (the old one's objects
     // go; its columns' counts stay the player's); 501 the lab's name
     // (f38_06dd), then room 1 again when it came from there (else the
-    // first lesson); 502 the high scores (segment 40), 503 the credits
-    // (f38_0eb9), neither ported: back to the room it came from (the
-    // original goes back to room 1 fresh from there, or to the old room
-    // with the ball spat out of its hole, mode 2); 504 leaves (event 3);
+    // first lesson); 502 the high scores (f40_0000), then room 1 (from
+    // room 1, event 9; after a game over, event 2: a new game, f31_1b45);
+    // 503 the credits (f38_0eb9), then room 1; 504 leaves (event 3);
     // 505-510 the professor's lessons (f38_0fb5), each leading on.
     int from = 0;  // the player's +90: the last table
+    // (Testing: SCI_BALLS=l,r, the columns' balls to start with.)
+    if (const char* balls = std::getenv("SCI_BALLS")) std::sscanf(balls, "%d,%d", &leftBalls_, &rightBalls_);
     while (room > 0) {
         if (room <= 110) {
             // The last table's end (f38_020f), unless this is room 1 (a
@@ -108,10 +109,20 @@ void Science::arcade(int room) {
             room = from == 1 ? 1 : 505;
             break;
         case 502:
+            previousRoom_ = 502;
+            highScores();
+            if (gameOver_) {
+                // (Event 2, f31_1b45: a new game, in room 1.)
+                gameOver_ = false, gameWon_ = false;
+                leftBalls_ = 7, rightBalls_ = 0, totalScore_ = 0;
+                std::fill(std::begin(gameFlag_), std::end(gameFlag_), 0);
+            }
+            room = 1;
+            break;
         case 503:
-            logLine(std::string("Wild Science Arcade: the ") + (room == 502 ? "high scores aren't" : "credits aren't") + " ported yet");
-            previousRoom_ = room;
-            room = from > 0 ? from : 1;
+            previousRoom_ = 503;
+            credits();
+            room = 1;
             break;
         case 504:
             return;

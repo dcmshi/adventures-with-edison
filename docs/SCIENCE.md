@@ -1259,6 +1259,41 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   hit); at the bottom the original draws N in front of S where their
   boxes overlap (the port, by `f35_0744`'s rules, S: likely its redraw of
   the changed rectangles, `f29_0380`).
+- **The high scores** (room 502, `f40_0000`; ported: `highScores`,
+  `recordGame`, `loadPlayers`): the display cleared, `200A` on screen 2,
+  `wscience.hs` loaded (`f19_115a`, `f21_0041`: up to 50 records of four
+  strings and four numbers, the score `atol`'d; each appended, then the
+  list's method `+4` (`f39_1940`: it swaps the first and the last), then
+  the quicksort `f39_1183` / `f39_129d` through a sorter (`DS:1272`) with
+  the list's compare `f19_1061` (0 less, 1 the same, 2 more) and swap: no
+  sort if all are the same, else the pivot the first unless the first
+  different one after it is less, the partition putting the more ones
+  first; ties land as it goes, so the order of equal scores changes); a
+  read past the end (before 50) makes one more record, empty, score 0,
+  and the list's sorted once more. Ten rows from (100, 103), 25 apart:
+  name (dots as spaces), score (12 wide, right-aligned, a comma every
+  three digits) at +146, level at +316, screen at +424, in colour 0 two
+  right and down then in F; the first row with the player's name and the
+  room's score (`+F35`) in 1. Sound `6013` (with the sounds on), the
+  screen shown; a key or a button ends it (every 30000 polls colours
+  A0-BF turn a step, `f14_0148`, on a 256-colour display: not ported);
+  the list's destructor saves it (`f21_0447`, the empty record too, as a
+  broken line the next load misreads: the port leaves it out). From room
+  1 (its hole to 502, `f31_0783` with 0) then event 9 to room 1.
+  The game over (`f31_0504`, the last ball lost; `f31_06c0`):
+  `f40_068b` loads the list, adds the game (the room's score; the level
+  and screen from `DS:26F6` by the room, high and low nibbles, room 65's
+  once the game's won, `[26CC]`; the name, `DS:26D8`, spaces as dots; the
+  look, `f21_0000`), sorts and saves it; the room `+8E` -1, event 9 to
+  502, then event 2 (`f31_1b45` with 1: a new game, `[8E50]`-`[8E56]`,
+  `[26CC]`, the score cleared, the balls 7 and 0, event 9 to room 1).
+  Checked against the original pixel for pixel: the screen from room 1's
+  hole (its tie order and the file it saves); the game over only in the
+  port (`SCI_BALLS=0,0`: room 32's lava, `Player 0 4 4` recorded).
+- **The credits** (room 503, `f38_0eb9`; ported: `credits`): the display
+  cleared, `2009` with the player's look on screen 2 (`f14_092c`,
+  `f19_06bc`), sound `6013`, shown till a key or a button, then event 9
+  to room 1. Checked against the original pixel for pixel.
 - **Colour cycles** (segment 32; ported: `cycleStart`, `cycleStop`,
   `cycleStep`, `roomCycles`): a list (`[921C]`, `[921E]`) of 6-byte
   records (`f32_00e3`: the first colour, the count, the period, the uses).

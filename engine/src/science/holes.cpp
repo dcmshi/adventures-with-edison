@@ -202,7 +202,8 @@ void Science::ballLost() {
     // f31_0504: the ball back to its place (f27_287d), then away (hidden,
     // f08_056e to 0, 0); no shots; the left column's PUSH ready (+132,
     // +134 cleared) if it has balls, else the right's; else the game's
-    // over: the high scores (f40_068b, then event 9 to 502; not ported).
+    // over: the game recorded (f40_068b), event 9 to 502, then event 2 (a
+    // new game: arcade).
     ballToStart();
     Ball& b = ball_;
     b.cx = 0, b.cy = 0, b.cz = heightUnder(0, 0) + b.r;  // f08_056e: on the ground at 0, 0
@@ -215,10 +216,9 @@ void Science::ballLost() {
         columnDirty_[c] = true;
         return;
     }
-    logLine("Wild Science Arcade: no balls left: the high scores aren't ported; a new game");
-    leftBalls_ = 7, rightBalls_ = 0, totalScore_ = 0;
-    std::fill(std::begin(gameFlag_), std::end(gameFlag_), 0);  // f31_1b48
-    exitRoom_ = 1;
+    recordGame();
+    gameOver_ = true;
+    exitRoom_ = 502;
 }
 
 void Science::dropBall(bool right) {

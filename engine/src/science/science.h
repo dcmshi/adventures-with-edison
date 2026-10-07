@@ -51,6 +51,9 @@ private:
 
     // --- the lab, room 501 (segment 19, lab.cpp) ---
     void lab();                                     // f19_0a59
+    void credits();                                 // f38_0eb9 (room 503)
+    void highScores();                              // f40_0000 (room 502)
+    void recordGame();                              // f40_068b: the game over's entry
     void waitCountdown(int ticks);                  // [95F2], 10 a second
     void textAt(int x, int y, const std::string& s, int colour);  // f76_0021
     void sound(uint16_t id);                        // f32_13f2: a WAV in GRAFX.DAT
@@ -421,6 +424,8 @@ private:
     int roomVar_[7] = {};      // the room's own +FA2, +FA4, +FA6, +FC0, +FC4, +FBE, +FC2
     int roomObj_[5] = {-1, -1, -1, -1, -1};  // the room's own objects (list indices): +FB4, +FB6, +FB8, +FA8, +FBA
     int gameFlag_[3] = {};     // [8E50], [8E52], [8E54] (cleared for a new game, f31_1b48)
+    bool gameWon_ = false;     // [26CC]: the game's won (set by lesson 10's end, not ported yet)
+    bool gameOver_ = false;    // the last ball lost: after the high scores, event 2 (a new game)
     void spitBall(Object& o, int mode);
     void ballToStart();
 
@@ -526,8 +531,11 @@ private:
         long score = 0;
         int a = 0, b = 0;
         int look[4] = {};
+        bool eof = false;  // the record the loader makes reading past the end (not saved)
     };
     std::vector<PlayerEntry> players_;  // the high scores (and looks), wscience.hs
+    void sortPlayers(int lo, int hi);    // f39_1183 (its partition f39_129d)
+    void addPlayer(const PlayerEntry& p);  // appended, first and last swapped (f39_1940), sorted
     std::string playerName_;            // DS:8D22
     unsigned labFrame_ = 0;             // [1D40]
     bool looksConverted_ = false;       // [1D3E]: f19_0614 has run
