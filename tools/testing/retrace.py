@@ -23,6 +23,7 @@ PATTERNS = {
     "rem": rf" c {N},{N},{N} v {N},{N},{N} r {N},{N},{N}",  # with the remainders
     "bodies": " " + " ".join([G] * 4),                        # the ball and three loose magnets
     "rack": rf"^bodies t\d+ " + " ".join([G] * 7),            # the ball and six other balls
+    "bodies5": rf"^bodies t\d+ " + " ".join([G] * 5),         # the ball, three magnets, a type 2 ball
 }
 
 
@@ -73,6 +74,9 @@ CASES = {
     # seeds as the room is built and once it's built, and its [FFE].
     "hot32": ("t14/o32c/trace.txt", None, f"--room 32 {shot(9000, 485, 35)} {fire(10480)} --quit-after 16000",
               {"SCI_SKIPDIALOGS": "1", "SCI_ROOMTICKS": "490", "SCI_RANDSEED": "3956523548,1302092025"}),
+    # Type 2, a magnetic ball, which no room has: room 13 with one added
+    # (OBJ11 420 120 2 10) in copies of the game's folders (build/scratch/t2).
+    "magball13": ("t2/o13/ball.txt", "bodies5", "--room 13 --quit-after 30000 build/scratch/t2/cd/DSK3"),
     "lipsIce": ("t7/olips0/trace.txt", None, f"--room 2 {power(4000)} {power(4600)} {power(5200)} {power(5800)} {shot(6400, 122, 236)} {fire(7400)} --quit-after 20000"),
 }
 

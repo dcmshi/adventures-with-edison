@@ -40,7 +40,7 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
   Glass and Rubber ones, the fans of rooms 98 and 25 breaking a Rubber
   ball and melting an Ice one, room 22's suckhole: its spark breaking the
   ball, room 46's smiley breaking a Rubber ball and scoring a Glass one,
-  room 71's rack of balls, room 32's hot field burning the ball); each result against `retrace.expected`
+  room 71's rack of balls, room 32's hot field burning the ball, room 13 with a type 2 ball added: its copies of the game's folders in `build/scratch/t2`); each result against `retrace.expected`
   (`--accept` writes the new ones there once they're checked).
 - Tracing across a change of room: `memwatch.py watch --follow 0.3` (the
   data segment moves as the room is built). Expressions are hex: a list

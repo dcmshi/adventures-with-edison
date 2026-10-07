@@ -66,6 +66,24 @@ void Science::thingsBuilt() {
             b.kind = 2, b.mass = o.args[4] > 0 ? o.args[4] : 1, b.self = static_cast<int>(i);
             continue;
         }
+        if (o.type == 2) {
+            // A magnetic ball (f61_09bd → f05_11c1; no room has one): type
+            // 0's ball (f07_0000, a its radius, resting on the ground at (x,
+            // y), no shadow, its tick and draw) with a magnetic part (+2,
+            // f05_0003): strength 200 * [27B2] / ([27B0] * 2), as the type-3
+            // ball's; its type Iron (f07_05bf with 28DE: mass 20, Iron's
+            // frames), so the field pulls it (its +30, f05_0c0b). It takes
+            // no mouse (f05_08f3).
+            Ball& b = o.body;
+            b = Ball{};
+            b.r = o.args[0];
+            b.cx = o.x, b.cy = o.y, b.cz = heightUnder(o.x, o.y) + b.r;
+            b.kind = 3, b.mass = ballKinds_[3].mass, b.self = static_cast<int>(i);
+            b.rollThreshold = (b.r * b.r) >> 4;
+            b.magnetic = true;
+            b.strengthNum = 200L * kTimerK, b.strengthDen = kTimerRate * 2L;
+            continue;
+        }
         if (o.type == 0) {
             // Another ball (f07_0000, the balls' own class): a its radius,
             // resting on the ground at (x, y) (f10_1582); its type the
@@ -535,8 +553,8 @@ bool Science::contactOf(Object& o, Contact& c) {
         c.body = &o.body, c.movable = true;
         return true;
     }
-    if (o.type == 0) {
-        // Another ball: its sphere and mass (10); out of reach once gone.
+    if (o.type == 0 || o.type == 2) {
+        // Another ball: its sphere and mass (10; type 2's 20); out of reach once gone.
         const Ball& b = o.body;
         c.s[0] = b.cx, c.s[1] = b.cy, c.s[2] = b.cz, c.s[3] = b.r;
         c.ratio = b.hidden ? 0 : b.mass;
@@ -661,7 +679,7 @@ void Science::fieldAt(const int p[3], const Ball* self, int16_t out[3]) {
     };
     for (Object& o : table_.objects) {
         if (o.type == 3 && hasBall_ && ball_.magnetic && &ball_ != self) round(ball_);
-        else if ((o.type == 4 || o.type == 5) && &o.body != self) round(o.body);
+        else if ((o.type == 4 || o.type == 5 || o.type == 2) && &o.body != self) round(o.body);
         else if ((o.type == 15 || (o.type == 6 && o.powered)) && &o.body != self) {
             // f05_252f (type 6 f05_2933: only while powered): as round,
             // without the type's test, its pole turned on one side of it

@@ -1105,6 +1105,16 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   then). Drawn as the player's ball is (`1300` rolling, the breaking
   frames). Checked: room 71 (a rack of six, 236 states of all seven
   bodies; frames within 6 pixels, a grid line of the table's).
+- **Type 2, a magnetic ball** (`f61_09bd` → `f05_11c1`, the type-3
+  ball's class without the player's parts; no room has one): `a` its
+  radius, resting on the ground at (x, y); its motion part type 0's
+  (`f07_0000`: no shadow, its tick `f07_077e`, its draw `f13_01ce`), its
+  magnetic part at `+2` (strength 200 * `[27B2]` / (`[27B0]` * 2), as the
+  type-3 ball's), its type Iron (`f07_05bf` with `28DE`: mass 20, Iron's
+  frames), its acceleration the field's (`f05_0c0b`); it takes no mouse
+  (`f05_08f3`). Checked: room 13 with one added (`OBJ11 420 120 2 10`, in
+  copies of the game's folders), pulled among the three loose magnets,
+  1124 states of all five bodies traced.
 - **Type 16, a block** (`f07_17f2`): a cube of side 2`a` on the ground at
   (x, y) (its core's type record Rubber), `b` its picture at the
   rectangle's corner, `c` draggable, `d` stepped as a body (`f08_1a42`),
@@ -1179,7 +1189,7 @@ through the run time's streams in segment 90). Text, in three parts:
    |---|---|---|---|
    | 0 | `f07_0000` | 9 | a loose Rubber ball, `a` its radius (draggable in room 0 only) |
    | 1 | `f06_0043` (+ `f07_0456`) | 37 | the ball (only one: "can't init more than one player") |
-   | 2 | `f05_11c1` | | a magnetic ball (the field's) |
+   | 2 | `f05_11c1` | 0 | a magnetic ball: type 0's, Iron, with the type-3 ball's magnetic part (see above) |
    | 3 | `f06_0348` (`f61_09bd`) | 50 | the ball with a magnetic part (`f05_11c1` at its `+6`) |
    | 4, 5 | `f05_1749`, `f05_210d` | 11, 21 | magnets: `a` the strength (`f05_1e60`: 0-4 by 7, 9, 12, 16) |
    | 6 | `f05_26f7` | 46 | type 15 on a switch's power (`+F94`) |

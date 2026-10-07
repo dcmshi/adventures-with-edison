@@ -452,13 +452,14 @@ void Science::drawObjects(const Rect& redraw) {
                 objectSprite(cx, cy, id);
             };
             list.push_back(dr);
-        } else if (o.type == 0) {
+        } else if (o.type == 0 || o.type == 2) {
             // Another ball (f13_01ce): its frames, no shadow; gone, not drawn.
             const Ball& b = o.body;
             if (b.hidden) continue;
             const int s = 2 * b.r + 1;
             Drawable dr{{b.cx - b.r, b.cy - b.r, b.cz - b.r, s, s, s}, area(objectRect(b.cx - b.r, b.cy - b.r, b.cz - b.r, s, s, s)), 1, 0, {}};
-            dr.draw = [this, &o] { ballSprite(o.body, 0x1300); };
+            // (Type 2's Iron: 1378.)
+            dr.draw = [this, &o] { ballSprite(o.body, o.type == 2 ? 0x1378 : 0x1300); };
             list.push_back(dr);
         } else if (int b[6]; !o.hiddenSwitch && thingBox(o, b)) {
             // The others (things.cpp): their sprite at their box's centre

@@ -165,7 +165,7 @@ void Science::aimSearch(const char* spec) {
                     // (Another ball (type 0) or a block (16) set moving.)
                     bool moved = false;
                     for (size_t i = 0; i < table_.objects.size(); ++i)
-                        moved |= (table_.objects[i].type == 0 || table_.objects[i].type == 16) && (table_.objects[i].body.cx != objects[i].body.cx || table_.objects[i].body.cy != objects[i].body.cy);
+                        moved |= (table_.objects[i].type == 0 || table_.objects[i].type == 2 || table_.objects[i].type == 16) && (table_.objects[i].body.cx != objects[i].body.cx || table_.objects[i].body.cy != objects[i].body.cy);
                     if (moved) {
                         logLine("aim " + std::to_string(x) + "," + std::to_string(y) + " power " + std::to_string(panel_.power) + ": a type 0 ball at tick " +
                                 std::to_string(t));
@@ -595,7 +595,7 @@ void Science::tickRoom() {
         else if (o.type == 10) pointTick(o);
         else if (o.type == 11) creatureTick(o), pointTick(o);
         else if (o.type == 7 || o.type == 4 || o.type == 12 || o.type == 13 || o.type == 14 || o.type == 16) thingTick(o);
-        else if (o.type == 0) ballTick(o.body);
+        else if (o.type == 0 || o.type == 2) ballTick(o.body);
         else if ((o.type == 1 || o.type == 3) && hasBall_) {
             targetTick();
             shadowTick();
@@ -623,9 +623,9 @@ void Science::tickRoom() {
         // +6E and +62.)
         std::string line;
         for (const Object& o : table_.objects)
-            if (o.type == 4 || o.type == 0 || o.type == 16) {
+            if (o.type == 4 || o.type == 0 || o.type == 2 || o.type == 16) {
                 int b[6];
-                if (o.type != 0) thingBox(o, b);
+                if (o.type != 0 && o.type != 2) thingBox(o, b);
                 else b[0] = o.body.cx - o.body.r, b[1] = o.body.cy - o.body.r, b[2] = o.body.cz - o.body.r;
                 line += " " + std::to_string(b[0]) + "," + std::to_string(b[1]) + "," + std::to_string(b[2]) + "," + std::to_string(o.body.v[0]) +
                         "," + std::to_string(o.body.v[1]) + "," + std::to_string(o.body.v[2]);
