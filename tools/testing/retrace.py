@@ -46,7 +46,7 @@ def power(at):
     return f"--drag {at} 334 330 334 330 80 --move {at + 150} 330 300"
 
 
-# name: (original trace, pattern (None: c and v), port arguments)
+# name: (original trace, pattern (None: c and v), port arguments[, environment])
 CASES = {
     "mode0": ("m1/p0/o2.txt", "rem", f"--room 35 --click 1000 330 225 --click 2500 330 225 --drag 12000 208 266 208 266 80 --move 12180 212 266 {fire(13000)} --quit-after 22000"),
     "mode1back": ("m1/o101/trace.txt", None, f"--room 2 {shot(2000, 400, 176)} {fire(3000)} --click 7000 316 224 --click 7500 316 224 --click 8000 316 224 --quit-after 13000"),
@@ -69,6 +69,10 @@ CASES = {
     "rack71": ("t0/o71/ball.txt", "rack", f"--room 71 {shot(2000, 400, 150)} {fire(3000)} --quit-after 12000"),
     "pull11": ("t9/p11/ball.txt", None, f"--room 11 {shot(2000, 308, 124)} {fire(3000)} --quit-after 14000"),
     "pull6": ("t9/p6/ball.txt", None, f"--room 6 --click 1000 300 184 {shot(2000, 180, 212)} {fire(3000)} --quit-after 16000"),
+    # Room 32's hot field (type 14) burning the ball: the original's rand()
+    # seeds as the room is built and once it's built, and its [FFE].
+    "hot32": ("t14/o32c/trace.txt", None, f"--room 32 {shot(9000, 485, 35)} {fire(10480)} --quit-after 16000",
+              {"SCI_SKIPDIALOGS": "1", "SCI_ROOMTICKS": "490", "SCI_RANDSEED": "3956523548,1302092025"}),
     "lipsIce": ("t7/olips0/trace.txt", None, f"--room 2 {power(4000)} {power(4600)} {power(5200)} {power(5800)} {shot(6400, 122, 236)} {fire(7400)} --quit-after 20000"),
 }
 
@@ -95,9 +99,10 @@ def main():
     exe = edison(OUT)
 
     def one(name):
-        trace, pattern, args = CASES[name]
+        trace, pattern, args = CASES[name][:3]
+        env = {"SCI_DEBUG": "1", **(CASES[name][3] if len(CASES[name]) > 3 else {})}
         log = OUT / f"{name}.log"
-        run = run_game(exe, ["--game", "science", *args.split()], log, env={"SCI_DEBUG": "1"})
+        run = run_game(exe, ["--game", "science", *args.split()], log, env=env)
         if run.hung:
             return run.hung_report(name), "HUNG"
         extra = ["--port-pattern", PATTERNS[pattern]] if pattern else []

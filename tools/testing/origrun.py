@@ -9,6 +9,8 @@ Usage: origrun.py OUTDIR ROOM [--watch S] [--delay S] [--extra EXPR...] [SCRIPT 
   --watch S   trace for S seconds (default 10; 0: no trace)
   --delay S   start tracing S seconds after starting (default 16: the room up)
   --extra     more memwatch.py expressions (name=expr)
+  --follow S  memwatch.py's --follow (tracing from before the room is built:
+              its data segment moves)
 Out: OUTDIR/run.txt (the script), run.log, ball.txt (cx cy cz vx vy vz, then
 the extras; t the room tick: --keep-t keeps it), the script's shots.
 Needs EDISON_RUN and OTVDM (see README.md); defaults D:/tools/edison-run
@@ -45,6 +47,7 @@ def main():
     ap.add_argument("--delay", type=float, default=16)
     ap.add_argument("--extra", nargs="*", default=[])
     ap.add_argument("--keep-t", action="store_true")
+    ap.add_argument("--follow", type=float, default=0)
     opts = ap.parse_args()
     os.environ.setdefault("EDISON_RUN", "D:/tools/edison-run")
     os.environ.setdefault("OTVDM", "D:/tools/otvdm/otvdm-v0.9.0/otvdmw.exe")
@@ -72,7 +75,8 @@ def main():
         trace = out / "ball_t.txt"
         try:
             subprocess.run([sys.executable, str(REFERENCE / "memwatch.py"), "watch", str(exe), "--every", "1",
-                            "--for", str(opts.watch), "--out", str(trace), *exprs],
+                            "--for", str(opts.watch), "--out", str(trace),
+                            *(["--follow", str(opts.follow)] if opts.follow else []), *exprs],
                            cwd=ROOT, capture_output=True, timeout=opts.watch + 30)
         except subprocess.TimeoutExpired:
             say(f"origrun: memwatch HUNG (killed after {opts.watch + 30:.0f} s)")

@@ -11,8 +11,28 @@ namespace edison {
 void Science::thingsBuilt() {
     // Each object's own setup as the builder makes it (f61_011d, f61_09bd).
     int power = -1;  // the room's +F94: the last type 6, 12 or 13 made
+    // (Testing: Borland's rand() seed (DS:8454) as the room is built, as
+    // read from the original; a second number, the seed once it's built.)
+    if (const char* s = std::getenv("SCI_RANDSEED")) randSeed_ = static_cast<uint32_t>(std::strtoul(s, nullptr, 0));
     for (size_t i = 0; i < table_.objects.size(); ++i) {
         Object& o = table_.objects[i];
+        if (o.type == 14) {
+            // The hot field (f02_1234): its sphere (+2) at (x, y) on the
+            // ground there, radius a (+8); a 6 cube of a core at (x, y) on
+            // the ground, its mass 0 (out of the step's reach), its draw
+            // only a debugging outline (f13_0000, [12E6]). Its first spot
+            // (f02_110b): at its centre, its full radius a / 2 + rand() * (a
+            // - a / 2) / 8000h, growing from 0. (Its colour cycle, 4D-4F
+            // every 10 ticks, f32_0e7f, only on a 256-colour display.)
+            const int a = o.args[0];
+            const int half = static_cast<uint16_t>(a + a) >> 2;
+            Object::HotSpot s;
+            s.x = o.x, s.y = o.y, s.z = heightUnder(o.x, o.y);
+            s.full = static_cast<int>(static_cast<int32_t>(borlandRand()) * (a - half) / 0x8000) + half;
+            o.hotSpots.assign(1, s);
+            o.hotGrowing = true;
+            continue;
+        }
         if (o.type == 6 || o.type == 12 || o.type == 13) {
             // Its power part (f04_0000: off).
             o.powered = false;
@@ -250,7 +270,123 @@ void Science::switchTurn(Object& o, int on) {
     if (!on) sound(0x6026);
 }
 
+void Science::hotMark(const Object::HotSpot& s) {
+    // f13_16f9: from radius 2, 140D at the spot's centre projected, at the
+    // radius (6 at least) over 26, on screen 3 and on the display.
+    // f14_0d69: only where the sprite at 1:1 lies wholly on the screen
+    // ([1706]); at 1:1 when the scale's whole part is 1 (radii 26-51), else
+    // f72_02cd and f73_0324: (w * scale) >> 8 wide about the point, each
+    // pixel the source's at a 16.16 step of 256 / scale.
+    if (s.r < 2) return;
+    const Bitmap& bmp = ctx_.bitmap(0x140D);
+    const auto [px, py] = project(s.x, s.y, s.z);
+    const int x0 = px - (bmp.width >> 1), y0 = py - (bmp.height >> 1);
+    const Rect screen{0, 0, Screen::kWidth, Screen::kHeight};
+    if (!inside(screen, x0, y0) || !inside(screen, x0 + bmp.width, y0 + bmp.height)) return;
+    const int e = std::max(s.r, 6);
+    const int was = current();
+    for (int screenNo : {3, 1}) {
+        select(screenNo);
+        if (e / 0x1A == 1) {
+            objectSprite(px, py, 0x140D);
+            continue;
+        }
+        const uint32_t scale = static_cast<uint32_t>(e) * 0x100 / 0x1A;
+        const int w = static_cast<int>((bmp.width * scale) >> 8), h = static_cast<int>((bmp.height * scale) >> 8);
+        const uint32_t step = (0x100 / scale) << 16 | ((0x100 % scale) << 16) / scale;
+        const int left = px - (w >> 1), top = py - (h >> 1);
+        Screen& scr = ctx_.screens[screenNo];
+        for (int r = 0; r < h; ++r)
+            for (int c = 0; c < w; ++c) {
+                const uint8_t p = bmp.at(static_cast<int>(c * step >> 16), static_cast<int>(r * step >> 16));
+                const int x = left + c, y = top + r;
+                if (p && x >= 0 && y >= 0 && x < Screen::kWidth && y < Screen::kHeight)
+                    scr.pixels[static_cast<size_t>(y) * Screen::kWidth + x] = p;
+            }
+    }
+    select(was);
+    viewDirty_ = true;
+}
+
+Science::Object::HotSpot Science::hotSpawn(const Object::HotSpot& from, const int field[4]) {
+    // f02_0e4a: a point a half to a whole of the spot's radius off its
+    // centre each way (rand() for x, y, then their signs), at the field's
+    // height; inside the field (f11_1732 with radius 1), a spot there of
+    // three quarters to all of what's left of the field's radius
+    // (f11_0000); else one of radius 0, which never grows.
+    Object::HotSpot n;
+    const int half = from.r / 2;
+    int ox = static_cast<int>(static_cast<int32_t>(borlandRand()) * half / 0x8000);
+    int oy = static_cast<int>(static_cast<int32_t>(borlandRand()) * half / 0x8000);
+    ox += half, oy += half;
+    if (static_cast<int32_t>(borlandRand()) * 2 / 0x8000 != 0) ox = -ox;
+    if (static_cast<int32_t>(borlandRand()) * 2 / 0x8000 != 0) oy = -oy;
+    const int x = from.x + ox, y = from.y + oy, z = field[2];
+    int16_t d[3] = {static_cast<int16_t>(x - field[0]), static_cast<int16_t>(y - field[1]), static_cast<int16_t>(z - field[2])};
+    const int16_t reach = static_cast<int16_t>(field[3] + 1);
+    const int32_t d2 = static_cast<int32_t>(d[0]) * d[0] + static_cast<int32_t>(d[1]) * d[1] + static_cast<int32_t>(d[2]) * d[2];
+    if (d2 > static_cast<int32_t>(reach) * reach) return n;
+    const int left = static_cast<int16_t>(field[3] - static_cast<int16_t>(libLength(d)));
+    if (left <= 0) return n;
+    const int lo = left * 3 / 4;
+    n.full = static_cast<int>(static_cast<int32_t>(borlandRand()) * (left - lo) / 0x8000) + lo;
+    n.x = x, n.y = y, n.z = z;
+    return n;
+}
+
+void Science::hotGrow(Object& o) {
+    // f02_1481: each spot (the list in order, new ones too) not yet full a
+    // unit bigger and marked (f13_16f9); then, with at most 4 spots and
+    // its radius above 5, at rand() * r / 8000h above r * 16 / 20 a new
+    // one off it (f02_0e4a). All full, the field stops growing (+16).
+    const int field[4] = {o.x, o.y, heightUnder(o.x, o.y), o.args[0]};
+    size_t full = 0;
+    for (size_t i = 0; i < o.hotSpots.size(); ++i) {
+        if (static_cast<uint16_t>(o.hotSpots[i].full) <= static_cast<uint16_t>(o.hotSpots[i].r)) {
+            ++full;
+            continue;
+        }
+        ++o.hotSpots[i].r;
+        const Object::HotSpot s = o.hotSpots[i];  // (a copy: the list may grow)
+        hotMark(s);
+        if (o.hotSpots.size() > 4 || s.r <= 5) continue;
+        const int roll = static_cast<int>(static_cast<int32_t>(borlandRand()) * s.r / 0x8000);
+        if (roll <= static_cast<int16_t>(s.r << 4) / 20) continue;
+        o.hotSpots.push_back(hotSpawn(s, field));
+        if (std::getenv("SCI_DEBUG")) {
+            const Object::HotSpot& n = o.hotSpots.back();
+            logLine("hot spot " + std::to_string(o.hotSpots.size() - 1) + " at " + std::to_string(n.x) + "," + std::to_string(n.y) +
+                    " r " + std::to_string(n.full) + " at t" + std::to_string(timerTicks_));
+        }
+    }
+    if (full == o.hotSpots.size()) o.hotGrowing = false;
+}
+
 void Science::thingTick(Object& o) {
+    if (o.type == 14) {
+        // The hot field's step (f02_1627): growing, every 6 room ticks
+        // ([FFE]) its spots grow (f02_1481). Then the player's ball on the
+        // ground (+5E) and not breaking (+7C): its foot (its centre less its
+        // radius in z) within the field (radius 1 each, f11_1732) and
+        // within a spot's radius so far, it's heated with 2000 (f07_030e):
+        // broken, whatever its type (sound 6028; Ice melting).
+        if (o.hotGrowing && roomTicks_ % 6 == 0) hotGrow(o);
+        if (!hasBall_ || !ball_.onGround || ball_.state != 0) return;
+        const int foot[3] = {ball_.cx, ball_.cy, ball_.cz - ball_.r};
+        auto meets = [&](int x, int y, int z, int r) {
+            const int16_t dx = static_cast<int16_t>(x - foot[0]), dy = static_cast<int16_t>(y - foot[1]), dz = static_cast<int16_t>(z - foot[2]);
+            const int16_t reach = static_cast<int16_t>(r + 1);
+            return static_cast<int32_t>(dx) * dx + static_cast<int32_t>(dy) * dy + static_cast<int32_t>(dz) * dz <= static_cast<int32_t>(reach) * reach;
+        };
+        if (!meets(o.x, o.y, heightUnder(o.x, o.y), o.args[0])) return;
+        for (const Object::HotSpot& s : o.hotSpots) {
+            if (!meets(s.x, s.y, s.z, s.r)) continue;
+            ball_.state = 1, ball_.heated = true;
+            if (std::getenv("SCI_DEBUG")) logLine("hot field burns the ball at t" + std::to_string(timerTicks_));
+            return;
+        }
+        return;
+    }
     if (o.type == 4) {
         // A loose magnet's step (its core's +00: f05_1f76 → f08_1a42).
         ballStep(o.body);

@@ -77,6 +77,8 @@ def main():
     ap.add_argument("--jobs", type=int)
     ap.add_argument("--limit", type=int, default=60)
     opts = ap.parse_args(argv)
+    if "--game" not in game:  # (else it waits in the launcher till killed)
+        game = ["--game", "science", *game]
     try:
         aims = search(opts.spec, game, opts.jobs, opts.limit, progress=sys.stderr)
     except RuntimeError:

@@ -6,6 +6,8 @@
 #                                happens (the way test scripts should use it)
 #   otvdm.ps1 shot OUT.png       screenshot the game window only (no focus change)
 #   otvdm.ps1 dialogs            list open dialogs (error boxes) of the game
+#   otvdm.ps1 guard              (started by start) while the game runs, keep
+#                                re-enabling the windows its dialogs disable
 #   otvdm.ps1 stop               close the game safely
 #   otvdm.ps1 unlock             re-enable windows left disabled (the game
 #                                must be closed): after a crash or a reboot
@@ -244,6 +246,10 @@ function StartGame($exe) {
     if (Game) { Write-Output "a run was left over: $(StopGame)" }
     Start-Process -FilePath $otvdm -ArgumentList $exe -WorkingDirectory $runDir
     Write-Output "started $exe"
+    # The guard: while the game runs, any window its dialogs disabled (the
+    # terminal in front when a greeting box opened) is enabled again, so a
+    # run waiting on a dialog never locks the user out.
+    Start-Process -FilePath "pwsh" -ArgumentList @("-NoProfile", "-File", $PSCommandPath, "guard") -WindowStyle Hidden
     if ($env:OTVDM_FULLSCREEN -ne "1") { Windowed }
 }
 
@@ -290,6 +296,12 @@ switch ($Command) {
         if (Game) { Write-Output "the game is still running: use stop"; exit 1 }
         $out = @(Enable-DisabledWindows)
         if ($out) { $out } else { Write-Output "no disabled windows" }
+    }
+    "guard" {
+        # (Started by start: polls till the game has gone.)
+        for ($i = 0; $i -lt 50 -and -not (Game); $i++) { Start-Sleep -Milliseconds 200 }
+        while (Game) { Enable-DisabledWindows | Out-Null; Start-Sleep -Milliseconds 300 }
+        Enable-DisabledWindows | Out-Null
     }
     "dialogs" { Dialogs | ForEach-Object { Write-Output "'$([W]::Text($_))'" } }
     "stop" { StopGame }

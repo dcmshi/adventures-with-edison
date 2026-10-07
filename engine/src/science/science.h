@@ -196,6 +196,15 @@ private:
         // (+34 / +38 1), so it's in the ball's step's reach.
         int spark[3] = {}, sparkSize = 10, sparkFrame = 0, sparkFrames = 0;
         bool sparkShown = false;
+        // Type 14, the hot field (f02_1234): its sphere (+2: at (x, y) on
+        // the ground, radius a) and its hot spots (the list at +0C: each
+        // f02_110b / f02_0e4a's centre, its full radius +6 and its radius
+        // so far +8), growing (+16) till all are full.
+        struct HotSpot {
+            int x = 0, y = 0, z = 0, full = 0, r = 0;
+        };
+        std::vector<HotSpot> hotSpots;
+        bool hotGrowing = false;
     };
     // The room as its camera (segment 25) and the root of its boxes.
     struct Table {
@@ -357,6 +366,9 @@ private:
     bool thingBox(const Object& o, int box[6]) const;
     uint16_t thingSprite(const Object& o) const;
     void thingDraw(Object& o, const Rect& r);      // its core's +04, r its rectangle
+    void hotGrow(Object& o);                        // f02_1481: type 14's spots
+    Object::HotSpot hotSpawn(const Object::HotSpot& from, const int field[4]);  // f02_0e4a
+    void hotMark(const Object::HotSpot& s);         // f13_16f9: its scorch (140D)
     void switchSet(Object& o, int on);              // f04_008e
     void switchTurn(Object& o, int on);             // f04_0321: a switch's method 3
     void holeEntered(Object& o);

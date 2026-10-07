@@ -1111,6 +1111,38 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   `e` its mass (0: 1, soft). Checked: room 96 (253 states, the block met
   at tick 8); later in the shot the original's pit at z -388 near x 298
   isn't the port's yet.
+- **Type 14, the hot field** (`f02_1234`; rooms 5, 7, 29, 32, 59, 98: a
+  lava puddle that grows on the table): its sphere at `+2` (at (x, y) on
+  the ground there, radius `a`), a core of a 6 cube at `+18` (mass 0: out
+  of the step's reach; its draw `f13_0000` only a debugging outline, with
+  `[12E6]`), its colour cycle `f32_0e7f(4D, 4F, 10)`. Its hot spots, a
+  list at `+0C` (`+12` the count; 10 bytes each: centre, `+6` the full
+  radius, `+8` the radius so far): the first (`f02_110b`) at its centre,
+  full at `a` / 2 + rand() * (`a` - `a` / 2) / 8000h. `+16` growing. Its
+  tick (`f02_1627`): growing, every 6 room ticks (`[FFE]`) `f02_1481`:
+  each spot in turn (new ones in the same pass) not yet full one bigger
+  and marked (`f13_16f9`); then, with at most 4 spots and its radius over
+  5, at rand() * r / 8000h above r * 16 / 20 a new spot (`f02_0e4a`: a
+  point a half to a whole radius off its centre each way (rand() for x,
+  y, then the signs), at the field's height; inside the field, full at
+  three quarters to all of what's left of the field's radius there, else
+  0); all full, it stops. Then the player's ball on the ground (`+5E`)
+  and not breaking: its foot (centre less radius) within the field and
+  within a spot's radius so far (`f11_1732`, radius 1 each) is heated with
+  2000 (`f07_030e`): any type breaks, sound 6028, Ice melts. The mark
+  (`f13_16f9`, radius 2 up): `140D` (68 x 17) at the spot's centre
+  projected, at max(r, 6) / 26, on screen 3 and the display; `f14_0d69`
+  draws it only where it lies wholly on the screen at 1:1, and at 1:1 when
+  the scale's whole part is 1 (radii 26-51), else `f72_02cd` →
+  `f73_0324` (32-bit code: `(w * scale) >> 8` wide about the point, each
+  pixel the source's at a 16.16 step of 256 / scale). Checked: room 5's
+  growth (spots and rand() seed at every step, from the original's seed)
+  and its puddle pixel for pixel (but where the original drew it on the
+  display over the N magnet, which its changed-rectangle redraw leaves);
+  room 32 (the ball burnt at the same room tick, 207 states traced).
+  Rooms 5 and 32, entered with the S key, make 3 rand() calls between the
+  field's and its first growth; the port's `--room` start makes 8 (the
+  panel and columns), so `SCI_RANDSEED` takes a second seed.
 - **Redrawing** (`f29_0380` at the room's tick's end): the changed areas
   (`f27_16ae`, an object's `+10`: its old and new rectangles queued, 32 at
   most) are redrawn every `+180` ticks: each room's builder sets 2, but the
@@ -1157,7 +1189,7 @@ through the run time's streams in segment 90). Text, in three parts:
    | 10 | `f03_002c`, kind 6 `f02_0be1` | 267 | point targets (`c` the kind); kind 6 a suckhole |
    | 11 | `f03_0865` | 9 | the smiley: a kind 0 target, `a` its points (up to 10000) |
    | 12, 13 | `f02_00c2`, `f02_05f2` | 2, 9 | power (`+F94`): an electromagnet that catches Iron and breaks other balls, a fan (`a` its way) that breaks Ice, Rubber, Glass and Magic ones (see above) |
-   | 14 | `f02_1234` | 6 | |
+   | 14 | `f02_1234` | 6 | the hot field: a lava puddle growing from `a` (see above) |
    | 15 | `f05_233e` | 53 | a magnet on a wall |
    | 16 | `f07_17f2` | 9 | a block: `a` half its side, `b` its picture, `c` draggable, `d` stepped, `e` its mass |
 

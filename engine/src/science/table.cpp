@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <functional>
 #include <iterator>
@@ -1144,6 +1145,8 @@ void Science::enterRoom(int room) {
     drawPanel();
     drawColumn(false);
     drawColumn(true);
+    if (const char* s = std::getenv("SCI_RANDSEED"); s && std::strchr(s, ','))
+        randSeed_ = static_cast<uint32_t>(std::strtoul(std::strchr(s, ',') + 1, nullptr, 0));
 }
 
 void Science::showTable(int room) {

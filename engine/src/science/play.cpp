@@ -594,7 +594,7 @@ void Science::tickRoom() {
         else if (o.type == 10 && o.kind == 6) sparkTick(o), suckholeTick(o);
         else if (o.type == 10) pointTick(o);
         else if (o.type == 11) creatureTick(o), pointTick(o);
-        else if (o.type == 7 || o.type == 4 || o.type == 12 || o.type == 13 || o.type == 16) thingTick(o);
+        else if (o.type == 7 || o.type == 4 || o.type == 12 || o.type == 13 || o.type == 14 || o.type == 16) thingTick(o);
         else if (o.type == 0) ballTick(o.body);
         else if ((o.type == 1 || o.type == 3) && hasBall_) {
             targetTick();

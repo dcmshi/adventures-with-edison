@@ -40,7 +40,7 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
   Glass and Rubber ones, the fans of rooms 98 and 25 breaking a Rubber
   ball and melting an Ice one, room 22's suckhole: its spark breaking the
   ball, room 46's smiley breaking a Rubber ball and scoring a Glass one,
-  room 71's rack of balls); each result against `retrace.expected`
+  room 71's rack of balls, room 32's hot field burning the ball); each result against `retrace.expected`
   (`--accept` writes the new ones there once they're checked).
 - Tracing across a change of room: `memwatch.py watch --follow 0.3` (the
   data segment moves as the room is built). Expressions are hex: a list
@@ -76,7 +76,12 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
   original (`WMAINSKP.EXE`) with an `otvdm.ps1` script once it's up, the
   ball and `[FFE]` traced (`ball.txt`); every step time-limited.
   `WMAINSKP.EXE` (`tools/reference/wmain_skip.py`) also leaves the mouse
-  free (the original confines it to its window, `f74_0000`).
+  free (the original confines it to its window, `f74_0000`). `--follow S`
+  traces from before the room is built (its data segment moves). A room
+  with a greeting box needs a `click` first. `otvdm.ps1 start` also starts
+  a guard that keeps re-enabling windows the game's dialogs disable (the
+  terminal in front when a box opens), so a run waiting on one doesn't
+  lock the user out.
 - `roompics.py [--cpp | --config]`: every table room's pictures (its
   method 4) and its builder's settings, from Ghidra's output and a dump of
   the original's data segment (`--dump`, default `build/scratch/dg1.bin`).
@@ -93,7 +98,7 @@ run that hangs shows where;
 `SCI_SHOOT_WHEN=cx,cy,cz,vx,vy,vz` holds a shot till the ball's in that
 state; `SCI_HOLE=n` has the first room's hole to room n take the ball at
 once (room 1: 504 EXIT's question, 508 / 509 the warp codes; 501-503 the
-lab, high scores, credits), for what follows without a measured shot; `SCI_ROOMTICKS=n` starts `[FFE]` (the room
+lab, high scores, credits), for what follows without a measured shot; `SCI_RANDSEED=a[,b]` sets Borland's rand() seed as the room is built (and to b once it's built), as read from the original (`d:8454`); `SCI_ROOMTICKS=n` starts `[FFE]` (the room
 ticks, which the original counts from its start: the targets' and other
 animations' phases) at n, as read from the original (`memwatch.py`
 `t=d:ffe`); `SCI_DIALOGPIC=k` gives the
