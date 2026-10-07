@@ -56,7 +56,11 @@ int Science::playRoom(int room) {
         Mouse m;
         ctx_.platform.mouse(&m.x, &m.y, &m.held);
         int cx, cy;
-        if (ctx_.platform.takeClick(&cx, &cy)) m.click = true, m.x = cx, m.y = cy;
+        // (A press is seen with the button down, [6EC4] bit 0, even if it's
+        // up already: the original takes one window message a loop, so its
+        // release comes after the press's event. Room 96's greeting's second
+        // click aims.)
+        if (ctx_.platform.takeClick(&cx, &cy)) m.click = true, m.held = true, m.x = cx, m.y = cy;
         if ((lastPressed && !m.held) || m.held || m.click || m.x != last.x || m.y != last.y) {
             lastPressed = m.click;
             mouseEvent(m);

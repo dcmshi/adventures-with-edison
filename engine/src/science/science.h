@@ -249,6 +249,17 @@ private:
     Rect objectRect(int x, int y, int z, int w, int d, int h) const;               // f27_16ae
     void objectSprite(int cx, int cy, uint16_t id);  // f14_0d69 at 1:1
     void drawObjects(const Rect& area);             // the drawables at rest
+    // The room's "drawn after" table (+5FD) kept between draws: the
+    // drawables it was made for, each one's box and rectangle then, the
+    // pairs' f35_0744 results (f27_1af3, f27_1bd9).
+    struct DrawOrder {
+        int table = -1;  // tableSerial_ it was made for
+        std::vector<std::pair<const void*, int>> ids;
+        std::vector<std::array<int, 10>> seen;
+        std::vector<uint8_t> order;
+    };
+    DrawOrder drawOrder_;
+    int tableSerial_ = 0;                           // one more each loadTable
     void roomPictures(int room);                    // the room's method 4 (room 1: f41_0126)
     void redrawTable(const Rect& area);             // f27_1e36, the room's method 3
     void enterRoom(int room);                       // f31_0783 for rooms 1-100

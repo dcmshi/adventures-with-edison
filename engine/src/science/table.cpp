@@ -76,6 +76,7 @@ bool Science::loadTable(int room) {
     auto word = [&](size_t at) { return static_cast<int16_t>(data_[at] | data_[at + 1] << 8); };
     Table& t = table_;
     t = Table{};
+    ++tableSerial_;
     t.view = {54, 6, 530, 280};
     t.bottom = t.view.y + t.view.h - 1;
     t.scrollX = -word(0x1FF2);
@@ -242,6 +243,12 @@ struct Drawable {
     bool table = false, pit = false;
     std::function<bool(int, int, int)> behind;
     std::vector<const void*> lineage;
+    // Who it is (the box, the object; a part of it), and whether its moves
+    // mark it changed (f27_16ae: a table box, or an object whose core's +7E
+    // is set: all but types 5, 6, 12 and 15, f05_210d, f05_233e, f02_0000).
+    const void* id = nullptr;
+    int part = 0;
+    bool marks = true;
 };
 
 bool spans(int a, int aw, int c, int cw) {
@@ -344,7 +351,7 @@ void Science::drawObjects(const Rect& redraw) {
             const int z = h < 0 ? b.height : P;
             const Rect& B = b.bottom;
             Drawable d{{B.x, B.y, z, B.w, B.h, std::abs(h)}, area(objectRect(B.x, B.y, z, B.w, B.h, std::abs(h))), 0, 0, {}};
-            d.table = true, d.pit = h < 0, d.lineage = mine;
+            d.table = true, d.pit = h < 0, d.lineage = mine, d.id = &b;
             d.behind = [this, &b](int x, int y, int zz) { return boxBehind(b, x, y, zz); };
             d.draw = [this, &b, &redraw] { cutBox(b, redraw); };
             list.push_back(std::move(d));
@@ -396,6 +403,7 @@ void Science::drawObjects(const Rect& redraw) {
                 else cy += wall == 0 ? 0 : 3;
                 objectSprite(cx, cy, id);
             };
+            dr.id = &o;
             list.push_back(dr);
         } else if (o.type == 10 && o.kind == 6 && o.scored) {
             // A suckhole once scored (f13_15e0): its fuse, drawn on screen 3
@@ -410,6 +418,7 @@ void Science::drawObjects(const Rect& redraw) {
                 const int* b = o.fuseBox;
                 Drawable dr{{b[0], b[1], b[2], b[3], b[4], b[5]}, area(objectRect(b[0], b[1], b[2], b[3], b[4], b[5])), 0, 0, {}};
                 dr.draw = [this, &o] { fuseDraw(o); };
+                dr.id = &o;
                 list.push_back(dr);
             }
             if (o.sparkShown) {
@@ -422,6 +431,7 @@ void Science::drawObjects(const Rect& redraw) {
                     const size_t at = 0x15CEu + 0x18u * 7 + 2u * std::max(o.sparkFrame, 0);
                     objectSprite(cx, cy, static_cast<uint16_t>(data_[at] | data_[at + 1] << 8));
                 };
+                dr.id = &o, dr.part = 1;
                 list.push_back(dr);
             }
         } else if (o.type == 10 || o.type == 11) {
@@ -455,6 +465,7 @@ void Science::drawObjects(const Rect& redraw) {
                 }
                 objectSprite(cx, cy, id);
             };
+            dr.id = &o;
             list.push_back(dr);
         } else if (o.type == 0 || o.type == 2) {
             // Another ball (f13_01ce): its frames, no shadow; gone, not drawn.
@@ -464,6 +475,7 @@ void Science::drawObjects(const Rect& redraw) {
             Drawable dr{{b.cx - b.r, b.cy - b.r, b.cz - b.r, s, s, s}, area(objectRect(b.cx - b.r, b.cy - b.r, b.cz - b.r, s, s, s)), 1, 0, {}};
             // (Type 2's Iron: 1378.)
             dr.draw = [this, &o] { ballSprite(o.body, o.type == 2 ? 0x1378 : 0x1300); };
+            dr.id = &o;
             list.push_back(dr);
         } else if (int b[6]; !o.hiddenSwitch && thingBox(o, b)) {
             // The others (things.cpp): their sprite at their box's centre
@@ -472,6 +484,7 @@ void Science::drawObjects(const Rect& redraw) {
             dr.draw = [this, &o, b0 = b[0], b1 = b[1], b2 = b[2], b3 = b[3], b4 = b[4], b5 = b[5]] {
                 thingDraw(o, objectRect(b0, b1, b2, b3, b4, b5));
             };
+            dr.id = &o, dr.marks = !(o.type == 5 || o.type == 6 || o.type == 12 || o.type == 15);
             list.push_back(dr);
         } else if ((o.type == 1 || o.type == 3) && hasBall_) {
             // The ball (f06_0043, radius 10; kind 1), then its shadow
@@ -492,6 +505,7 @@ void Science::drawObjects(const Rect& redraw) {
                 static const uint16_t kFrames[6] = {0x1348, 0x1330, 0x1300, 0x1378, 0x1318, 0x1360};
                 ballSprite(b, kFrames[std::clamp(panel_.ballType, 0, 5)]);
             };
+            ball.id = &ball_;
             list.push_back(ball);
             // The shadow object (f07_12d6; drawn by f13_04ab): 1040 at its
             // box's centre projected, (x, y, ground + 1).
@@ -502,6 +516,7 @@ void Science::drawObjects(const Rect& redraw) {
                 const auto [x, y] = project(shadowX_, shadowY_, shadowZ_);
                 objectSprite(x, y, 0x1040);
             };
+            shadow.id = &ball_, shadow.part = 1;
             list.push_back(shadow);
             // The target (f06_0877, kept at +F79), hidden while the ball
             // moves (f06_0aa8): the ring's back 1042 here, its front 1043
@@ -515,15 +530,38 @@ void Science::drawObjects(const Rect& redraw) {
                 const auto [tx, ty] = objectCentre(targetX_ - 10, targetY_ - 10, tz, 20, 20, 10);
                 objectSprite(tx + 1, ty, 0x1042);
             };
+            target.id = &ball_, target.part = 2;
             list.push_back(target);
         }
     }
     const size_t n = list.size();
+    // The table is made again (f27_1af3) when the drawables aren't the ones
+    // it was made for (+F1D: a core made or gone, f27_1518, f27_160c; a new
+    // room); else (f27_1bd9) only a pair with one marked changed since the
+    // last draw (its +1AF, f27_16ae: it moved) is compared again: so two
+    // that don't mark themselves keep their order till then (room 54's
+    // magnets: N let down onto S stays in front, as in list order).
+    DrawOrder& cache = drawOrder_;
+    std::vector<std::pair<const void*, int>> ids(n);
+    std::vector<std::array<int, 10>> seen(n);
+    for (size_t i = 0; i < n; ++i) {
+        const Drawable& d = list[i];
+        ids[i] = {d.id, d.part};
+        seen[i] = {d.box[0], d.box[1], d.box[2], d.box[3], d.box[4], d.box[5], d.rect.x, d.rect.y, d.rect.w, d.rect.h};
+    }
+    const bool remake = cache.table != tableSerial_ || cache.ids != ids;
+    if (remake) cache.order.assign(n * n, 1);
+    for (size_t i = 0; i < n; ++i)
+        for (size_t j = i + 1; j < n; ++j) {
+            if (remake || (list[i].marks && cache.seen[i] != seen[i]) || (list[j].marks && cache.seen[j] != seen[j]))
+                cache.order[i * n + j] = static_cast<uint8_t>(depthOrder(list[i], list[j]));
+        }
+    cache.table = tableSerial_, cache.ids = std::move(ids), cache.seen = std::move(seen);
     std::vector<uint8_t> after(n * n, 0);  // after[i * n + j]: i is drawn after j
     std::vector<bool> free(n, true), drawn(n, false);
     for (size_t i = 0; i < n; ++i)
         for (size_t j = i + 1; j < n; ++j) {
-            const int o = depthOrder(list[i], list[j]);
+            const int o = cache.order[i * n + j];
             if (o == 0) after[i * n + j] = 1, after[j * n + i] = 0, free[j] = false;
             else if (o == 2) after[j * n + i] = 1, after[i * n + j] = 0, free[i] = false;
         }

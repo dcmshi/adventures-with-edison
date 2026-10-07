@@ -84,6 +84,17 @@ CASES = {
     "magball13": ("t2/o13/ball.txt", "bodies5", "--room 13 --quit-after 30000 build/scratch/t2/cd/DSK3"),
     # Room 96: a block knocked into the pit, put away (its +24, f60_0216).
     "pit96": ("r96/o1/trace.txt", "bodies9", f"--room 96 {shot(2000, 272, 168)} {fire(3000)} --quit-after 16000", {"SCI_SKIPDIALOGS": "1"}),
+    # Rooms 60 and 64: a lever on (60's first, 64's second), the magnets carry the ball
+    # down into a bin (60's on its pit's slope), then to the next room.
+    "bin60": ("r60/o2/bin.txt", None, "--room 60 --click 1000 175 112 --quit-after 9000"),
+    "bin64": ("r64/o1/bonly.txt", None, "--room 64 --click 1000 228 80 --quit-after 12000"),
+    # Room 91: at full power into its goal (f59_014a), the bonus box.
+    "goal91": ("r91/o1/bonly.txt", None, f"--room 91 --drag 3000 445 325 445 250 2500 {shot(6000, 268, 132)} {fire(7000)} --quit-after 14000",
+               {"SCI_SKIPDIALOGS": "1"}),
+    # The breaking boxes (the rooms' +24, f43_0136 and its copies) of
+    # rooms 36, 66, 49 and 38: the ball onto it, broken.
+    **{f"break{r}": (f"brk/o{r}/bonly.txt", None, f"--room {r} {shot(2000, x, y)} {fire(3000)} --quit-after 10000", {"SCI_SKIPDIALOGS": "1"})
+       for r, x, y in ((36, 240, 80), (66, 300, 140), (49, 72, 20), (38, 72, 20))},
     # Room 69: the lever OBJ4 on, its magnets carry the ball into the 200
     # bin (its +24, f54_07fa: the room ends, then lesson 508).
     "bin69": ("r69/o1/trace.txt", None, "--room 69 --click 1000 440 80 --drag 1100 540 340 540 340 80 --move 1230 544 340 --quit-after 9000"),
@@ -97,10 +108,22 @@ CASES = {
     # along.
     "magnets55": ("r55/o3/trace.txt", "bodies7", f"--room 55 {ball_type(1000)} {shot(2160, 508, 156)} {fire(3160)} --quit-after 14000",
                   {"SCI_SKIPDIALOGS": "1"}),
+    # Room 96: its greeting closed by a click, a second click there aims
+    # (the press seen with the button down, [6EC4]); the ball into the pit
+    # (z -390). Then a shot into a block (the trace's last states, the room
+    # gone, left out).
+    "greet96": ("t16_96c/orig/ball.txt", None, f"--room 96 --click 1000 330 225 --click 2500 330 225 {fire(6000)} --quit-after 14000"),
+    "block96": ("r96/p/block.txt", None, f"--room 96 --click 1000 330 225 --click 2500 330 225 {shot(4500, 525, 175)} {fire(5500)} --quit-after 9000"),
     # Room 54: its bullseye hit at power 16 (the slider held up), the S
     # magnet let down 30 steps (its +14, f51_0dc2), the bullseye off.
     "press54": ("r54/o2/mag.txt", "room54", f"--room 54 --drag 3000 445 325 445 250 2500 {shot(6000, 330, 140)} {fire(7000)} --quit-after 18000",
                 {"SCI_SKIPDIALOGS": "1"}),
+    # Then its way up: a second hit from where the ball came to rest (+FC2
+    # set, +FC0 back to 0, the bullseye off); the ball's path too.
+    "up54": ("r54/o4/mag.txt", "room54", f"--room 54 --drag 3000 445 325 445 250 2500 {shot(6000, 330, 140)} {fire(7000)} "
+             f"{shot(16000, 274, 150)} {fire(17000)} --quit-after 32000", {"SCI_SKIPDIALOGS": "1"}),
+    "up54ball": ("r54/o4/bonly.txt", None, f"--room 54 --drag 3000 445 325 445 250 2500 {shot(6000, 330, 140)} {fire(7000)} "
+                 f"{shot(16000, 274, 150)} {fire(17000)} --quit-after 32000", {"SCI_SKIPDIALOGS": "1"}),
     # Room 18: its loose magnet knocked into its slot (its +14, f44_11a7):
     # the gate raised 50 steps, the hole to 60 opened.
     "slot18": ("r18/o2/bodies.txt", "bodies2", f"--room 18 {shot(2000, 340, 112)} {fire(3000)} --quit-after 9000", {"SCI_SKIPDIALOGS": "1"}),

@@ -367,6 +367,11 @@ Borland's `mov ax, ss; nop; inc bp` prologue): `f31_0783` is
   an event that only had it held isn't seen at all: the control keeps the
   mouse (a quick scripted click leaves the ball type's button down in the
   original too). The event: x, y, the last x, y, and the press at `+9`.
+  Its handlers read the button itself (`[6EC4]` bit 0: aiming, `f27_2d15`;
+  the sliders): one window message is taken a pass, so a quick click's
+  press is handled before its release arrives, and its event sees the
+  button down (the port takes a click as held for its event). So the
+  click after room 96's greeting aims where it was.
 - **The player's tick** (`f31_1c79`): the game objects, then the room's
   tick (method 5, `f27_2434`: its objects' ticks, the impact marks aged
   every 20 ticks, the changed areas redrawn, `f29_0380`), the panel's
@@ -1127,9 +1132,8 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
 - **Type 16, a block** (`f07_17f2`): a cube of side 2`a` on the ground at
   (x, y) (its core's type record Rubber), `b` its picture at the
   rectangle's corner, `c` draggable, `d` stepped as a body (`f08_1a42`),
-  `e` its mass (0: 1, soft). Checked: room 96 (253 states, the block met
-  at tick 8); later in the shot the original's pit at z -388 near x 298
-  isn't the port's yet.
+  `e` its mass (0: 1, soft). Checked: room 96 (the block met at tick 8,
+  and the shot on: 152 states of the ball, into the pit).
 - **Type 14, the hot field** (`f02_1234`; rooms 5, 7, 29, 32, 59, 98: a
   lava puddle that grows on the table): its sphere at `+2` (at (x, y) on
   the ground there, radius `a`), a core of a 6 cube at `+18` (mass 0: out
@@ -1199,10 +1203,11 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   - Room 2's circuit (`f41_0b78`): the player's Iron ball on the top (the
     face's `+2` 1) of the box under (400, 325): `+FC0` on (the first time,
     `+FC2`, colour cycle 4A-4C every 6 ticks); else off (`f32_0f77`).
-  - Room 10 (`f42_0f2a`; not traced against the original yet):
-    while `+FC0`, an Iron body on (420, 248) past x 392: `+FC0` off, the
-    cycle at 4A stopped, the blocks `+FB4` and `+FB6` (its gate) put at
-    0, 0, sound 601A. Room 55 (`f51_1777`): on (295, 388) or (636, 386),
+  - Room 10 (`f42_0f2a`): while `+FC0`, an Iron body on (420, 248) past
+    x 392: `+FC0` off, the cycle at 4A stopped, the blocks `+FB4` and
+    `+FB6` (its gate) put at 0, 0, sound 601A. (Never in play: its file
+    locks the ball to Stone, `PANEL ... 1 1`, and its loose balls are
+    Rubber; so not traced.) Room 55 (`f51_1777`): on (295, 388) or (636, 386),
     its magnetic ball `+FB4` sets `+FA2`, `+FB6` `+FA4` (both: its hole to
     3 lets the ball through), the player's ball breaks, any other body is
     put at 0, 0; its restart (the hole to 101) puts the two balls back at
@@ -1210,8 +1215,12 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
     its pit (`+FA4` set), all seven bodies (the ball, the four loose
     magnets, the two magnetic balls) traced, 705 states.
   Checked: room 33 (the ball broken in the water), 96 (a block into the
-  pit, all nine bodies, 317 states), 69 (lever OBJ4 on: the ball carried
-  into the 200 bin, 158 states, then lesson 508).
+  pit, all nine bodies, 317 states; the ball itself into the pit, z -390,
+  329 states), 69 (lever OBJ4 on: the ball carried into the 200 bin, 158
+  states, then lesson 508), 60 (its first lever: down the pit's slope
+  into a bin, 121 states), 64 (its second: 118 states, into room 69),
+  91 (at full power into the goal, 51 states, and its bonus box pixel for
+  pixel), the breaking boxes of rooms 36, 38, 49 and 66.
 - **Box looks** (`+3C`, `f12_0872`; ported: `Box::looks`): a builder's
   list of five records (`f12_0000`, faces 1 top, 2 left, 3 right, 4 back,
   5 front; `DS:926C` the default) of `f34_0000` (`+0` a picture or colour,
@@ -1248,6 +1257,23 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   and (470, 108); else, the magnet on: off, and with `+FC2` (cleared)
   the cycle stopped and `10D8` there. Checked against the original pixel
   for pixel: at rest, the four levers on, one back off.
+- **The order kept** (`+5FD`, a byte a pair: "drawn after"): the room's
+  method 3 (`f27_1e36`) makes it again (`f27_1af3`, every pair through
+  `f27_19d9` → `f35_0744`) only when `+F1D` is set: a core made
+  (`f08_0066` → `f27_1518`, which adds its drawable, `f27_18b7`, kind 0;
+  the table's boxes kind 1, `f27_1864`) or gone (`f27_1409`, `f27_160c`:
+  the last drawable moved into its place). Else, with `+F1B` (something
+  changed), `f27_1bd9` compares again only the pairs where one is marked
+  (`+1AF`), keeping the others' order. `f27_16ae` (an object moved or
+  hidden: `f08_0469` empties its rectangle) sets `+F1B`, and marks it
+  only when it's a table box or its core's `+7E` is set: 1 from
+  `f08_0066`, 0 from types 5 (`f05_210d`), 15 and 6 (`f05_233e`) and 12
+  (`f02_0000`), which aren't meant to move. So room 54's two magnets (S
+  let down onto N by its tick) keep the order of when the table was made,
+  none (S up there, their rectangles apart): the list's, N (made after)
+  in front. Ported (`drawObjects`, `drawOrder_`): the table kept while
+  the drawables are the same ones, a pair compared again when one that
+  marks itself moved.
 - **Room 54's tick** (`f51_0dc2`): while the bullseye is on, every third
   game tick: going down (`+FC2` clear) `+FC0` one more, past 29 `+FC4` and
   `+FC2` set and the bullseye off; with `+FC4` the N magnet at (505, 401)
@@ -1255,10 +1281,10 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   the bullseye off, the N magnet 16 under the S one. Then `10B3` + (`+FC0`
   odd) on screen 3 at (422, 38) and the S magnet at (506, 400), 80 - 2
   `+FC0` up. Checked: the bullseye hit at power 16, the way down (48
-  states of the counters and both magnets). Not yet: the way up (a second
-  hit); at the bottom the original draws N in front of S where their
-  boxes overlap (the port, by `f35_0744`'s rules, S: likely its redraw of
-  the changed rectangles, `f29_0380`).
+  states of the counters and both magnets); a second hit from where the
+  ball stopped, the way up (93 states, the ball's 286); at the bottom N
+  drawn in front of S (the order kept, above), as in the original (the
+  picture the same but for the other objects' animation frames).
 - **The keys** (`f31_1d70`, the player's method 3, event 8; ported:
   `keyEvent`): with a room (`+AE`) and nothing holding the keys (`+B0`),
   `p` pauses (face 1, style 1, `609` "What are we waiting for?",
