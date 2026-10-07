@@ -1159,7 +1159,7 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   not 0, so every tick.
 - **Each room's own methods** (its `+5E` table against the base room's:
   every room has its pictures `+10`, its word on its holes `+20` and `+2C`;
-  `+14` its tick, in rooms 2, 9, 12, 18, 34, 54; `+24` a body onto a face,
+  `+14` its tick, in rooms 2, 9, 12, 18, 34, 54 (all ported); `+24` a body onto a face,
   in 23 rooms; and some builders make objects of their own: rooms 2, 5,
   10, 12, 13, 18, 37, 40, 42, 45, 52-55, 92).
 - **`+24`, a body onto a face** (`f27_2657`, nothing, in the base room):
@@ -1192,9 +1192,13 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   - Room 10 (`f42_0f2a`; not traced against the original yet):
     while `+FC0`, an Iron body on (420, 248) past x 392: `+FC0` off, the
     cycle at 4A stopped, the blocks `+FB4` and `+FB6` (its gate) put at
-    0, 0, sound 601A. Room 55 (`f51_1777`, not ported yet): on (295, 388)
-    or (636, 386), the block `+FB4` sets `+FA2`, `+FB6` `+FA4`, the ball
-    breaks, any other body is put at 0, 0.
+    0, 0, sound 601A. Room 55 (`f51_1777`): on (295, 388) or (636, 386),
+    its magnetic ball `+FB4` sets `+FA2`, `+FB6` `+FA4` (both: its hole to
+    3 lets the ball through), the player's ball breaks, any other body is
+    put at 0, 0; its restart (the hole to 101) puts the two balls back at
+    (403, 223) and (550, 248). Checked: an Iron ball knocking `+FB6` into
+    its pit (`+FA4` set), all seven bodies (the ball, the four loose
+    magnets, the two magnetic balls) traced, 705 states.
   Checked: room 33 (the ball broken in the water), 96 (a block into the
   pit, all nine bodies, 317 states), 69 (lever OBJ4 on: the ball carried
   into the 200 bin, 158 states, then lesson 508).
@@ -1216,9 +1220,62 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   to 12 at (627, 330), its gate of two blocks (`115E`, 17, mass 60, at
   (607, 309), (636, 309); `+FB4`, `+FB6`) and three loose Rubber balls,
   `+FC0` on; room 18's loose magnet (10, N) at (478, 252) (`+FB8`); room
-  55's two magnetic balls (type 2's) at (403, 223), (550, 248). Not yet:
-  room 12's type 6 magnet (`f43_0386`) and room 54's switch and magnets
-  (`f51_09ce`), with their ticks.
+  55's two magnetic balls (type 2's) at (403, 223), (550, 248); room 12's
+  magnet (`f43_0386`: `f05_26f7`, type 6 with the file's OBJ1's
+  arguments 13, -1, 1, 10, at (362, 329), its power part `+FA8`, off);
+  room 54's (`f51_09ce`): a bullseye (`f04_0502`: `f04_03eb` with a 0, b
+  -1, its method 3 `f04_059d` only setting it: no power, no sound) at
+  (363, 400) (`+FA8`), two magnets that don't move (`f05_210d`, 13, S
+  `+FB8` and N `+FBA`) at (506, 400), S put 80 up, N on the ground at
+  (505, 401). `f08_056e` with a height (its fourth argument 1): the
+  sphere's centre its radius above it, no sound; without, on the ground
+  there (sound 6026 for a move of more than 15); `+5E` set either way.
+- **Room 12's tick** (`f43_043d`): on 5 game ticks in 6 (`[27B4]` not a
+  multiple of 6), `+FC0` set while switches 1-4 (`f27_0a5a`: the first
+  object whose `+48` says 11, a switch, with that `+2`, its last
+  argument) are all on. All on and the magnet off: on (sound 6027),
+  `+FC2`, colour cycle 4A-4C, the lights `10D9` on screen 3 at (371, 108)
+  and (470, 108); else, the magnet on: off, and with `+FC2` (cleared)
+  the cycle stopped and `10D8` there. Checked against the original pixel
+  for pixel: at rest, the four levers on, one back off.
+- **Room 54's tick** (`f51_0dc2`): while the bullseye is on, every third
+  game tick: going down (`+FC2` clear) `+FC0` one more, past 29 `+FC4` and
+  `+FC2` set and the bullseye off; with `+FC4` the N magnet at (505, 401)
+  16 under the S one; going up `+FC0` one less, below 1 `+FC2` clear and
+  the bullseye off, the N magnet 16 under the S one. Then `10B3` + (`+FC0`
+  odd) on screen 3 at (422, 38) and the S magnet at (506, 400), 80 - 2
+  `+FC0` up. Checked: the bullseye hit at power 16, the way down (48
+  states of the counters and both magnets). Not yet: the way up (a second
+  hit); at the bottom the original draws N in front of S where their
+  boxes overlap (the port, by `f35_0744`'s rules, S: likely its redraw of
+  the changed rectangles, `f29_0380`).
+- **Room 18** (`f44_0846`, its builder `f44_0a97`): the hole to 60 shut
+  and hidden; a gate, a small hole to 1000 on the ground at (668, 262)
+  over it (`f28_00f3`: b 1, c 0, d -1; `+FBC`), shut. Its tick
+  (`f44_11a7`): the loose magnet (`+FB8`) falling (`+66` below 0) with its
+  box's centre below 62 and within (397-427, 232-264), before (`+FC0`,
+  `+FC4` clear): `+FC0`, `+FC4` set, `+FC2` 0, colour cycle 4D-4F, sound
+  6029. While `+FC0`, `+FC2` up to 50: the gate to (677, 278) at that
+  height (`f08_056e`; its box, as room 2's, (666, 267, `+FC2` - 6)), the
+  hole to 60 shut and hidden; at 50 opened and shown, `+FC0` clear. Its
+  hole to 100 (`f44_0f60`) without `+FC4`, "try again": switch 1001 (its
+  RETRY) on, its method 3 (`f04_070b`: the room again). Checked: the
+  magnet knocked into its slot (the ball and the magnet, 124 states; the
+  counters and the gate, 59), the screen at the end.
+- **Room 34's tick** (`f47_0cbf`): at `[27B4]` mod 64 0 and 31, `1092` /
+  `1093` on screen 3 at (392, 20): its sign blinking. Both pictures match
+  the original's.
+- **Room 9's tick** (`f42_0805`): on 15 game ticks in 16, the colour cycle
+  4A-4C every 6 ticks while switch 99 is on, stopped when off (without
+  switch 99 it would skip the base tick; the room has it). Nothing shows
+  under winevdm; the port has no room colour cycles.
+- **Room 12's constructor** (`f43_022d`): `f32_101b(4A)` / `f39_0214` only
+  log "color cycle still set" (a debugging check); `+F7B` 0.
+- **Room 35's constructor** (`f47_0d46`): from 43, the ball spat out of its
+  hole to 1000 (mode 2: put back where the room put it), the hole to 43
+  shut, 2 shots, `+FC0` set; else `+FC0` clear, the hole to 1000 shut and
+  its two boxes (3, `5E8`). `f71_00ce` clears a run-time table
+  (`DS:9558`-`9570`). Not traced (the original from 43).
 - **Room 2** (`f41_076c`, segment 41): the gate, a small hole to 1000 at
   (606, 329) on the back wall (`f28_00f3`: b 1, c 0, d -1; `+FBA`), shut;
   the room file's hole to 1001 (`+FBC`) shut and hidden (`f08_0469`). Its

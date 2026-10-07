@@ -13,7 +13,7 @@ namespace edison {
 namespace {
 
 // The room's own fields (roomVar_).
-enum { kFA2, kFA4, kFA6, kFC0, kFC4, kFBE };
+enum { kFA2, kFA4, kFA6, kFC0, kFC4, kFBE, kFC2 };
 
 }  // namespace
 
@@ -148,7 +148,7 @@ void Science::roomHole(Object& o) {
         }
         go();
         return;
-    case 18:  // f44_0f60: the magnet ([FC4], room 18's tick: not ported)
+    case 18:  // f44_0f60: the magnet (+FC4: dropped into its slot, roomTick)
         if (to == 100) {
             if (roomVar_[kFC4]) {
                 say(1, 0, 0x34, 0x6133);
@@ -161,8 +161,14 @@ void Science::roomHole(Object& o) {
                 go();
                 return;
             }
-            // Try again: the hole to 1001 told to start over (its method
-            // 3, f27_0a5a: room 18's objects aren't ported), the ball out.
+            // Try again: the switch 1001 (f27_0a5a: its RETRY, OBJ3) on
+            // (its method 3, f04_070b: the room started again), the ball
+            // out.
+            for (Object& r : table_.objects)
+                if (r.type == 7 && r.args[5] == 1001) {
+                    retry(r, 1);
+                    break;
+                }
             spitBall(o, 1);
             return;
         }
@@ -463,12 +469,14 @@ void Science::roomHole(Object& o) {
         }
         if (to == 101) {
             if (askButtons(1, 0x20C, 0x20D, 0x614F) == 0) {
-                // Start the screen again: no shots, the counters off, two of
-                // its objects back in place (+FB4, +FB6: room 55's own, not
-                // ported).
+                // Start the screen again: no shots, the counters off, the
+                // magnetic balls (+FB4, +FB6) back where the builder put
+                // them (f08_056e).
                 if (completionBonus_ < 0) bonus(0);
                 shots_ = 0, viewDirty_ = true;
                 roomVar_[kFA2] = roomVar_[kFA4] = 0;
+                if (roomObj_[0] >= 0) putBody(table_.objects[static_cast<size_t>(roomObj_[0])].body, 403, 223);
+                if (roomObj_[1] >= 0) putBody(table_.objects[static_cast<size_t>(roomObj_[1])].body, 550, 248);
                 spitBall(o, 2);
             } else {
                 spitBall(o, 1);
@@ -785,16 +793,9 @@ void Science::roomFaceMet(Ball& b, const Face& f) {
         // than 15), sound 601A.
         if (!roomVar_[kFC0] || !on(420, 248) || b.cx < 392 || b.kind != 3) return;
         roomVar_[kFC0] = 0;
-        for (int k = 0; k < 2; ++k) {
-            if (roomObj_[k] < 0) continue;
-            Ball& g = table_.objects[static_cast<size_t>(roomObj_[k])].body;
-            for (int j = 0; j < 3; ++j) g.v[j] = 0, g.rem[j] = 0, g.kick[j] = 0;
-            g.kickTicks = 0;
-            if (g.cx * g.cx + g.cy * g.cy > 15 * 15) sound(0x6026);
-            g.cx = 0, g.cy = 0, g.cz = heightUnder(0, 0) + g.r;
-        }
+        for (int k = 0; k < 2; ++k)
+            if (roomObj_[k] >= 0) putBody(table_.objects[static_cast<size_t>(roomObj_[k])].body, 0, 0);
         sound(0x601A);
-        viewDirty_ = true;
         if (std::getenv("SCI_DEBUG")) logLine("room 10's gate opened at t" + std::to_string(timerTicks_));
         return;
     }
@@ -807,14 +808,24 @@ void Science::roomFaceMet(Ball& b, const Face& f) {
         if (!on(315, 160)) return;
         if (hasBall_ && &b != &ball_) {
             ++roomVar_[kFC0];
-            for (int k = 0; k < 3; ++k) b.v[k] = 0, b.rem[k] = 0, b.kick[k] = 0;
-            b.kickTicks = 0;
-            if (b.cx * b.cx + b.cy * b.cy > 15 * 15) sound(0x6026);
-            b.cx = 0, b.cy = 0, b.cz = heightUnder(0, 0) + b.r;
-            viewDirty_ = true;
+            putBody(b, 0, 0);
         }
         if (roomVar_[kFC0] >= 4)
             if (Object* h = holeTo(66)) h->closed = false, viewDirty_ = true;
+        return;
+    }
+    if (currentRoom_ == 55) {
+        // f51_1777: a body onto the box under (295, 388) or (636, 386): the
+        // magnetic ball +FB4 sets +FA2, +FB6 +FA4 (both: the hole to 3
+        // lets the ball through), the player's ball breaks, any other body
+        // is put at 0, 0 (f08_056e).
+        if (!on(295, 388) && !on(636, 386)) return;
+        auto own = [&](int k) { return roomObj_[k] >= 0 && &b == &table_.objects[static_cast<size_t>(roomObj_[k])].body; };
+        if (own(0)) roomVar_[kFA2] = 1;
+        else if (own(1)) roomVar_[kFA4] = 1;
+        else if (&b == &ball_ && hasBall_) b.state = 1;
+        else putBody(b, 0, 0);
+        if (std::getenv("SCI_DEBUG")) logLine("room 55's +FA2 " + std::to_string(roomVar_[kFA2]) + " +FA4 " + std::to_string(roomVar_[kFA4]) + " at t" + std::to_string(timerTicks_));
         return;
     }
     if (currentRoom_ == 60 || currentRoom_ == 64 || currentRoom_ == 69) {
@@ -920,9 +931,31 @@ void Science::roomObjects(int room) {
         add(435, 226, 0, {10}), add(498, 226, 0, {10}), add(465, 226, 0, {10});
         roomVar_[kFC0] = 1;
     }
+    if (room == 12) {
+        // f43_0386: a magnet on the wall (f05_26f7, type 6, with OBJ1's
+        // arguments: 13, -1, 1, 10) at (362, 329) (its power part +FA8),
+        // switched off (its +0C), the colour cycle at 4A stopped. Its tick
+        // powers it (roomTick).
+        roomObj_[3] = add(362, 329, 6, {13, -1, 1, 10});
+    }
+    if (room == 54) {
+        // f51_09ce: a bullseye (f04_0502: f04_03eb with a 0, b -1; its
+        // method 3 only sets it, f04_059d: no power, no sound) at (363, 400)
+        // (+FA8); two magnets that don't move (f05_210d, type 5: 13, S
+        // +FB8, then N +FBA) at (506, 400), S put 80 up (f08_056e with a
+        // height), N on the ground at (505, 401). Its tick works them
+        // (roomTick).
+        roomObj_[3] = add(363, 400, 7, {0, -1, 0, 1});
+        roomObj_[2] = add(506, 400, 5, {13, -1});
+        roomObj_[4] = add(506, 400, 5, {13, 1});
+    }
     if (room == 18) {
         // f44_0a97: a loose magnet (f05_1749: 10, N) at (478, 252) (+FB8).
+        // f44_0846: a gate, a small hole to 1000 on the ground at (668,
+        // 262), over the hole to 60 (f28_00f3 with b 1, c 0, d -1; its
+        // +FBC), shut on arrival (roomArrival).
         roomObj_[2] = add(478, 252, 4, {10, 1});
+        add(668, 262, 8, {1000, 1, 0, -1});
     }
     if (room == 55) {
         // f51_1152: two magnetic balls (f05_11c1, type 2's: radius 10) at
@@ -944,6 +977,143 @@ void Science::roomObjects(int room) {
 void Science::roomTick() {
     // The room's +14 (f27_2434 in the base room: the objects' ticks, which
     // tickRoom runs after this).
+    if (currentRoom_ == 34) {
+        // f47_0cbf: its sign blinking: when [27B4] mod 64 is 0, 1092 on
+        // screen 3 at (392, 20), at 31 1093 (redrawn, 56 x 70).
+        const int phase = gameTicks_ & 0x3F;
+        if (phase == 0 || phase == 0x1F) {
+            select(3);
+            drawLogo(392, 20, static_cast<uint16_t>(0x1092 + (phase & 1)));
+            viewDirty_ = true;
+        }
+        return;
+    }
+    if (currentRoom_ == 18) {
+        // f44_11a7: the loose magnet (+FB8) falling (its +66 below 0) with
+        // its box's centre below 62 and within (397-427, 232-264), its
+        // slot, before (+FC0, +FC4 clear): +FC0 and +FC4 set, +FC2 0,
+        // colour cycle 4D-4F every 3 ticks, sound 6029. While +FC0, below
+        // 50, +FC2 one more: the gate (+FBC) to (677, 278) at that height
+        // (f08_056e), the hole to 60 shut and hidden. At 50, the hole to 60
+        // opened and shown, +FC0 clear, the cycle stopped.
+        if (std::getenv("SCI_DEBUG"))
+            if (const Object* g = holeTo(1000)) {
+                // (As the original's memory has them: +FC0, +FC2, +FC4, the
+                // gate's box's corner.)
+                const int z = g->liftZ != Object::kNoLift ? g->liftZ : heightUnder(g->x, g->y);
+                logLine("room18 t" + std::to_string(timerTicks_) + " " + std::to_string(roomVar_[kFC0]) + " " + std::to_string(roomVar_[kFC2]) + " " +
+                        std::to_string(roomVar_[kFC4]) + " " + std::to_string(g->x) + " " + std::to_string(g->y) + " " + std::to_string(z));
+            }
+        if (roomObj_[2] >= 0 && !roomVar_[kFC0] && !roomVar_[kFC4]) {
+            const Object& m = table_.objects[static_cast<size_t>(roomObj_[2])];
+            int b[6];
+            thingBox(m, b);
+            const int x = b[0] + (b[3] >> 1), y = b[1] + (b[4] >> 1), z = b[2] + (b[5] >> 1) - 1;
+            if (m.body.v[2] < 0 && z < 62 && x >= 397 && x <= 427 && y >= 232 && y <= 264) {
+                roomVar_[kFC0] = roomVar_[kFC4] = 1, roomVar_[kFC2] = 0;
+                sound(0x6029);
+                if (std::getenv("SCI_DEBUG")) logLine("room 18's magnet in its slot at t" + std::to_string(timerTicks_));
+            }
+        }
+        Object* h = holeTo(60);
+        if (roomVar_[kFC0] && roomVar_[kFC2] < 50) {
+            ++roomVar_[kFC2];
+            if (Object* g = holeTo(1000)) {
+                // (As room 2's gate: its box an 11 radius round the point.)
+                g->x = 677 - 11, g->y = 278 - 11, g->liftZ = roomVar_[kFC2] - 6;
+                viewDirty_ = true;
+            }
+            if (h) closeHole(*h), h->holeHidden = true;
+        }
+        if (roomVar_[kFC2] == 50) {
+            if (h && (h->closed || h->holeHidden)) {
+                h->closed = false, h->holeHidden = false, viewDirty_ = true;
+                if (std::getenv("SCI_DEBUG")) logLine("room 18's hole to 60 opened at t" + std::to_string(timerTicks_));
+            }
+            roomVar_[kFC0] = 0;
+        }
+        return;
+    }
+    if (currentRoom_ == 54 && roomObj_[3] >= 0) {
+        // f51_0dc2: while the bullseye (+FA8) is on, every third game tick
+        // ([27B4]): going down (+FC2 clear), +FC0 one more; past 29, +FC4
+        // and +FC2 set and the bullseye off (its +0C: set only); with
+        // +FC4, the N magnet (+FBA) at (505, 401) 16 under the S one.
+        // Going up, +FC0 one less; below 1, +FC2 clear and the bullseye
+        // off; the N magnet 16 under the S one. Then 10B3 + (+FC0 odd) on
+        // screen 3 at (422, 38) (redrawn, 10 x 74), and the S magnet
+        // (+FB8) at (506, 400), 80 - 2 +FC0 up.
+        Object& sw = table_.objects[static_cast<size_t>(roomObj_[3])];
+        if (std::getenv("SCI_DEBUG")) {
+            // (As the original's memory has them: the bullseye's +4, +FC0,
+            // +FC2, +FC4, the magnets' boxes' corners, +FB8's and +FBA's.)
+            int s[6], n[6];
+            thingBox(table_.objects[static_cast<size_t>(roomObj_[2])], s);
+            thingBox(table_.objects[static_cast<size_t>(roomObj_[4])], n);
+            logLine("room54 t" + std::to_string(timerTicks_) + " " + std::to_string(sw.state) + " " + std::to_string(roomVar_[kFC0]) + " " +
+                    std::to_string(roomVar_[kFC2]) + " " + std::to_string(roomVar_[kFC4]) + " " + std::to_string(s[0]) + " " + std::to_string(s[1]) + " " +
+                    std::to_string(s[2]) + " " + std::to_string(n[0]) + " " + std::to_string(n[1]) + " " + std::to_string(n[2]));
+        }
+        if (!sw.state || gameTicks_ % 3 != 0) return;
+        Ball& s = table_.objects[static_cast<size_t>(roomObj_[2])].body;
+        Ball& n = table_.objects[static_cast<size_t>(roomObj_[4])].body;
+        int& count = roomVar_[kFC0];
+        if (!roomVar_[kFC2]) {
+            if (++count > 29) {
+                roomVar_[kFC4] = roomVar_[kFC2] = 1;
+                switchSet(sw, 0);
+            }
+            if (roomVar_[kFC4]) putBodyAt(n, 505, 401, 80 - 2 * count - 16);
+        } else {
+            if (--count < 1) {
+                roomVar_[kFC2] = 0;
+                switchSet(sw, 0);
+            }
+            putBodyAt(n, 505, 401, 80 - 2 * count - 16);
+        }
+        select(3);
+        drawLogo(422, 38, static_cast<uint16_t>(0x10B3 + count % 2));
+        putBodyAt(s, 506, 400, 80 - 2 * count);
+        if (std::getenv("SCI_DEBUG") && !sw.state) logLine("room 54's magnets stop at " + std::to_string(count) + " at t" + std::to_string(timerTicks_));
+        return;
+    }
+    if (currentRoom_ == 12 && roomObj_[3] >= 0) {
+        // f43_043d: on 5 game ticks in 6 ([27B4] not a multiple of 6), +FC0
+        // set while the switches 1-4 (f27_0a5a: the first type 7 whose +2,
+        // its last argument, is that) are all on (+4). All on and the
+        // magnet (+FA8) off: on (its +0C: sound 6027), +FC2, colour cycle
+        // 4A-4C every 6 ticks, the lights 10D9 on screen 3 at (371, 108)
+        // and (470, 108), redrawn (f38_0494, 28 x 28). Else, the magnet on:
+        // off, and with +FC2 (cleared) the cycle at 4A stopped and the
+        // lights 10D8.
+        if (gameTicks_ % 6 == 0) return;
+        roomVar_[kFC0] = 1;
+        for (int id = 1; id < 5; ++id)
+            for (const Object& o : table_.objects)
+                if (o.type == 7 && o.args[5] == id) {
+                    if (o.state == 0) roomVar_[kFC0] = 0;
+                    break;
+                }
+        Object& m = table_.objects[static_cast<size_t>(roomObj_[3])];
+        auto lights = [&](uint16_t id) {
+            select(3);
+            drawLogo(371, 108, id), drawLogo(470, 108, id);
+            viewDirty_ = true;
+            if (std::getenv("SCI_DEBUG")) logLine(std::string("room 12's magnet ") + (m.powered ? "on" : "off") + " at t" + std::to_string(timerTicks_));
+        };
+        if (!roomVar_[kFC0]) {
+            if (!m.powered) return;
+            m.powered = false, viewDirty_ = true;
+            if (!roomVar_[kFC2]) return;
+            roomVar_[kFC2] = 0;
+            lights(0x10D8);
+        } else if (!m.powered) {
+            sound(0x6027);
+            m.powered = true, roomVar_[kFC2] = 1;
+            lights(0x10D9);
+        }
+        return;
+    }
     if (currentRoom_ == 2) {
         // f41_0c21: with the circuit on (+FC0), every third game tick
         // ([27B4]): at 24, the hole to 1001 (+FBC) still shut, sound 6029,
@@ -968,6 +1138,29 @@ void Science::roomTick() {
             }
         }
     }
+}
+
+void Science::putBody(Ball& b, int x, int y) {
+    // f08_056e (height 0): the body stopped (its +40, f08_0721: velocity,
+    // remainders and kick 0), sound 6026 for a move of more than 15, and
+    // put on the ground at (x, y).
+    for (int k = 0; k < 3; ++k) b.v[k] = 0, b.rem[k] = 0, b.kick[k] = 0;
+    b.kickTicks = 0;
+    const int dx = b.cx - x, dy = b.cy - y;
+    if (dx * dx + dy * dy > 15 * 15) sound(0x6026);
+    b.cx = x, b.cy = y, b.cz = heightUnder(x, y) + b.r;
+    b.onGround = true;
+    viewDirty_ = true;
+}
+
+void Science::putBodyAt(Ball& b, int x, int y, int h) {
+    // f08_056e with a height (its fourth argument 1): stopped, its sphere's
+    // centre at (x, y) its radius above h (its +3C), no sound; +5E set.
+    for (int k = 0; k < 3; ++k) b.v[k] = 0, b.rem[k] = 0, b.kick[k] = 0;
+    b.kickTicks = 0;
+    b.cx = x, b.cy = y, b.cz = h + b.r;
+    b.onGround = true;
+    viewDirty_ = true;
 }
 
 Science::Object* Science::holeTo(int room) {
@@ -1003,7 +1196,13 @@ void Science::roomArrival(int room) {
     case 10: if (from != 10) boxes = {{2, 0, 0x2C, 0x612B}}; break;
     case 13: if (from == 7) boxes = {{1, 1, 0x37, 0x6136}}; break;
     case 16: boxes = {{2, 0, 0x2E, 0x612D}}; break;
-    case 18: if (from != 18) boxes = {{2, 0, 0x31, 0x6130}}; break;
+    case 18:
+        // f44_0846: the hole to 60 shut and hidden (+18), the gate (+FBC)
+        // shut; the greeting unless coming from room 18.
+        if (Object* h = holeTo(60)) closeHole(*h), h->holeHidden = true;
+        if (Object* g = holeTo(1000)) closeHole(*g);
+        if (from != 18) boxes = {{2, 0, 0x31, 0x6130}};
+        break;
     case 32: if (from != 32) boxes = {{2, 0, 0x3F, 0x613D}}; break;
     case 34:
         if (from == 22 || from == 40) {
@@ -1018,11 +1217,15 @@ void Science::roomArrival(int room) {
         break;
     case 35:
         if (from == 43) {
-            // In through the door from 43: the ball out of it, 2 shots.
-            if (Object* h = holeTo(43)) spitBall(*h, 2), closeHole(*h);
-            shots_ = 2, roomVar_[3] = 1;
+            // f47_0d46: in through the door from 43: the ball hidden and
+            // spat out of the hole to 1000 (its +2C, mode 2), the hole to
+            // 43 shut, 2 shots (+F39, its box redrawn), +FC0 set.
+            if (Object* h = holeTo(1000)) spitBall(*h, 2);
+            shut(43);
+            shots_ = 2, roomVar_[kFC0] = 1;
+            viewDirty_ = true;
         } else {
-            roomVar_[3] = 0;
+            roomVar_[kFC0] = 0;
             shut(1000);
             boxes = {{2, 0, 3, 0x6103}, {2, 0, 0x5E8, 0x6160}};
         }
@@ -1032,7 +1235,12 @@ void Science::roomArrival(int room) {
     case 47:
         if (from == 50) gameFlag_[0] = gameFlag_[1] = 0, boxes = {{2, 0, 0x15, 0x6115}, {2, 0, 0x5F7, 0x616F}};
         break;
-    case 54: if (from == 47) boxes = {{2, 0, 0x16, 0x6116}}; break;
+    case 54:
+        // f51_09ce: its magnets put in place (once made: roomObjects).
+        if (roomObj_[2] >= 0) putBodyAt(table_.objects[static_cast<size_t>(roomObj_[2])].body, 506, 400, 80);
+        if (roomObj_[4] >= 0) putBody(table_.objects[static_cast<size_t>(roomObj_[4])].body, 505, 401);
+        if (from == 47) boxes = {{2, 0, 0x16, 0x6116}};
+        break;
     case 55: boxes = {{2, 0, 0x20, 0x611F}}; break;
     case 59: boxes = {{1, 1, 0x38, 0x6137}}; break;
     case 67: boxes = {{2, 0, 0x43, 0x6141}, {2, 0, 0x44, 0x6142}}; break;

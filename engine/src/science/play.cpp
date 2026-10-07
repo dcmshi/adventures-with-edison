@@ -90,7 +90,7 @@ void Science::aimSearch(const char* spec) {
     // block moved; -105: a block met; -106: a pulling hole (type 9) took
     // the ball;
     // -107: a body into room 96's pit (+FC0); -108: the room's own code
-    // ending it (a bin, a goal);
+    // ending it (a bin, a goal); -109: room 55's +FA2 or +FA4 set;
     // -102: the ball broken (heated by a fan, zapped by
     // an electromagnet) or caught by one). An
     // eighth number, the ball type; a ninth, ticks played before each
@@ -121,7 +121,7 @@ void Science::aimSearch(const char* spec) {
     // it where it was, as the original does, not at the last aim's.)
     const int targetX = targetX_, targetY = targetY_;
     const bool targetMoved = targetMoved_;
-    int roomVars[6];
+    decltype(roomVar_) roomVars;
     const int gameTicks = gameTicks_;
     std::copy(std::begin(roomVar_), std::end(roomVar_), roomVars);
     int found = 0;
@@ -184,6 +184,14 @@ void Science::aimSearch(const char* spec) {
                     if (exitRoom_ || exitNextTick_) {
                         logLine("aim " + std::to_string(x) + "," + std::to_string(y) + " power " + std::to_string(panel_.power) + ": to room " +
                                 std::to_string(exitRoom_ ? exitRoom_ : exitNextTick_) + " with " + std::to_string(levelBonus_) + " at tick " + std::to_string(t));
+                        ++found;
+                        break;
+                    }
+                } else if (to == -109) {
+                    // (Room 55's +FA2 or +FA4 set: a magnetic ball onto its box.)
+                    if (roomVar_[0] || roomVar_[1]) {
+                        logLine("aim " + std::to_string(x) + "," + std::to_string(y) + " power " + std::to_string(panel_.power) + ": +FA2 " +
+                                std::to_string(roomVar_[0]) + " +FA4 " + std::to_string(roomVar_[1]) + " at tick " + std::to_string(t));
                         ++found;
                         break;
                     }

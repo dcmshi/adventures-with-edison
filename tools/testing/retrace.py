@@ -25,6 +25,10 @@ PATTERNS = {
     "rack": rf"^bodies t\d+ " + " ".join([G] * 7),            # the ball and six other balls
     "bodies5": rf"^bodies t\d+ " + " ".join([G] * 5),         # the ball, three magnets, a type 2 ball
     "bodies9": rf"^bodies t\d+ " + " ".join([G] * 9),         # the ball and room 96's eight blocks
+    "bodies7": rf"^bodies t\d+ " + " ".join([G] * 7),         # the ball, room 55's four magnets and two magnetic balls
+    "bodies2": rf"^bodies t\d+ " + " ".join([G] * 2),         # the ball and room 18's loose magnet
+    "room18": rf"^room18 t\d+ " + " ".join([N] * 6),           # room 18's +FC0, +FC2, +FC4, its gate's box
+    "room54": rf"^room54 t\d+ " + " ".join([N] * 10),          # room 54's bullseye, +FC0, +FC2, +FC4, its two magnets' boxes
 }
 
 
@@ -88,6 +92,19 @@ CASES = {
     # the original's).
     "gate2": ("r2/o1/trace.txt", None, f"--room 2 {ball_type(5000)} {ball_type(5600)} {shot(7000, 214, 170)} {fire(8000)} --quit-after 25000",
               {"SCI_ROOMTICKS": "660", "SCI_GAMETICKS": "662"}),
+    # Room 55: an Iron ball knocks its second magnetic ball (+FB6) into
+    # its pit (its +24, f51_1777: +FA4 set), the four loose magnets pulled
+    # along.
+    "magnets55": ("r55/o3/trace.txt", "bodies7", f"--room 55 {ball_type(1000)} {shot(2160, 508, 156)} {fire(3160)} --quit-after 14000",
+                  {"SCI_SKIPDIALOGS": "1"}),
+    # Room 54: its bullseye hit at power 16 (the slider held up), the S
+    # magnet let down 30 steps (its +14, f51_0dc2), the bullseye off.
+    "press54": ("r54/o2/mag.txt", "room54", f"--room 54 --drag 3000 445 325 445 250 2500 {shot(6000, 330, 140)} {fire(7000)} --quit-after 18000",
+                {"SCI_SKIPDIALOGS": "1"}),
+    # Room 18: its loose magnet knocked into its slot (its +14, f44_11a7):
+    # the gate raised 50 steps, the hole to 60 opened.
+    "slot18": ("r18/o2/bodies.txt", "bodies2", f"--room 18 {shot(2000, 340, 112)} {fire(3000)} --quit-after 9000", {"SCI_SKIPDIALOGS": "1"}),
+    "gate18": ("r18/o2/gate.txt", "room18", f"--room 18 {shot(2000, 340, 112)} {fire(3000)} --quit-after 9000", {"SCI_SKIPDIALOGS": "1"}),
     "lipsIce": ("t7/olips0/trace.txt", None, f"--room 2 {power(4000)} {power(4600)} {power(5200)} {power(5800)} {shot(6400, 122, 236)} {fire(7400)} --quit-after 20000"),
 }
 

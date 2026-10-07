@@ -378,6 +378,7 @@ private:
     void thingsBuilt();
     void thingTick(Object& o);
     bool thingClick(Object& o, const Mouse& m);
+    void retry(Object& o, int on);                  // RETRY's method 3 (f04_070e): the room again
     bool thingBox(const Object& o, int box[6]) const;
     uint16_t thingSprite(const Object& o) const;
     void thingDraw(Object& o, const Rect& r);      // its core's +04, r its rectangle
@@ -394,6 +395,8 @@ private:
     void lookSprite(const Box::Look& look, const Rect* clip);  // f14_1179 / f14_12e9: a look's picture
     void roomTick();                                // the room's +14 before f27_2434's
     Object* holeTo(int room);                       // f27_09dc: the room's hole that leads there
+    void putBody(Ball& b, int x, int y);            // f08_056e: a body stopped and put on the ground
+    void putBodyAt(Ball& b, int x, int y, int h);   // f08_056e with a height
     int previousRoom_ = 0;                          // the player's +90: the room event 9 came from
     bool dialogNoRedraw_ = false;                   // [275C]: a box's closing redraws nothing
     void closeHole(Object& o);                      // f28_1514
@@ -401,8 +404,8 @@ private:
     int askButtons(int face, uint16_t message, uint16_t firstLine, uint16_t narration);  // f24_0482
     std::string askCode(int face, uint16_t message, uint16_t narration);  // f24_03a3
     static bool sameCode(const std::string& typed, const char* code);  // strnicmp(.., 40h)
-    int roomVar_[6] = {};      // the room's own +FA2, +FA4, +FA6, +FC0, +FC4, +FBE
-    int roomObj_[3] = {-1, -1, -1};  // the room's own objects (list indices): +FB4, +FB6, +FB8
+    int roomVar_[7] = {};      // the room's own +FA2, +FA4, +FA6, +FC0, +FC4, +FBE, +FC2
+    int roomObj_[5] = {-1, -1, -1, -1, -1};  // the room's own objects (list indices): +FB4, +FB6, +FB8, +FA8, +FBA
     int gameFlag_[3] = {};     // [8E50], [8E52], [8E54] (cleared for a new game, f31_1b48)
     void spitBall(Object& o, int mode);
     void ballToStart();

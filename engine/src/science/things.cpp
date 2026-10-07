@@ -502,21 +502,22 @@ bool Science::thingClick(Object& o, const Mouse& m) {
     // f04_03ab: a press switches it over (its method 3), and is taken.
     if (!m.click) return false;
     const int on = o.state ? 0 : 1;
-    if (o.args[3] == 0) {
-        switchTurn(o, on);
-    } else {
-        // RETRY (f04_070e): only while neither column waits for its PUSH
-        // (+132): the switch, the area redrawn; the player's balls and the
-        // game's score as they were (f06_028a: the room's box too), no
-        // completion bonus (+F7B), and event 9 to this room again.
-        if (!columns_[0].ballOut || !columns_[1].ballOut) return true;
-        switchSet(o, on);
-        leftBalls_ = o.savedBalls[0], rightBalls_ = o.savedBalls[1];
-        totalScore_ = o.savedScore, score_ = o.savedScore;
-        completionBonus_ = 0;
-        exitRoom_ = currentRoom_;
-    }
+    if (o.args[3] == 0) switchTurn(o, on);
+    else retry(o, on);
     return true;
+}
+
+void Science::retry(Object& o, int on) {
+    // RETRY's method 3 (f04_070e): only while neither column waits for its
+    // PUSH (+132): the switch, the area redrawn; the player's balls and
+    // the game's score as they were (f06_028a: the room's box too), no
+    // completion bonus (+F7B), and event 9 to this room again.
+    if (!columns_[0].ballOut || !columns_[1].ballOut) return;
+    switchSet(o, on);
+    leftBalls_ = o.savedBalls[0], rightBalls_ = o.savedBalls[1];
+    totalScore_ = o.savedScore, score_ = o.savedScore;
+    completionBonus_ = 0;
+    exitRoom_ = currentRoom_;
 }
 
 bool Science::contactOf(Object& o, Contact& c) {

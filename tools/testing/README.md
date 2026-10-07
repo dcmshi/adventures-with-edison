@@ -40,7 +40,7 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
   Glass and Rubber ones, the fans of rooms 98 and 25 breaking a Rubber
   ball and melting an Ice one, room 22's suckhole: its spark breaking the
   ball, room 46's smiley breaking a Rubber ball and scoring a Glass one,
-  room 71's rack of balls, room 32's hot field burning the ball, room 13 with a type 2 ball added: its copies of the game's folders in `build/scratch/t2`, room 96's pit, room 69's bin, room 2's circuit and gate); each result against `retrace.expected`
+  room 71's rack of balls, room 32's hot field burning the ball, room 13 with a type 2 ball added: its copies of the game's folders in `build/scratch/t2`, room 96's pit, room 69's bin, room 2's circuit and gate, room 55's magnetic ball into its pit, room 54's press going down); each result against `retrace.expected`
   (`--accept` writes the new ones there once they're checked).
 - Tracing across a change of room: `memwatch.py watch --follow 0.3` (the
   data segment moves as the room is built). Expressions are hex: a list
@@ -118,7 +118,7 @@ negative `to`: the first point target of kind -`to` hit, -100 the
 ball near a magnet, -101 a switch turned over, -102 the ball broken (logged as heated by a
 fan, zapped by an electromagnet, or broken) or caught by an electromagnet, -103 a
 smiley (type 11) met, -104 a loose ball (type 0) or block (type 16) moved,
--105 a block met, -107 the room's `+FC0` set (room 96's pit, room 2's circuit), -108 the room's own code ending it (a bin, a goal); an eighth
+-105 a block met, -107 the room's `+FC0` set (room 96's pit, room 2's circuit), -108 the room's own code ending it (a bin, a goal), -109 room 55's `+FA2` or `+FA4` set (a magnetic ball onto its box); an eighth
 number sets the ball type, a ninth the ticks played before each shot): for
 bank shots to replay in the original (with `--click`s for a greeting
 first; dialogs are skipped; it ends the game when done, or at once if
