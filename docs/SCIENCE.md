@@ -1189,7 +1189,7 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   - Room 2's circuit (`f41_0b78`): the player's Iron ball on the top (the
     face's `+2` 1) of the box under (400, 325): `+FC0` on (the first time,
     `+FC2`, colour cycle 4A-4C every 6 ticks); else off (`f32_0f77`).
-  - Room 10 (`f42_0f2a`, not ported yet: its builder's objects first):
+  - Room 10 (`f42_0f2a`; not traced against the original yet):
     while `+FC0`, an Iron body on (420, 248) past x 392: `+FC0` off, the
     cycle at 4A stopped, the blocks `+FB4` and `+FB6` (its gate) put at
     0, 0, sound 601A. Room 55 (`f51_1777`, not ported yet): on (295, 388)
@@ -1198,6 +1198,27 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   Checked: room 33 (the ball broken in the water), 96 (a block into the
   pit, all nine bodies, 317 states), 69 (lever OBJ4 on: the ball carried
   into the 200 bin, 158 states, then lesson 508).
+- **Box looks** (`+3C`, `f12_0872`; ported: `Box::looks`): a builder's
+  list of five records (`f12_0000`, faces 1 top, 2 left, 3 right, 4 back,
+  5 front; `DS:926C` the default) of `f34_0000` (`+0` a picture or colour,
+  `+2` 0: drawn as is in a redraw, else cut as a default face; `+4` 0: a
+  picture with its corner at `+6`, `+8`, else a solid colour). The box
+  drawing (`f12_2a09`) draws a look's picture (`f14_1179`) and no grid on
+  that face; the cut (`f12_220d`, faces 4, 2, 1, the bottom, 5, 3) draws it
+  (`f14_12e9`, clipped to the area) instead of cutting. Every builder's
+  look is a picture: `117B` (one clear pixel: the face left to the room's
+  own pictures) or one at a point (rooms 18 `10DD`, 42 `10A8`, 45
+  `10AE`-`10B0`, 52 `10CE`, 55 `10CF`/`10D0`, 92 `10E1`). Read from each
+  builder's helper with `tools/testing/calltrace.py`; the rooms: 5, 10,
+  13 (its glass wall), 18, 37, 40, 42, 45, 52, 53, 55, 92. Checked at rest
+  against the original: rooms 45 (pixel for pixel), 92 (one pixel), 13.
+- **The builders' own objects** (ported: `roomObjects`): room 10's hole
+  to 12 at (627, 330), its gate of two blocks (`115E`, 17, mass 60, at
+  (607, 309), (636, 309); `+FB4`, `+FB6`) and three loose Rubber balls,
+  `+FC0` on; room 18's loose magnet (10, N) at (478, 252) (`+FB8`); room
+  55's two magnetic balls (type 2's) at (403, 223), (550, 248). Not yet:
+  room 12's type 6 magnet (`f43_0386`) and room 54's switch and magnets
+  (`f51_09ce`), with their ticks.
 - **Room 2** (`f41_076c`, segment 41): the gate, a small hole to 1000 at
   (606, 329) on the back wall (`f28_00f3`: b 1, c 0, d -1; `+FBA`), shut;
   the room file's hole to 1001 (`+FBC`) shut and hidden (`f08_0469`). Its

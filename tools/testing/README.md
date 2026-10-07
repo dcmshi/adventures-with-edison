@@ -69,6 +69,9 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
   port's capture at a time against an original screenshot.
 - `bestframe.py PORTDIR SHOT.png [x0 y0 x1 y1]`: the port's capture nearest
   an original screenshot (capture every 10 ms: 20 can skip a tick).
+- `calltrace.py NAME...`: a function's far calls with their arguments
+  resolved (constants, `[bp-N]` words, `&(x, y)` pairs, earlier results
+  as `#n`), read straight through: for transcribing the rooms' builders.
 - `wm.py` reads WMAIN.EXE, functions named as in the docs (`f28_15a1`):
   `fn NAME...` (Ghidra's decompilation, or the disassembly where Ghidra
   has none), `dis NAME [LINES]` (ndisasm to the function's end, far calls

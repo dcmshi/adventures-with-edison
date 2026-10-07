@@ -777,6 +777,27 @@ void Science::roomFaceMet(Ball& b, const Face& f) {
         if (was != roomVar_[kFC0] && std::getenv("SCI_DEBUG")) logLine(std::string("room 2's circuit ") + (was ? "off" : "on") + " at t" + std::to_string(timerTicks_));
         return;
     }
+    if (currentRoom_ == 10) {
+        // f42_0f2a: while +FC0, an Iron body (its +52 28DE) onto the box
+        // under (420, 248) with its sphere's x 392 or more: +FC0 off, the
+        // cycle at 4A stopped (f32_0f77), the gate's blocks (+FB4, +FB6)
+        // put at 0, 0 (f08_056e: stopped, sound 6026 for a move of more
+        // than 15), sound 601A.
+        if (!roomVar_[kFC0] || !on(420, 248) || b.cx < 392 || b.kind != 3) return;
+        roomVar_[kFC0] = 0;
+        for (int k = 0; k < 2; ++k) {
+            if (roomObj_[k] < 0) continue;
+            Ball& g = table_.objects[static_cast<size_t>(roomObj_[k])].body;
+            for (int j = 0; j < 3; ++j) g.v[j] = 0, g.rem[j] = 0, g.kick[j] = 0;
+            g.kickTicks = 0;
+            if (g.cx * g.cx + g.cy * g.cy > 15 * 15) sound(0x6026);
+            g.cx = 0, g.cy = 0, g.cz = heightUnder(0, 0) + g.r;
+        }
+        sound(0x601A);
+        viewDirty_ = true;
+        if (std::getenv("SCI_DEBUG")) logLine("room 10's gate opened at t" + std::to_string(timerTicks_));
+        return;
+    }
     if (currentRoom_ == 96) {
         // f60_0216: a body but the ball (the room has one) into the pit
         // under (315, 160): counted (+FC0) and put at 0, 0 (f08_056e: first
@@ -844,8 +865,71 @@ void Science::roomFaceMet(Ball& b, const Face& f) {
 }
 
 void Science::roomObjects(int room) {
-    // The objects a room's builder makes itself, after the file's (so last
-    // in the list).
+    // What a room's builder makes itself (its helper after f27_0ad8, read
+    // with tools/testing/calltrace.py): looks on its boxes (f34_0000,
+    // f12_0000, f12_0872 on the box under a point) and objects, after the
+    // file's (so last in the list).
+    struct FaceLook { int face; uint16_t id; int x, y; };
+    struct BoxLook { int room, x, y; std::vector<FaceLook> faces; };
+    // (All five faces: one picture, the rest 117B.)
+    auto all = [](int face, uint16_t id, int x, int y) {
+        std::vector<FaceLook> f;
+        for (int k = 1; k <= 5; ++k) f.push_back(k == face ? FaceLook{k, id, x, y} : FaceLook{k, 0x117B, 0, 0});
+        return f;
+    };
+    const std::vector<BoxLook> kLooks = {
+        {5, 354, 0, {{5, 0x117B, 0, 0}}}, {5, 494, 0, {{5, 0x117B, 0, 0}}},          // f41_1278
+        {10, 420, 248, {{3, 0x117B, 0, 0}, {2, 0x117B, 0, 0}}},                     // f42_0baf
+        {13, 716, 0, all(3, 0x117B, 490, 42)},                                      // f43_0838: the glass wall
+        {18, 392, 227, all(5, 0x10DD, 246, 128)}, {18, 428, 232, all(3, 0x10DD, 246, 128)},
+        {18, 392, 232, all(2, 0x10DD, 246, 128)},                                   // f44_0a97
+        {37, 346, 153, {{3, 0x117B, 0, 0}}},                                        // f48_07ae
+        {40, 464, 0, {{5, 0x117B, 0, 0}}},                                          // f48_105b
+        {42, 541, 0, all(3, 0x10A8, 314, 6)},                                       // f49_0408
+        {45, 439, 120, all(5, 0x10AF, 256, 124)}, {45, 554, 120, all(3, 0x10B0, 372, 16)},
+        {45, 424, 120, all(2, 0x10AE, 244, 16)},                                    // f49_0ab2
+        {52, 745, 0, all(3, 0x10CE, 520, 136)},                                     // f51_0365
+        {53, 346, 153, {{3, 0x117B, 0, 0}}},                                        // f51_06a3
+        {55, 704, 2, all(3, 0x10D0, 478, 120)}, {55, 269, 2, all(5, 0x10CF, 54, 220)},  // f51_1152
+        {92, 478, 180, all(5, 0x10E1, 316, 158)},                                   // f59_05e2
+    };
+    for (const BoxLook& l : kLooks) {
+        if (l.room != room) continue;
+        Box* box = const_cast<Box*>(faceUnder(l.x, l.y).box);
+        if (!box) continue;
+        for (const FaceLook& f : l.faces) box->looks[f.face] = {f.id, f.x, f.y};
+    }
+    std::fill(std::begin(roomObj_), std::end(roomObj_), -1);
+    auto add = [&](int x, int y, int type, std::initializer_list<int> args) {
+        Object o;
+        o.x = x, o.y = y, o.type = type;
+        int k = 0;
+        for (int a : args) o.args[k++] = a;
+        table_.objects.push_back(o);
+        return static_cast<int>(table_.objects.size()) - 1;
+    };
+    if (room == 10) {
+        // f42_0baf: a hole to 12 at (627, 330) on the back wall (+FBC); the
+        // gate, two blocks (f07_17f2: 17, 115E, not dragged nor stepped;
+        // their +34 60) at (607, 309) and (636, 309) (+FB4, +FB6); three
+        // loose Rubber balls (f07_0000, radius 10). The circuit on (+FC0)
+        // and colour cycle 4A-4C every 6 ticks (f32_0e7f).
+        add(627, 330, 8, {12, 1, 0, -1});
+        roomObj_[0] = add(607, 309, 16, {17, 0x115E, 0, 0, 60});
+        roomObj_[1] = add(636, 309, 16, {17, 0x115E, 0, 0, 60});
+        add(435, 226, 0, {10}), add(498, 226, 0, {10}), add(465, 226, 0, {10});
+        roomVar_[kFC0] = 1;
+    }
+    if (room == 18) {
+        // f44_0a97: a loose magnet (f05_1749: 10, N) at (478, 252) (+FB8).
+        roomObj_[2] = add(478, 252, 4, {10, 1});
+    }
+    if (room == 55) {
+        // f51_1152: two magnetic balls (f05_11c1, type 2's: radius 10) at
+        // (403, 223) and (550, 248) (+FB4, +FB6).
+        roomObj_[0] = add(403, 223, 2, {10});
+        roomObj_[1] = add(550, 248, 2, {10});
+    }
     if (room == 2) {
         // f41_076c: the gate, a small hole to 1000 on the back wall at (606,
         // 329) on the ground (f28_00f3 with b 1, c 0, d -1; its +FBA), shut

@@ -92,6 +92,15 @@ private:
         // +3E-+44 (f12_093b): sides the camera can't see. Standing up: the
         // left and the back; a pit: the right and the front.
         bool hideLeft = false, hideBack = false, hideRight = false, hideFront = false;
+        // +3C, a look (f12_0872, its builder's): a face (1 top, 2 left, 3
+        // right, 4 back, 5 front) given a picture at a point on the screen
+        // (f34_0000's records with +2 0; 117B, one clear pixel, leaves the
+        // face to the room's own pictures); 0 the default texture.
+        struct Look {
+            uint16_t id = 0;
+            int x = 0, y = 0;
+        };
+        Look looks[6];
         std::vector<std::unique_ptr<Box>> children;  // +16
         int parentHeight() const { return parent ? parent->height : 0; }
     };
@@ -382,6 +391,7 @@ private:
     void roomHole(Object& o);                       // the room's method 8 (rooms.cpp)
     void roomArrival(int room);                     // the room's builder: its greeting, doors
     void roomObjects(int room);                     // the room's builder: its own objects
+    void lookSprite(const Box::Look& look, const Rect* clip);  // f14_1179 / f14_12e9: a look's picture
     void roomTick();                                // the room's +14 before f27_2434's
     Object* holeTo(int room);                       // f27_09dc: the room's hole that leads there
     int previousRoom_ = 0;                          // the player's +90: the room event 9 came from
@@ -392,6 +402,7 @@ private:
     std::string askCode(int face, uint16_t message, uint16_t narration);  // f24_03a3
     static bool sameCode(const std::string& typed, const char* code);  // strnicmp(.., 40h)
     int roomVar_[6] = {};      // the room's own +FA2, +FA4, +FA6, +FC0, +FC4, +FBE
+    int roomObj_[3] = {-1, -1, -1};  // the room's own objects (list indices): +FB4, +FB6, +FB8
     int gameFlag_[3] = {};     // [8E50], [8E52], [8E54] (cleared for a new game, f31_1b48)
     void spitBall(Object& o, int mode);
     void ballToStart();

@@ -738,6 +738,8 @@ void Science::drawBox(const Box& box) {
         auto a = project(T.x, T.y, box.height), b = project(T.x, T.y + T.h - 1, box.height);
         auto c = project(T.x + T.w - 1, T.y, box.height), d = project(T.x + T.w - 1, T.y + T.h - 1, box.height);
         ++b.first, ++d.first;
+        // (A look's picture instead, and no grid: f14_1179.)
+        if (box.looks[1].id) return lookSprite(box.looks[1], nullptr);
         faceFill({b, a, c, d}, kTop, true);
         gridFaces_[1] = true;
     };
@@ -751,18 +753,23 @@ void Science::drawBox(const Box& box) {
         const auto C = project(T.x + T.w - 1, T.y, box.height), D = project(T.x + T.w - 1, T.y + T.h - 1, box.height);
         const auto a = project(B.x, B.y, P), b = project(B.x, B.y + B.h - 1, P);
         const auto c = project(B.x + B.w - 1, B.y, P), d = project(B.x + B.w - 1, B.y + B.h - 1, P);
-        // (A face's own look, +3C, isn't read yet: the textures.)
-        faceFill({Bk, D, d, b}, kBackFront, true);  // 4, the back
-        gridFaces_[4] = !box.hideBack;
-        faceFill({Bk, A, a, b}, kSides, true);      // 2, the left
-        gridFaces_[2] = !box.hideLeft;
+        // A face with a look (+3C, f12_00de): its picture (f14_1179) and
+        // no grid; else the default texture.
+        if (box.looks[4].id) lookSprite(box.looks[4], nullptr);
+        else faceFill({Bk, D, d, b}, kBackFront, true), gridFaces_[4] = !box.hideBack;  // 4, the back
+        if (box.looks[2].id) lookSprite(box.looks[2], nullptr);
+        else faceFill({Bk, A, a, b}, kSides, true), gridFaces_[2] = !box.hideLeft;      // 2, the left
         // 3, the right, and 5, the front: a pit's only where they aren't
         // its parent's edge.
-        if (!pit || B.x + B.w != parent.bottom.x + parent.bottom.w) {
+        if (box.looks[3].id) {
+            lookSprite(box.looks[3], nullptr);
+        } else if (!pit || B.x + B.w != parent.bottom.x + parent.bottom.w) {
             faceFill({D, C, c, d}, kSides, true);
             gridFaces_[3] = !box.hideRight;
         }
-        if (!pit || B.y != parent.bottom.y) {
+        if (box.looks[5].id) {
+            lookSprite(box.looks[5], nullptr);
+        } else if (!pit || B.y != parent.bottom.y) {
             faceFill({A, C, c, a}, kBackFront, true);
             gridFaces_[5] = !box.hideFront;
         }
@@ -778,6 +785,21 @@ void Science::drawBox(const Box& box) {
                 gridY(box, face, x, y, y + box.stepY);
             }
     }
+}
+
+void Science::lookSprite(const Box::Look& look, const Rect* clip) {
+    // A look's picture with its corner at its point (f14_1179 as the box is
+    // drawn; f14_12e9 in a redraw, clipped to its area), colour 0 clear.
+    const Bitmap& bmp = ctx_.bitmap(look.id);
+    Screen& scr = ctx_.screens[current()];
+    for (int r = 0; r < bmp.height; ++r)
+        for (int c = 0; c < bmp.width; ++c) {
+            const uint8_t p = bmp.at(c, r);
+            const int x = look.x + c, y = look.y + r;
+            if (!p || x < 0 || y < 0 || x >= Screen::kWidth || y >= Screen::kHeight) continue;
+            if (clip && !inside(*clip, x, y)) continue;
+            scr.pixels[static_cast<size_t>(y) * Screen::kWidth + x] = p;
+        }
 }
 
 void Science::cutBox(const Box& box, const Rect& area) {
@@ -800,17 +822,25 @@ void Science::cutBox(const Box& box, const Rect& area) {
     const int right = area.x + area.w - 1, bottom = area.y + area.h - 1;
     setPolygonClip(area.x, area.y, area.w, area.h);
     auto cut = [&](const std::vector<std::pair<int, int>>& pts, size_t most = 0) { fillPolygonSolid(pts, 0, true, most); };
-    if (box.hideBack) cut({project(T.x, ty, H), project(tx, ty, H), project(bx, by, P), project(B.x, by, P)});  // 4
-    if (box.hideLeft) cut({project(T.x, ty, H), project(T.x, T.y, H), project(B.x, B.y, P), project(B.x, by, P)});  // 2
+    // (A face with a look: its picture, clipped to the area, instead.)
+    if (box.looks[4].id) lookSprite(box.looks[4], &area);
+    else if (box.hideBack) cut({project(T.x, ty, H), project(tx, ty, H), project(bx, by, P), project(B.x, by, P)});  // 4
+    if (box.looks[2].id) lookSprite(box.looks[2], &area);
+    else if (box.hideLeft) cut({project(T.x, ty, H), project(T.x, T.y, H), project(B.x, B.y, P), project(B.x, by, P)});  // 2
+    if (box.looks[1].id) lookSprite(box.looks[1], &area);
     if (P <= H && box.hideLeft) cut({project(B.x, B.y, P), project(B.x, by, P), project(bx, by, P), project(bx, B.y, P)});  // 6
     if (H < P) return clearPolygonClip();  // (a pit: not yet, above)
-    if (box.hideFront) {
+    if (box.looks[5].id) {
+        lookSprite(box.looks[5], &area);
+    } else if (box.hideFront) {
         // 5, from the area's left and bottom.
         auto p = std::vector<std::pair<int, int>>{project(T.x, T.y, H), project(tx, T.y, H), project(bx, B.y, P), project(B.x, B.y, P)};
         p[0] = {area.x, bottom}, p[1].second = bottom, p[3].first = area.x;
         cut(p);
     }
-    if (box.hideRight) {
+    if (box.looks[3].id) {
+        lookSprite(box.looks[3], &area);
+    } else if (box.hideRight) {
         // 3, then all right of it to the area's edge (f12_0fe8).
         const std::vector<std::pair<int, int>> p{project(tx, ty, H), project(tx, T.y, H), project(bx, B.y, P), project(bx, by, P)};
         cut(p);
