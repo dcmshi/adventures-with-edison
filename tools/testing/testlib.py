@@ -68,7 +68,9 @@ def run_game(exe, args, log, env=None, limit=None, hidden=True):
     log = Path(log)
     log.parent.mkdir(parents=True, exist_ok=True)
     log.unlink(missing_ok=True)
-    full_env = dict(os.environ, EDISON_LOG=str(log))
+    # (SCI_TRUECOLOR: no colour cycles, as the original under winevdm,
+    # which the tests compare with.)
+    full_env = dict(os.environ, EDISON_LOG=str(log), SCI_TRUECOLOR="1")
     full_env.update(env or {})
     flags = ["-A", "--hidden", "--virtual-clock"] if hidden else []
     limit = limit or limit_for(args)

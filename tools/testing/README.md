@@ -94,7 +94,7 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
   method 4) and its builder's settings, from Ghidra's output and a dump of
   the original's data segment (`--dump`, default `build/scratch/dg1.bin`).
 
-The port's test switches (environment): `SCI_DEBUG=1` logs the ball each
+The port's test switches (environment): `SCI_TRUECOLOR=1` no colour cycles (as the original under winevdm; `testlib.py` sets it for every test run); `SCI_DEBUG=1` logs the ball each
 tick (centre, velocity and remainder: `c`, `v`, `r`) (and holes, targets); `SCI_RUNNER=1` the panel's walking figure
 (for `tracecmp.py --port-pattern`); `SCI_TICKSHOTS=DIR` saves the display
 after every tick (`DIR/t<tick>.bmp`: no frame missed, whatever the load);

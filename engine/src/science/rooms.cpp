@@ -782,6 +782,8 @@ void Science::roomFaceMet(Ball& b, const Face& f) {
         // display.)
         const int was = roomVar_[kFC0];
         roomVar_[kFC0] = &b == &ball_ && hasBall_ && on(400, 325) && f.type == 1 && b.kind == 3;
+        if (roomVar_[kFC0] && !roomVar_[kFC2]) roomVar_[kFC2] = 1, cycleStart(0x4A, 0x4C, 6);
+        else if (!roomVar_[kFC0]) cycleStop(0x4A);
         if (was != roomVar_[kFC0] && std::getenv("SCI_DEBUG")) logLine(std::string("room 2's circuit ") + (was ? "off" : "on") + " at t" + std::to_string(timerTicks_));
         return;
     }
@@ -793,6 +795,7 @@ void Science::roomFaceMet(Ball& b, const Face& f) {
         // than 15), sound 601A.
         if (!roomVar_[kFC0] || !on(420, 248) || b.cx < 392 || b.kind != 3) return;
         roomVar_[kFC0] = 0;
+        cycleStop(0x4A);
         for (int k = 0; k < 2; ++k)
             if (roomObj_[k] >= 0) putBody(table_.objects[static_cast<size_t>(roomObj_[k])].body, 0, 0);
         sound(0x601A);
@@ -974,9 +977,96 @@ void Science::roomObjects(int room) {
     }
 }
 
+void Science::cycleStart(int first, int last, int period) {
+    // f32_0e7f (f32_00e3: first, last - first + 1 colours, kept within
+    // 256): one already there for that colour gets the new period and one
+    // more use; else a new one with one use.
+    for (Cycle& c : cycles_)
+        if (c.first == first) {
+            c.period = period, ++c.uses;
+            return;
+        }
+    Cycle c;
+    c.first = first, c.count = std::min(last - first + 1, 0x100 - first), c.period = period, c.uses = 1;
+    cycles_.push_back(c);
+}
+
+void Science::cycleStop(int first) {
+    // f32_0f77: one use fewer; none left, it goes.
+    for (size_t i = 0; i < cycles_.size(); ++i)
+        if (cycles_[i].first == first) {
+            if (--cycles_[i].uses == 0) cycles_.erase(cycles_.begin() + static_cast<std::ptrdiff_t>(i));
+            return;
+        }
+}
+
+void Science::cycleStep() {
+    // f32_1113, from event 4 (f32_11a5): only on a 256-colour display
+    // ([61F9]); each cycle whose period divides [27B4] turned a step
+    // (f14_0148: each colour takes the next one's, the last the first's).
+    static const bool trueColour = std::getenv("SCI_TRUECOLOR") != nullptr;
+    if (trueColour) return;
+    Palette& p = ctx_.displayPalette;
+    for (const Cycle& c : cycles_) {
+        if (c.period <= 0 || gameTicks_ % c.period != 0) continue;
+        const Rgb keep = p[static_cast<size_t>(c.first)];
+        for (int i = c.first; i < c.first + c.count - 1; ++i) p[static_cast<size_t>(i)] = p[static_cast<size_t>(i + 1)];
+        p[static_cast<size_t>(c.first + c.count - 1)] = keep;
+    }
+}
+
+void Science::roomCycles(int room) {
+    // The colour cycles as the room is built (the last room's objects and
+    // the room gone, their destructors having stopped theirs): each
+    // magnetic part (f05_0003: types 2-6 and 15, the type 3 ball) 90-97
+    // and 98-9F every 3 ticks; a type 6 magnet (f05_26f7) 4A-4C every 4;
+    // a pulling hole (f28_15a1) A0-A6 every 3; a hot field (f02_1234)
+    // 4D-4F every 10; then the room's constructor's own, after its
+    // builder (segments 41-60; room 12's builder, f43_0386, stops its two
+    // type 6 magnets' 4A).
+    cycles_.clear();
+    for (const Object& o : table_.objects) {
+        if (o.type == 2 || o.type == 3 || o.type == 4 || o.type == 5 || o.type == 6 || o.type == 15)
+            cycleStart(0x90, 0x97, 3), cycleStart(0x98, 0x9F, 3);
+        if (o.type == 6) cycleStart(0x4A, 0x4C, 4);
+        if (o.type == 9) cycleStart(0xA0, 0xA6, 3);
+        if (o.type == 14) cycleStart(0x4D, 0x4F, 10);
+    }
+    struct RoomCycle { int room, first, last, period; };
+    static const RoomCycle kRooms[] = {
+        {4, 0xC2, 0xC7, 5}, {5, 0x4D, 0x4F, 6}, {10, 0x4A, 0x4C, 6}, {14, 0x4D, 0x4F, 6}, {14, 0xB0, 0xB6, 6},
+        {15, 0x4D, 0x4F, 6}, {16, 0x4A, 0x4C, 6}, {17, 0x4D, 0x4F, 6}, {20, 0x4D, 0x4F, 6}, {20, 0xB0, 0xB6, 5},
+        {21, 0xB0, 0xB6, 5}, {22, 0xB0, 0xB6, 5}, {23, 0xB0, 0xB6, 5}, {26, 0xB0, 0xB6, 5}, {28, 0x4D, 0x4F, 6},
+        {29, 0xB0, 0xB6, 5}, {30, 0x4D, 0x4F, 6}, {30, 0xB0, 0xB6, 3}, {30, 0xC2, 0xC7, 5}, {31, 0xB0, 0xB6, 5},
+        {33, 0xC2, 0xC7, 3}, {34, 0xB0, 0xB6, 5}, {36, 0xC2, 0xC7, 3}, {37, 0x4D, 0x4F, 6}, {37, 0xB0, 0xB6, 5},
+        {38, 0x4D, 0x4F, 6}, {46, 0x4D, 0x4F, 6}, {47, 0x4D, 0x4F, 6}, {49, 0xC2, 0xC7, 3}, {50, 0xC2, 0xC7, 3},
+        {51, 0x4D, 0x4F, 6}, {55, 0x4D, 0x4F, 6}, {57, 0x4D, 0x4F, 6}, {63, 0x4D, 0x4F, 6}, {66, 0x4D, 0x4F, 6},
+        {72, 0x4D, 0x4F, 6}, {74, 0x4D, 0x4F, 6}, {77, 0xB0, 0xB6, 4}, {91, 0x4D, 0x4F, 6}, {92, 0x4A, 0x4C, 4},
+        {92, 0x4D, 0x4F, 6}, {96, 0x4D, 0x4F, 6}, {97, 0xC2, 0xC7, 3}, {99, 0x4D, 0x4F, 6}, {99, 0xA0, 0xA6, 3},
+        {99, 0xB0, 0xB6, 4},
+    };
+    if (room == 12) cycleStop(0x4A), cycleStop(0x4A);
+    for (const RoomCycle& c : kRooms)
+        if (c.room == room) cycleStart(c.first, c.last, c.period);
+}
+
 void Science::roomTick() {
     // The room's +14 (f27_2434 in the base room: the objects' ticks, which
     // tickRoom runs after this).
+    if (currentRoom_ == 9) {
+        // f42_0805: on 15 game ticks in 16, switch 99 (f27_0a5a) on and
+        // +FC0 clear: colour cycle 4A-4C every 6 ticks, +FC0 set; off: the
+        // cycle stopped, +FC0 clear. (Without switch 99 the base tick
+        // would be skipped; the room has it.)
+        if ((gameTicks_ & 0xF) == 0) return;
+        for (const Object& o : table_.objects)
+            if (o.type == 7 && o.args[5] == 99) {
+                if (o.state && !roomVar_[kFC0]) cycleStart(0x4A, 0x4C, 6), roomVar_[kFC0] = 1;
+                else if (!o.state) cycleStop(0x4A), roomVar_[kFC0] = 0;
+                break;
+            }
+        return;
+    }
     if (currentRoom_ == 34) {
         // f47_0cbf: its sign blinking: when [27B4] mod 64 is 0, 1092 on
         // screen 3 at (392, 20), at 31 1093 (redrawn, 56 x 70).
@@ -1011,6 +1101,7 @@ void Science::roomTick() {
             const int x = b[0] + (b[3] >> 1), y = b[1] + (b[4] >> 1), z = b[2] + (b[5] >> 1) - 1;
             if (m.body.v[2] < 0 && z < 62 && x >= 397 && x <= 427 && y >= 232 && y <= 264) {
                 roomVar_[kFC0] = roomVar_[kFC4] = 1, roomVar_[kFC2] = 0;
+                cycleStart(0x4D, 0x4F, 3);
                 sound(0x6029);
                 if (std::getenv("SCI_DEBUG")) logLine("room 18's magnet in its slot at t" + std::to_string(timerTicks_));
             }
@@ -1031,6 +1122,7 @@ void Science::roomTick() {
                 if (std::getenv("SCI_DEBUG")) logLine("room 18's hole to 60 opened at t" + std::to_string(timerTicks_));
             }
             roomVar_[kFC0] = 0;
+            cycleStop(0x4D);
         }
         return;
     }
@@ -1106,10 +1198,12 @@ void Science::roomTick() {
             m.powered = false, viewDirty_ = true;
             if (!roomVar_[kFC2]) return;
             roomVar_[kFC2] = 0;
+            cycleStop(0x4A);
             lights(0x10D8);
         } else if (!m.powered) {
             sound(0x6027);
             m.powered = true, roomVar_[kFC2] = 1;
+            cycleStart(0x4A, 0x4C, 6);
             lights(0x10D9);
         }
         return;
@@ -1179,6 +1273,7 @@ void Science::roomArrival(int room) {
     // ball coming out of the one it came through); holes shut by the
     // game's flags.
     const int from = previousRoom_;
+    roomCycles(room);
     std::vector<std::tuple<int, int, uint16_t, uint16_t>> boxes;  // face, style, text, sound
     auto shut = [&](int to) {
         if (Object* h = holeTo(to)) closeHole(*h);

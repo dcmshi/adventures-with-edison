@@ -230,7 +230,9 @@ int Science::lesson(int n) {
     // were in 1995; not under winevdm on a true-colour desktop).
     const Palette base = ctx_.displayPalette;
     uint64_t turned = 0;
+    static const bool trueColour = std::getenv("SCI_TRUECOLOR") != nullptr;  // (as under winevdm: none)
     auto turn = [&] {
+        if (trueColour) return;
         const uint64_t steps = (ctx_.platform.milliseconds() - start) / 20 / 8;
         if (steps == turned) return;
         turned = steps;

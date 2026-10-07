@@ -1249,6 +1249,30 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   hit); at the bottom the original draws N in front of S where their
   boxes overlap (the port, by `f35_0744`'s rules, S: likely its redraw of
   the changed rectangles, `f29_0380`).
+- **Colour cycles** (segment 32; ported: `cycleStart`, `cycleStop`,
+  `cycleStep`, `roomCycles`): a list (`[921C]`, `[921E]`) of 6-byte
+  records (`f32_00e3`: the first colour, the count, the period, the uses).
+  `f32_0e7f(first, last, period)` adds a use to the one with that first
+  colour (and gives it the new period), else adds one; `f32_0f77(first)`
+  takes a use away, none left it goes. Each game tick (event 4,
+  `f32_11a5` → `f32_1113`) every cycle whose period divides `[27B4]` turns
+  a step (`f14_0148`: each colour takes the next one's, the last the
+  first's, into WinG's colour table). All of it only on a 256-colour
+  display (`[61F9]`): not under winevdm on a true-colour desktop, so it
+  can't be compared there (the port's `SCI_TRUECOLOR=1` turns it off, as
+  the tests do). Who starts them: every magnetic part (`f05_0000`: types
+  2-6 and 15, the type 3 ball) 90-97 and 98-9F every 3 ticks; a type 6
+  magnet (`f05_26f7`) 4A-4C every 4; a pulling hole (`f28_15a1`) A0-A6
+  every 3; a hot field (`f02_1234`) 4D-4F every 10; their destructors stop
+  them. The rooms' constructors (after their builders): 4D-4F every 6 in
+  rooms 5, 14, 15, 17, 20, 28, 30, 37, 38, 46, 47, 51, 55, 57 (its EXIT
+  sign), 63, 66, 72, 74, 91, 92, 96, 99; 4A-4C (6) in 10 and 16, (4) in 92;
+  B0-B6 (5) in 20-23, 26, 29, 31, 34, 37, (6) 14, (3) 30, (4) 77, 99; C2-C7
+  (5) in 4, 30, (3) 33, 36, 49, 50, 97; A0-A6 (3) in 99. Room 12's builder
+  stops its two type 6 magnets' 4A, its destructor (`f43_0314`) adds two
+  back for their destructors. In the rooms' code: room 2's circuit, 10's
+  gate, 12's and 18's ticks (above); room 9's tick 4A-4C (6) while switch
+  99 is on (`f42_0805`).
 - **Room 18** (`f44_0846`, its builder `f44_0a97`): the hole to 60 shut
   and hidden; a gate, a small hole to 1000 on the ground at (668, 262)
   over it (`f28_00f3`: b 1, c 0, d -1; `+FBC`), shut. Its tick

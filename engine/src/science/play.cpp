@@ -636,6 +636,7 @@ void Science::tickRoom() {
     ++panelTicks_;
     ++timerTicks_;
     ++gameTicks_;
+    cycleStep();
     // (A room change a face hook queued last tick: after this one.)
     const int exitAfter = exitNextTick_;
     exitNextTick_ = 0;

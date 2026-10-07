@@ -394,6 +394,16 @@ private:
     void roomObjects(int room);                     // the room's builder: its own objects
     void lookSprite(const Box::Look& look, const Rect* clip);  // f14_1179 / f14_12e9: a look's picture
     void roomTick();                                // the room's +14 before f27_2434's
+    // The colour cycles (segment 32's list at [921C], [921E]): each a range
+    // of colours turned a step every `period` game ticks, kept while it
+    // has uses; only on a 256-colour display ([61F9]: SCI_TRUECOLOR=1 is
+    // the original under winevdm on a true-colour desktop: none).
+    struct Cycle { int first = 0, count = 0, period = 1, uses = 0; };
+    std::vector<Cycle> cycles_;
+    void cycleStart(int first, int last, int period);  // f32_0e7f
+    void cycleStop(int first);                         // f32_0f77
+    void cycleStep();                                  // f32_1113 (each game tick)
+    void roomCycles(int room);                         // the objects' and the room's own, as it's built
     Object* holeTo(int room);                       // f27_09dc: the room's hole that leads there
     void putBody(Ball& b, int x, int y);            // f08_056e: a body stopped and put on the ground
     void putBodyAt(Ball& b, int x, int y, int h);   // f08_056e with a height
