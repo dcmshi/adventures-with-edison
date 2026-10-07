@@ -130,6 +130,11 @@ private:
         int swallow = 0, spit = 0, spitMode = 0;
         bool swallowDone = false, spitDone = false, leaving = false;
         bool closed = false;            // a hole's +2F (f28_1514): shown shut, takes no ball
+        bool holeHidden = false;        // a hole hidden (+18, f08_0469): not drawn
+        // A hole moved by f08_056e (room 2's gate): its box's height, else
+        // kNoLift (its d's).
+        static constexpr int kNoLift = -32768;
+        int liftZ = kNoLift;
         // Type 9, a pulling hole (f28_15a1, its class "suckHole"): its pull
         // (+37) and whether it's pushing the ball (+39).
         int pull = 0;
@@ -303,6 +308,7 @@ private:
     bool ballDampsOthers() const;                   // f08_1802
     void ballBounce(Ball& b, const int16_t normal[3], bool always);  // f08_1843
     void ballStep(Ball& b);                         // f08_1a42 (any body)
+    void roomFaceMet(Ball& b, const Face& f);       // the room's +24: a body onto a face
     // An object as the step meets it (its sphere, +4C; its mass ratio,
     // +34 / +38, 0 out of reach; its body, when it has one; whether its
     // velocity takes a change, its +2C).
@@ -375,6 +381,8 @@ private:
     void holeGo(Object& o);                         // f27_2530
     void roomHole(Object& o);                       // the room's method 8 (rooms.cpp)
     void roomArrival(int room);                     // the room's builder: its greeting, doors
+    void roomObjects(int room);                     // the room's builder: its own objects
+    void roomTick();                                // the room's +14 before f27_2434's
     Object* holeTo(int room);                       // f27_09dc: the room's hole that leads there
     int previousRoom_ = 0;                          // the player's +90: the room event 9 came from
     bool dialogNoRedraw_ = false;                   // [275C]: a box's closing redraws nothing
@@ -383,7 +391,7 @@ private:
     int askButtons(int face, uint16_t message, uint16_t firstLine, uint16_t narration);  // f24_0482
     std::string askCode(int face, uint16_t message, uint16_t narration);  // f24_03a3
     static bool sameCode(const std::string& typed, const char* code);  // strnicmp(.., 40h)
-    int roomVar_[5] = {};      // the room's own +FA2, +FA4, +FA6, +FC0, +FC4
+    int roomVar_[6] = {};      // the room's own +FA2, +FA4, +FA6, +FC0, +FC4, +FBE
     int gameFlag_[3] = {};     // [8E50], [8E52], [8E54] (cleared for a new game, f31_1b48)
     void spitBall(Object& o, int mode);
     void ballToStart();
@@ -429,6 +437,8 @@ private:
     unsigned flashCount_ = 0;                       // [1F2C]
     void dialogWait(int ticks);                     // f32_07aa
     int faceTicks_ = 0;                             // [1F2E]
+    int gameTicks_ = 0;                             // [27B4]: event 4's count (every tick of the game)
+    int exitNextTick_ = 0;                          // event 9 queued behind the next tick (a face hook's)
     long levelBonus_ = 0;                           // the room's +F7F: added to the score when it ends
     // The room's end (f38_020f, rooms.cpp).
     void roomEnd();

@@ -23,7 +23,7 @@ void Science::holeSphere(const Object& o, int out[4]) const {
     const int r = big ? 17 : 11;
     // (Type 9's too: f28_0391 is given -1, but its sphere is at its core's
     // d, f28_15a1 → f28_0000, as the original's rooms 11 and 17 show.)
-    const int z = o.args[3] != -1 ? o.args[3] : heightUnder(o.x, o.y);
+    const int z = o.liftZ != Object::kNoLift ? o.liftZ : o.args[3] != -1 ? o.args[3] : heightUnder(o.x, o.y);
     out[0] = o.x - (wall == 0 ? r : 0) + r;
     out[1] = o.y + r;
     out[2] = z + r - 1;

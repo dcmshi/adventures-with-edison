@@ -460,7 +460,8 @@ void Science::ballStep(Ball& b) {
             for (int k = 0; k < 3; ++k) b.v[k] = out[k], b.rem[k] = 0, b.disp[k] = 0;
             const int16_t delta[3] = {w(P[0] - bottom[0]), w(P[1] - bottom[1]), w(P[2] - bottom[2])};
             ballMove(b, delta);
-            // (The room's method +24, told of the face: nothing in the base room.)
+            // The room's method +24, told of the face (nothing in the base room).
+            roomFaceMet(b, faceUnder(P[0], P[1]));
             if (stepDepth_) --stepDepth_;
             return;
         }

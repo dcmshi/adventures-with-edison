@@ -13,7 +13,7 @@ namespace edison {
 namespace {
 
 // The room's own fields (roomVar_).
-enum { kFA2, kFA4, kFA6, kFC0, kFC4 };
+enum { kFA2, kFA4, kFA6, kFC0, kFC4, kFBE };
 
 }  // namespace
 
@@ -759,6 +759,133 @@ void Science::roomEnd() {
 
 namespace edison {
 
+void Science::roomFaceMet(Ball& b, const Face& f) {
+    // The room's +24 (f27_2657, nothing, in the base room), from the body
+    // step (f08_1a42) when a body lands or rolls onto another face, with
+    // the face. Most rooms that have one break the player's ball (its
+    // core's +2A 1, and the room's +F77) on the box under a point
+    // (f12_4284: water, lava, a hot plate): the face's box that one.
+    auto on = [&](int x, int y) { return f.box == faceUnder(x, y).box; };
+    if (currentRoom_ == 2) {
+        // f41_0b78: the player's Iron ball (its +52 28DE) on the top (the
+        // face's +2: 1) of the circuit, the box under (400, 325): on (+FC0;
+        // the first time, +FC2, colour cycle 4A-4C every 6 ticks); else off
+        // (stopped, f32_0f77). (The cycle only shows on a 256-colour
+        // display.)
+        const int was = roomVar_[kFC0];
+        roomVar_[kFC0] = &b == &ball_ && hasBall_ && on(400, 325) && f.type == 1 && b.kind == 3;
+        if (was != roomVar_[kFC0] && std::getenv("SCI_DEBUG")) logLine(std::string("room 2's circuit ") + (was ? "off" : "on") + " at t" + std::to_string(timerTicks_));
+        return;
+    }
+    if (currentRoom_ == 96) {
+        // f60_0216: a body but the ball (the room has one) into the pit
+        // under (315, 160): counted (+FC0) and put at 0, 0 (f08_056e: first
+        // stopped, its +40, f08_0721: velocity, remainders and kick 0;
+        // sound 6026 for a move of more than 15); four in, the hole to 66
+        // opened (f28_153f: +2F clear, redrawn).
+        if (!on(315, 160)) return;
+        if (hasBall_ && &b != &ball_) {
+            ++roomVar_[kFC0];
+            for (int k = 0; k < 3; ++k) b.v[k] = 0, b.rem[k] = 0, b.kick[k] = 0;
+            b.kickTicks = 0;
+            if (b.cx * b.cx + b.cy * b.cy > 15 * 15) sound(0x6026);
+            b.cx = 0, b.cy = 0, b.cz = heightUnder(0, 0) + b.r;
+            viewDirty_ = true;
+        }
+        if (roomVar_[kFC0] >= 4)
+            if (Object* h = holeTo(66)) h->closed = false, viewDirty_ = true;
+        return;
+    }
+    if (currentRoom_ == 60 || currentRoom_ == 64 || currentRoom_ == 69) {
+        // f52_1046 (room 60), f53_0602 (64), f54_07fa (69): the bins. Any
+        // body: +F7F cleared; the player's ball on a bin's box, its points
+        // there; points set, event 9 to the next (64, 69; 69 to lesson
+        // 508 with +F71 set, the room's end first).
+        struct Bin { int x, y; long points; };
+        static const Bin k60[4] = {{684, 188, 400}, {684, 126, 600}, {684, 73, 800}, {684, 14, 200}};
+        static const Bin k64[4] = {{684, 191, 100}, {684, 132, 300}, {684, 70, 500}, {684, 22, 700}};
+        static const Bin k69[4] = {{293, 163, 200}, {293, 112, 400}, {293, 61, 600}, {293, 11, 200}};
+        const Bin* bins = currentRoom_ == 60 ? k60 : currentRoom_ == 64 ? k64 : k69;
+        levelBonus_ = 0;
+        if (&b == &ball_ && hasBall_)
+            for (int i = 0; i < 4; ++i)
+                if (on(bins[i].x, bins[i].y)) levelBonus_ = bins[i].points;
+        if (levelBonus_ == 0) return;
+        if (currentRoom_ == 69) roomEndFlag_ = true;
+        exitNextTick_ = currentRoom_ == 60 ? 64 : currentRoom_ == 64 ? 69 : 508;
+        return;
+    }
+    if (&b != &ball_ || !hasBall_) return;
+    if (currentRoom_ == 91 && on(524, 208)) {
+        // f59_014a: the goal (as its hole's method 8): a bonus ball, 2000,
+        // the completion's shares (f27_0859: 2 at 20h, 3 at 0) and event 9
+        // to room 14.
+        bonusBalls_ = 1, completionBonus_ = 2000, completionShare_[2] = 0x20, completionShare_[3] = 0;
+        exitNextTick_ = 14;
+        return;
+    }
+    // (f43_0136 and its copies: one point; rooms 37 and 74, f48_0879 and
+    // f55_0722, two; f41_1548, room 5: four.)
+    static const std::vector<std::pair<int, std::vector<std::pair<int, int>>>> kBreaking = {
+        {5, {{730, 150}, {354, 0}, {424, 35}, {494, 0}}},
+        {11, {{430, 0}}}, {14, {{306, 160}}}, {17, {{715, 625}}}, {33, {{405, 278}}},
+        {36, {{301, 360}}}, {37, {{650, 210}, {346, 153}}}, {38, {{700, 300}}}, {41, {{481, 417}}}, {49, {{326, 301}}},
+        {50, {{405, 278}}}, {51, {{501, 47}}}, {66, {{487, 160}}}, {74, {{369, 140}, {608, 112}}}, {91, {{439, 123}}}, {92, {{512, 245}}},
+    };
+    for (const auto& [room, points] : kBreaking) {
+        if (room != currentRoom_) continue;
+        for (const auto& [x, y] : points)
+            if (on(x, y)) {
+                b.state = 1;
+                if (std::getenv("SCI_DEBUG")) logLine("room " + std::to_string(room) + " breaks the ball on its box at t" + std::to_string(timerTicks_));
+                return;
+            }
+    }
+}
+
+void Science::roomObjects(int room) {
+    // The objects a room's builder makes itself, after the file's (so last
+    // in the list).
+    if (room == 2) {
+        // f41_076c: the gate, a small hole to 1000 on the back wall at (606,
+        // 329) on the ground (f28_00f3 with b 1, c 0, d -1; its +FBA), shut
+        // on arrival (roomArrival).
+        Object gate;
+        gate.x = 606, gate.y = 329, gate.type = 8;
+        gate.args[0] = 1000, gate.args[1] = 1, gate.args[2] = 0, gate.args[3] = -1;
+        table_.objects.push_back(gate);
+    }
+}
+
+void Science::roomTick() {
+    // The room's +14 (f27_2434 in the base room: the objects' ticks, which
+    // tickRoom runs after this).
+    if (currentRoom_ == 2) {
+        // f41_0c21: with the circuit on (+FC0), every third game tick
+        // ([27B4]): at 24, the hole to 1001 (+FBC) still shut, sound 6029,
+        // shown (+1C) and opened (f28_153f); below 40, the gate (+FBA) one
+        // higher (+FBE): f08_056e to (616, 345) at that height (its sphere's
+        // centre its radius higher, its box round it, f07_11c5).
+        if (!roomVar_[kFC0] || gameTicks_ % 3 != 0) return;
+        if (roomVar_[kFBE] == 24)
+            if (Object* h = holeTo(1001); h && h->closed) {
+                sound(0x6029);
+                h->holeHidden = false, h->closed = false;
+                if (std::getenv("SCI_DEBUG")) logLine("room 2's hole to 1001 opened at t" + std::to_string(timerTicks_));
+                viewDirty_ = true;
+            }
+        if (roomVar_[kFBE] < 40) {
+            ++roomVar_[kFBE];
+            if (Object* g = holeTo(1000)) {
+                // (Read in the original's memory: its box then a 23 cube at
+                // (605, 334, +FBE - 6).)
+                g->x = 605, g->y = 334, g->liftZ = roomVar_[kFBE] - 6;
+                viewDirty_ = true;
+            }
+        }
+    }
+}
+
 Science::Object* Science::holeTo(int room) {
     // f27_09dc: the room's object (a hole) whose +C is `room`.
     for (Object& o : table_.objects)
@@ -780,6 +907,12 @@ void Science::roomArrival(int room) {
         if (Object* h = holeTo(to)) closeHole(*h);
     };
     switch (room) {
+    case 2:
+        // f41_076c: the gate (+FBA, roomObjects) shut; the hole to 1001
+        // (+FBC) shut and hidden (its +18, f08_0469).
+        if (Object* g = holeTo(1000)) closeHole(*g);
+        if (Object* h = holeTo(1001)) closeHole(*h), h->holeHidden = true;
+        break;
     case 3: if (from == 55) boxes = {{1, 1, 0x36, 0x6135}}; break;
     case 6: case 7: boxes = {{1, 1, 0x33, 0x6132}}; break;
     case 9: roomVar_[3] = 0, boxes = {{2, 0, 0x28, 0x6127}}; break;

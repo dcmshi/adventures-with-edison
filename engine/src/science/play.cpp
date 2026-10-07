@@ -5,6 +5,7 @@
 // docs/SCIENCE.md.
 
 #include <algorithm>
+#include <tuple>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -88,6 +89,8 @@ void Science::aimSearch(const char* spec) {
     // switch turned over; -103: a type 11 met; -104: a type 0 ball or a
     // block moved; -105: a block met; -106: a pulling hole (type 9) took
     // the ball;
+    // -107: a body into room 96's pit (+FC0); -108: the room's own code
+    // ending it (a bin, a goal);
     // -102: the ball broken (heated by a fan, zapped by
     // an electromagnet) or caught by one). An
     // eighth number, the ball type; a ninth, ticks played before each
@@ -98,6 +101,16 @@ void Science::aimSearch(const char* spec) {
         return;
     }
     if (type >= 0) panel_.ballType = type, ball_.kind = type;
+    // (SCI_AIMSEARCH_GRAVITY / _FRICTION: those sliders set too, unless the
+    // room locks them, as the player couldn't.)
+    for (const auto& [name, c, flags] : {std::tuple{"SCI_AIMSEARCH_GRAVITY", Control::Gravity, panel_.gravityFlags},
+                                         std::tuple{"SCI_AIMSEARCH_FRICTION", Control::Friction, panel_.frictionFlags}}) {
+        const char* v = std::getenv(name);
+        if (!v) continue;
+        if (flags != 0) logLine(std::string("SCI_AIMSEARCH: ") + name + " ignored: the room locks that slider");
+        else setSlider(c, std::atoi(v));
+    }
+    if (power >= 0 && panel_.powerFlags != 0) logLine("SCI_AIMSEARCH: the room locks the power (set all the same)");
     const Ball ball = ball_;
     const std::vector<Object> objects = table_.objects;
     const PanelState panel = panel_;
@@ -108,15 +121,30 @@ void Science::aimSearch(const char* spec) {
     // it where it was, as the original does, not at the last aim's.)
     const int targetX = targetX_, targetY = targetY_;
     const bool targetMoved = targetMoved_;
+    int roomVars[6];
+    const int gameTicks = gameTicks_;
+    std::copy(std::begin(roomVar_), std::end(roomVar_), roomVars);
     int found = 0;
     for (int y = y0; y <= y1; y += step)
         for (int x = x0; x <= x1; x += step) {
             ball_ = ball, table_.objects = objects, panel_ = panel;
             shots_ = shots, roomTicks_ = roomTicks, timerTicks_ = timerTicks, score_ = score, totalScore_ = total;
-            shadowShown_ = shadow, ballMoving_ = moving, exitRoom_ = 0, roomBusy_ = false, fuseBusy_ = false;
+            shadowShown_ = shadow, ballMoving_ = moving, exitRoom_ = 0, exitNextTick_ = 0, levelBonus_ = 0, roomBusy_ = false, fuseBusy_ = false;
             targetX_ = targetX, targetY_ = targetY, targetMoved_ = targetMoved;
+            std::copy(std::begin(roomVars), std::end(roomVars), roomVar_);
+            gameTicks_ = gameTicks;
             for (int k = 0; k < 3; ++k) lastCentre_[k] = shadowSeen_[k] = (k == 0 ? ball_.cx : k == 1 ? ball_.cy : ball_.cz);
             if (power >= 0) setSlider(Control::Power, power);
+            // (SCI_AIMSEARCH_SWITCHES=i,j,...: those objects of the room's
+            // list (switches) turned over first, as clicks would.)
+            if (const char* sw = std::getenv("SCI_AIMSEARCH_SWITCHES"))
+                for (const char* p = sw; *p;) {
+                    const size_t i = std::strtoul(p, const_cast<char**>(&p), 10);
+                    if (i < table_.objects.size() && table_.objects[i].type == 7)
+                        switchTurn(table_.objects[i], table_.objects[i].state ? 0 : 1);
+                    if (*p == ',') ++p;
+                    else break;
+                }
             for (int k = 0; k < wait; ++k) tickRoom();
             Mouse m;
             m.x = x, m.y = y, m.held = true, m.click = true;
@@ -148,6 +176,22 @@ void Science::aimSearch(const char* spec) {
                     if (met) {
                         logLine("aim " + std::to_string(x) + "," + std::to_string(y) + " power " + std::to_string(panel_.power) + ": " +
                                 (ball_.state ? (ball_.heated ? "heated" : ball_.zapped ? "zapped" : "broken") : "caught") + " at tick " + std::to_string(t));
+                        ++found;
+                        break;
+                    }
+                } else if (to == -108) {
+                    // (The room's own code ending it: a bin, a goal.)
+                    if (exitRoom_ || exitNextTick_) {
+                        logLine("aim " + std::to_string(x) + "," + std::to_string(y) + " power " + std::to_string(panel_.power) + ": to room " +
+                                std::to_string(exitRoom_ ? exitRoom_ : exitNextTick_) + " with " + std::to_string(levelBonus_) + " at tick " + std::to_string(t));
+                        ++found;
+                        break;
+                    }
+                } else if (to == -107) {
+                    // (The room's +FC0 set: room 96's pit, room 2's circuit.)
+                    if (roomVar_[3] > 0) {
+                        logLine("aim " + std::to_string(x) + "," + std::to_string(y) + " power " + std::to_string(panel_.power) + ": +FC0 set at tick " +
+                                std::to_string(t));
                         ++found;
                         break;
                     }
@@ -583,10 +627,15 @@ void Science::tickRoom() {
     // the table, f27_293b).
     ++panelTicks_;
     ++timerTicks_;
+    ++gameTicks_;
+    // (A room change a face hook queued last tick: after this one.)
+    const int exitAfter = exitNextTick_;
+    exitNextTick_ = 0;
     runnerTick();
     // f27_2434: each object's tick (method 0), the list (+18E) from its
     // end: so the ball's target and shadow see where the ball was, and
     // the holes before it in the list come after it.
+    roomTick();
     for (size_t i = table_.objects.size(); i-- > 0;) {
         Object& o = table_.objects[i];
         if (o.type == 8) holeTick(o);
@@ -607,6 +656,7 @@ void Science::tickRoom() {
     // grow (f27_2434: +F65, up to 3).
     if (++roomTicks_ % 20 == 0) growCracks();
     if (roomTicks_ > 1000) roomTicks_ = 0;
+    if (exitAfter && !exitRoom_) exitRoom_ = exitAfter;
     if (hasBall_ && std::getenv("SCI_DEBUG")) {
         // (Testing: where the ball's sprite is drawn, and which.)
         const Ball& b = ball_;

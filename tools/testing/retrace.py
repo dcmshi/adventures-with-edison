@@ -24,6 +24,7 @@ PATTERNS = {
     "bodies": " " + " ".join([G] * 4),                        # the ball and three loose magnets
     "rack": rf"^bodies t\d+ " + " ".join([G] * 7),            # the ball and six other balls
     "bodies5": rf"^bodies t\d+ " + " ".join([G] * 5),         # the ball, three magnets, a type 2 ball
+    "bodies9": rf"^bodies t\d+ " + " ".join([G] * 9),         # the ball and room 96's eight blocks
 }
 
 
@@ -77,6 +78,16 @@ CASES = {
     # Type 2, a magnetic ball, which no room has: room 13 with one added
     # (OBJ11 420 120 2 10) in copies of the game's folders (build/scratch/t2).
     "magball13": ("t2/o13/ball.txt", "bodies5", "--room 13 --quit-after 30000 build/scratch/t2/cd/DSK3"),
+    # Room 96: a block knocked into the pit, put away (its +24, f60_0216).
+    "pit96": ("r96/o1/trace.txt", "bodies9", f"--room 96 {shot(2000, 272, 168)} {fire(3000)} --quit-after 16000", {"SCI_SKIPDIALOGS": "1"}),
+    # Room 69: the lever OBJ4 on, its magnets carry the ball into the 200
+    # bin (its +24, f54_07fa: the room ends, then lesson 508).
+    "bin69": ("r69/o1/trace.txt", None, "--room 69 --click 1000 440 80 --drag 1100 540 340 540 340 80 --move 1230 544 340 --quit-after 9000"),
+    # Room 2: an Iron ball onto the circuit, the gate raised and the hole to
+    # 1001 opened (its +24 f41_0b78, its +14 f41_0c21; [FFE] and [27B4] as
+    # the original's).
+    "gate2": ("r2/o1/trace.txt", None, f"--room 2 {ball_type(5000)} {ball_type(5600)} {shot(7000, 214, 170)} {fire(8000)} --quit-after 25000",
+              {"SCI_ROOMTICKS": "660", "SCI_GAMETICKS": "662"}),
     "lipsIce": ("t7/olips0/trace.txt", None, f"--room 2 {power(4000)} {power(4600)} {power(5200)} {power(5800)} {shot(6400, 122, 236)} {fire(7400)} --quit-after 20000"),
 }
 

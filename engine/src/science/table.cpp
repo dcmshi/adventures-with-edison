@@ -362,11 +362,15 @@ void Science::drawObjects(const Rect& redraw) {
             const int r = big ? 17 : 11;
             // (A pulling hole's at d too: f28_15a1 builds its core with d,
             // f28_0000.)
-            const int z = o.args[3] != -1 ? o.args[3] : heightUnder(o.x, o.y);
+            if (o.holeHidden) continue;
+            const int z = o.liftZ != Object::kNoLift ? o.liftZ : o.args[3] != -1 ? o.args[3] : heightUnder(o.x, o.y);
             const int x = o.x - (wall == 0 ? r : 0);
+            // (A hole moved by f08_056e: its box 2r + 1 a side, as read in
+            // the original's memory.)
+            const int side = o.liftZ != Object::kNoLift ? 2 * r + 1 : 2 * r;
             // (A pulling hole's sprites: DS:212E small, DS:2146 big.)
             const size_t small = o.type == 9 ? 0x212Eu : 0x20FCu, large = o.type == 9 ? 0x2146u : 0x2114u;
-            Drawable dr{{x, o.y, z, 2 * r, 2 * r, 2 * r}, area(objectRect(x, o.y, z, 2 * r, 2 * r, 2 * r)), 3, wall, {}};
+            Drawable dr{{x, o.y, z, side, side, side}, area(objectRect(x, o.y, z, side, side, side)), 3, wall, {}};
             // Its frame (f28_0d82): 0 at rest; swallowing (+21) 1-5 as it
             // counts, spitting (+23) 5-1. The sprites by size and wall
             // (DS:20FC small, DS:2114 big; 6 a wall); frames 1-4 show the
@@ -377,8 +381,8 @@ void Science::drawObjects(const Rect& redraw) {
             static const int kTypeOffset[6] = {4, 5, 0, 1, 2, 3};
             const int typeOffset = kTypeOffset[std::clamp(panel_.ballType, 0, 5)] * 0x1D;
             const bool closed = o.closed;
-            dr.draw = [this, x, y = o.y, z, r, wall, big, frame, typeOffset, closed, small, large] {
-                auto [cx, cy] = objectCentre(x, y, z, 2 * r, 2 * r, 2 * r);
+            dr.draw = [this, x, y = o.y, z, side, wall, big, frame, typeOffset, closed, small, large] {
+                auto [cx, cy] = objectCentre(x, y, z, side, side, side);
                 if (closed) {
                     // Shut (+2F): 11C6-11C9 by size and wall, the small one
                     // on the left wall 3 up.
@@ -1050,6 +1054,9 @@ void Science::enterRoom(int room) {
     // The room's own (f27_03da): no end yet, no warp points, no balls.
     roomEnded_ = false, roomEndFlag_ = false, levelBonus_ = 0, bonusBalls_ = 0;
     std::fill(std::begin(roomVar_), std::end(roomVar_), 0);
+    exitNextTick_ = 0;
+    // (SCI_GAMETICKS=n: [27B4] from n, as read from the original.)
+    if (const char* t = std::getenv("SCI_GAMETICKS")) gameTicks_ = std::atoi(t);
     currentRoom_ = room;
     worldW_ = table_.root.bottom.w, worldD_ = table_.root.bottom.h;
     applyPanelPhysics();
@@ -1084,6 +1091,7 @@ void Science::enterRoom(int room) {
     // creation number (+1E: the ball makes three, its shadow and target; a
     // suckhole two, its own and its spark's).
     roomConfig(room);
+    roomObjects(room);
     targetsHit_ = targets_ = 0;
     fuseBusy_ = false;  // (f02_0d35, the last room's suckhole gone)
     int made = 0;

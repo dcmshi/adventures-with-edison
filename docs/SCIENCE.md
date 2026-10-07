@@ -880,9 +880,8 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
 - Rooms 18 (`+FC4`), 34 (`+FA4`, `+FA6`), 35 (`+FC0`) and 55 (`+FB4`,
   `+FB6`) read fields their own code (not ported) sets. Room 35 shows a
   "POW" sack (one of its objects, not ported) and its middle walls in a
-  different order (the standing boxes' painter's order). Room 2's own
-  objects (the circuit, the gate shutting its door to 9, RETRY) aren't
-  ported, and the port draws a dark line along its ramp's edge.
+  different order (the standing boxes' painter's order). The port draws
+  a dark line along room 2's ramp's edge.
 
 ## The room's other objects (being ported: `things.cpp`)
 
@@ -1158,14 +1157,60 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   most) are redrawn every `+180` ticks: each room's builder sets 2, but the
   room's tick sets it from `[27E6]` (1, nothing changes it) whenever that's
   not 0, so every tick.
-- **Room 2's own** (`f41_076c`, the builder; segment 41): a closed hole
-  to room 1000 at (606, 329, back wall, small) as the gate (`+FBA`), the
-  hole to 1001 closed and hidden (`+FBC`); its face method (`+24`,
-  `f41_0b78`): an Iron ball (`+52` `28DE`) on the circuit's face (`+FC0`
-  1; a loop of sounds 4A-4C), else off; its tick (`f41_0c21`): with the
-  circuit on, every third tick (`[27B4]`) the gate one higher (`f08_056e`
-  to (616, 345) at `+FBE`, up to 40); at 24 the hole to 1001 shown and
-  opened (`f28_153f`). Not ported yet.
+- **Each room's own methods** (its `+5E` table against the base room's:
+  every room has its pictures `+10`, its word on its holes `+20` and `+2C`;
+  `+14` its tick, in rooms 2, 9, 12, 18, 34, 54; `+24` a body onto a face,
+  in 23 rooms; and some builders make objects of their own: rooms 2, 5,
+  10, 12, 13, 18, 37, 40, 42, 45, 52-55, 92).
+- **`+24`, a body onto a face** (`f27_2657`, nothing, in the base room):
+  the body step (`f08_1a42`) calls it with the body and the face when it
+  lands or rolls onto another face (and the core's `+38`, `f08_1236`).
+  The rooms' (ported: `rooms.cpp`, `roomFaceMet`), "on (x, y)" meaning the
+  face's box is the deepest box under that point (`f12_4284`):
+  - the player's ball breaks (`+7C`) on (430, 0) in room 11 (`f43_0136`),
+    and the same code with its own point in rooms 14 (306, 160), 17 (715,
+    625), 33 (405, 278: its water), 36 (301, 360), 38 (700, 300), 41 (481,
+    417), 49 (326, 301), 50 (405, 278), 51 (501, 47), 66 (487, 160), 92
+    (512, 245); two points in rooms 37 (650, 210; 346, 153) and 74 (369,
+    140; 608, 112), four in room 5 (730, 150; 354, 0; 424, 35; 494, 0),
+    one before its goal in room 91 (439, 123). Room 8's is empty.
+  - Room 91's goal (`f59_014a`): the ball on (524, 208): as its hole's
+    method 8, a bonus ball, 2000, the shares, event 9 to room 14.
+  - The bins of rooms 60 (`f52_1046`), 64 (`f53_0602`) and 69
+    (`f54_07fa`): any body clears `+F7F`; the ball on a bin, its points
+    there (60: 200-800 at x 684; 64: 100-700; 69: 200, 400, 600, 200 at x
+    293); points set, event 9 to 64, 69, or (69) 508 with `+F71`. Event 9
+    joins the queue behind the next tick's event 4, so the room goes on a
+    tick (in the port, `exitNextTick_`).
+  - Room 96's pit (`f60_0216`): a body but the ball on (315, 160) counted
+    (`+FC0`) and put at 0, 0 (`f08_056e`: stopped first, its `+40`,
+    `f08_0721`: velocity, remainders, kick); four in, the hole to 66
+    opened (`f28_153f`: `+2F` clear, redrawn).
+  - Room 2's circuit (`f41_0b78`): the player's Iron ball on the top (the
+    face's `+2` 1) of the box under (400, 325): `+FC0` on (the first time,
+    `+FC2`, colour cycle 4A-4C every 6 ticks); else off (`f32_0f77`).
+  - Room 10 (`f42_0f2a`, not ported yet: its builder's objects first):
+    while `+FC0`, an Iron body on (420, 248) past x 392: `+FC0` off, the
+    cycle at 4A stopped, the blocks `+FB4` and `+FB6` (its gate) put at
+    0, 0, sound 601A. Room 55 (`f51_1777`, not ported yet): on (295, 388)
+    or (636, 386), the block `+FB4` sets `+FA2`, `+FB6` `+FA4`, the ball
+    breaks, any other body is put at 0, 0.
+  Checked: room 33 (the ball broken in the water), 96 (a block into the
+  pit, all nine bodies, 317 states), 69 (lever OBJ4 on: the ball carried
+  into the 200 bin, 158 states, then lesson 508).
+- **Room 2** (`f41_076c`, segment 41): the gate, a small hole to 1000 at
+  (606, 329) on the back wall (`f28_00f3`: b 1, c 0, d -1; `+FBA`), shut;
+  the room file's hole to 1001 (`+FBC`) shut and hidden (`f08_0469`). Its
+  tick (`f41_0c21`, then the base `f27_2434`): with `+FC0`, every third
+  game tick (`[27B4]`, event 4's count, the colour cycles' too): at 24
+  the hole to 1001, still shut, opened (sound 6029, shown, `f28_153f`);
+  below 40 the gate (`+FBE`) one higher (`f08_056e` with a height: its
+  sphere at (616, 345, its radius + `+FBE`), its box after it,
+  `f07_11c5`; read in the original's memory: a 23 cube at (605, 334,
+  `+FBE` - 6)). Checked: an Iron ball onto the circuit (111 states; on,
+  off and on again at the original's ticks), the hole opened at its room
+  tick with `[27B4]` two ahead of `[FFE]`, the gate raised pixel for
+  pixel.
 
 ## The rooms (`S<n>.SRF`)
 

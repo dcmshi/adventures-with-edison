@@ -4,8 +4,12 @@ found, in the grid's order, to stdout; progress to stderr. A process still
 running after --limit seconds (a search takes a few) is killed and reported
 HUNG with its log's last lines.
 
-Usage: aimsearch.py SPEC [--jobs N] [--limit S] -- EDISON ARGS...
+Usage: aimsearch.py SPEC [--jobs N] [--limit S] [--power V] [--gravity V]
+                    [--friction V] -- EDISON ARGS...
   SPEC: to,power,x0,x1,y0,y1,step[,ball type[,wait]] (see README.md)
+  --power, --gravity, --friction: values to search too, each combination in
+  turn ("-16,-8,0" or a range "-16:4:4"; a slider the room locks is left
+  as it is, with a warning); the aims found are then prefixed with them.
 Example: aimsearch.py -6,-1,60,620,20,280,8 -- --game science --room 22"""
 import argparse
 import os
@@ -16,7 +20,15 @@ import sys
 from testlib import SCRATCH, edison, parallel, run_game
 
 
-def search(spec, game_args, jobs=None, limit=60, progress=None):
+def values(text):
+    """ "a,b,c" or "first:last:step" as a list of ints."""
+    if ":" in text:
+        a, b, s = (int(v) for v in text.split(":"))
+        return list(range(a, b + (1 if s > 0 else -1), s))
+    return [int(v) for v in text.split(",")]
+
+
+def search(spec, game_args, jobs=None, limit=60, progress=None, env=None):
     """The aims' log lines ("aim x,y power p: ..."), in the grid's order.
     Raises RuntimeError if a process hangs or the room has no ball."""
     progress = progress or Quiet()
@@ -36,7 +48,7 @@ def search(spec, game_args, jobs=None, limit=60, progress=None):
     def one(j, chunk):
         sub = ",".join([to, power, x0, x1, str(chunk[0]), str(chunk[-1]), str(step), *rest])
         return run_game(exe, game_args, out / f"{j}.log", limit=limit,
-                        env={"SCI_SKIPDIALOGS": "1", "SCI_AIMSEARCH": sub})
+                        env={"SCI_SKIPDIALOGS": "1", "SCI_AIMSEARCH": sub, **(env or {})})
 
     found, problems = {}, []
     for j, run in parallel([(j, lambda j=j, c=c: one(j, c)) for j, c in enumerate(chunks)]):
@@ -48,6 +60,8 @@ def search(spec, game_args, jobs=None, limit=60, progress=None):
         text = run.log.read_text(errors="replace")
         found[j] = [l for l in text.splitlines() if l.startswith("aim ")]
         note = re.search(r"SCI_AIMSEARCH: .*(has no ball|isn't a table room).*", text)
+        for warning in sorted(set(re.findall(r"SCI_AIMSEARCH: .*(?:locks).*", text))):
+            print(warning, file=progress, flush=True)
         print(f"{label}: {len(found[j])} aims ({run.seconds:.0f} s){': ' + note.group(0) if note else ''}",
               file=progress, flush=True)
         if note:
@@ -76,14 +90,36 @@ def main():
     ap.add_argument("spec")
     ap.add_argument("--jobs", type=int)
     ap.add_argument("--limit", type=int, default=60)
+    ap.add_argument("--power")
+    ap.add_argument("--gravity")
+    ap.add_argument("--friction")
     opts = ap.parse_args(argv)
     if "--game" not in game:  # (else it waits in the launcher till killed)
         game = ["--game", "science", *game]
-    try:
-        aims = search(opts.spec, game, opts.jobs, opts.limit, progress=sys.stderr)
-    except RuntimeError:
-        return 1
-    print("\n".join(aims))
+    powers = values(opts.power) if opts.power else [None]
+    gravities = values(opts.gravity) if opts.gravity else [None]
+    frictions = values(opts.friction) if opts.friction else [None]
+    varied = opts.power or opts.gravity or opts.friction
+    for p in powers:
+        for g in gravities:
+            for f in frictions:
+                spec = opts.spec.split(",")
+                if p is not None:
+                    spec[1] = str(p)
+                env = {}
+                if g is not None:
+                    env["SCI_AIMSEARCH_GRAVITY"] = str(g)
+                if f is not None:
+                    env["SCI_AIMSEARCH_FRICTION"] = str(f)
+                label = " ".join(f"{n} {v}" for n, v in (("power", p), ("gravity", g), ("friction", f)) if v is not None)
+                if varied:
+                    print(f"({label})", file=sys.stderr, flush=True)
+                try:
+                    aims = search(",".join(spec), game, opts.jobs, opts.limit, progress=sys.stderr, env=env)
+                except RuntimeError:
+                    return 1
+                if aims:
+                    print("\n".join(f"{label}: {a}" if varied else a for a in aims), flush=True)
     return 0
 
 

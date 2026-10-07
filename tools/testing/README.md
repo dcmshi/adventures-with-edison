@@ -40,7 +40,7 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
   Glass and Rubber ones, the fans of rooms 98 and 25 breaking a Rubber
   ball and melting an Ice one, room 22's suckhole: its spark breaking the
   ball, room 46's smiley breaking a Rubber ball and scoring a Glass one,
-  room 71's rack of balls, room 32's hot field burning the ball, room 13 with a type 2 ball added: its copies of the game's folders in `build/scratch/t2`); each result against `retrace.expected`
+  room 71's rack of balls, room 32's hot field burning the ball, room 13 with a type 2 ball added: its copies of the game's folders in `build/scratch/t2`, room 96's pit, room 69's bin, room 2's circuit and gate); each result against `retrace.expected`
   (`--accept` writes the new ones there once they're checked).
 - Tracing across a change of room: `memwatch.py watch --follow 0.3` (the
   data segment moves as the room is built). Expressions are hex: a list
@@ -60,6 +60,11 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
   skipped; progress per process to stderr, the aims found to stdout; a
   process past S seconds (default 60) is reported HUNG with its log's
   last lines; a room with no ball, or not a table room, fails at once.
+  `--power`, `--gravity`, `--friction` take values to search as well
+  ("-16,-8,0" or "-16:4:4"), each combination in turn, the aims found
+  prefixed with them (a slider the room locks is left, with a warning:
+  `SCI_AIMSEARCH_GRAVITY` / `_FRICTION`); `SCI_AIMSEARCH_SWITCHES=i,j`
+  turns those objects of the room (switches) over before each shot.
 - `cmp.py PORTDIR ORIGDIR MS:NAME...`: view and panel differences of the
   port's capture at a time against an original screenshot.
 - `bestframe.py PORTDIR SHOT.png [x0 y0 x1 y1]`: the port's capture nearest
@@ -98,7 +103,7 @@ run that hangs shows where;
 `SCI_SHOOT_WHEN=cx,cy,cz,vx,vy,vz` holds a shot till the ball's in that
 state; `SCI_HOLE=n` has the first room's hole to room n take the ball at
 once (room 1: 504 EXIT's question, 508 / 509 the warp codes; 501-503 the
-lab, high scores, credits), for what follows without a measured shot; `SCI_RANDSEED=a[,b]` sets Borland's rand() seed as the room is built (and to b once it's built), as read from the original (`d:8454`); `SCI_ROOMTICKS=n` starts `[FFE]` (the room
+lab, high scores, credits), for what follows without a measured shot; `SCI_GAMETICKS=n` starts `[27B4]` (event 4's count: room 2's gate, the colour cycles) at n; `SCI_RANDSEED=a[,b]` sets Borland's rand() seed as the room is built (and to b once it's built), as read from the original (`d:8454`); `SCI_ROOMTICKS=n` starts `[FFE]` (the room
 ticks, which the original counts from its start: the targets' and other
 animations' phases) at n, as read from the original (`memwatch.py`
 `t=d:ffe`); `SCI_DIALOGPIC=k` gives the
@@ -110,7 +115,7 @@ negative `to`: the first point target of kind -`to` hit, -100 the
 ball near a magnet, -101 a switch turned over, -102 the ball broken (logged as heated by a
 fan, zapped by an electromagnet, or broken) or caught by an electromagnet, -103 a
 smiley (type 11) met, -104 a loose ball (type 0) or block (type 16) moved,
--105 a block met; an eighth
+-105 a block met, -107 the room's `+FC0` set (room 96's pit, room 2's circuit), -108 the room's own code ending it (a bin, a goal); an eighth
 number sets the ball type, a ninth the ticks played before each shot): for
 bank shots to replay in the original (with `--click`s for a greeting
 first; dialogs are skipped; it ends the game when done, or at once if
