@@ -299,15 +299,17 @@ void Science::drawObjects() {
     auto area = [](const Rect& r) { return Drawable::Area{r.x, r.y, r.w, r.h}; };
     std::vector<Drawable> list;
     for (Object& o : table_.objects) {
-        if (o.type == 8) {
+        if (isHole(o)) {
             // A hole (f28_00f3, g28_0003, drawn by f28_0d82): a = the room
             // it leads to, b = its wall (0 the left one), c = big, d = its
             // height (-1: the face's under it). Frame 0 at rest. Its box is
             // a cube of side 2r, r to the left on the left wall.
             const int wall = o.args[1], big = o.args[2] != 0;
             const int r = big ? 17 : 11;
-            const int z = o.args[3] != -1 ? o.args[3] : heightUnder(o.x, o.y);
+            const int z = o.args[3] != -1 && o.type != 9 ? o.args[3] : heightUnder(o.x, o.y);
             const int x = o.x - (wall == 0 ? r : 0);
+            // (A pulling hole's sprites: DS:212E small, DS:2146 big.)
+            const size_t small = o.type == 9 ? 0x212Eu : 0x20FCu, large = o.type == 9 ? 0x2146u : 0x2114u;
             Drawable dr{{x, o.y, z, 2 * r, 2 * r, 2 * r}, area(objectRect(x, o.y, z, 2 * r, 2 * r, 2 * r)), 3, wall, {}};
             // Its frame (f28_0d82): 0 at rest; swallowing (+21) 1-5 as it
             // counts, spitting (+23) 5-1. The sprites by size and wall
@@ -319,7 +321,7 @@ void Science::drawObjects() {
             static const int kTypeOffset[6] = {4, 5, 0, 1, 2, 3};
             const int typeOffset = kTypeOffset[std::clamp(panel_.ballType, 0, 5)] * 0x1D;
             const bool closed = o.closed;
-            dr.draw = [this, x, y = o.y, z, r, wall, big, frame, typeOffset, closed] {
+            dr.draw = [this, x, y = o.y, z, r, wall, big, frame, typeOffset, closed, small, large] {
                 auto [cx, cy] = objectCentre(x, y, z, 2 * r, 2 * r, 2 * r);
                 if (closed) {
                     // Shut (+2F): 11C6-11C9 by size and wall, the small one
@@ -327,7 +329,7 @@ void Science::drawObjects() {
                     objectSprite(cx, cy - (!big && wall == 0 ? 3 : 0), static_cast<uint16_t>(big ? (wall ? 0x11C9 : 0x11C8) : (wall ? 0x11C7 : 0x11C6)));
                     return;
                 }
-                const size_t at = (big ? 0x2114u : 0x20FCu) + 2u * static_cast<size_t>((wall ? 6 : 0) + frame);
+                const size_t at = (big ? large : small) + 2u * static_cast<size_t>((wall ? 6 : 0) + frame);
                 uint16_t id = static_cast<uint16_t>(data_[at] | data_[at + 1] << 8);
                 if (frame > 0 && frame < 5) id = static_cast<uint16_t>(id + typeOffset);
                 if (!big) cy -= wall == 0 ? 3 : 0;
@@ -965,8 +967,19 @@ void Science::enterRoom(int room) {
     fuseBusy_ = false;  // (f02_0d35, the last room's suckhole gone)
     int made = 0;
     for (Object& o : table_.objects) {
+        // (Testing: SCI_DEBUG lists the room's objects as read.)
+        if (std::getenv("SCI_DEBUG"))
+            logLine("object type " + std::to_string(o.type) + " at " + std::to_string(o.x) + "," + std::to_string(o.y) + " args " +
+                    std::to_string(o.args[0]) + " " + std::to_string(o.args[1]) + " " + std::to_string(o.args[2]) + " " +
+                    std::to_string(o.args[3]) + " " + std::to_string(o.args[4]) + " " + std::to_string(o.args[5]));
         o.id = made;
         made += (o.type == 1 || o.type == 3) ? 3 : (o.type == 10 && o.args[2] == 6) ? 2 : 1;
+        if (o.type == 9) {
+            // A pulling hole (f28_15a1): its pull (+37) 200 (400 big, c)
+            // times [27B2] over [27B0]; not pushing yet (+39).
+            o.pull = (o.args[2] ? 400 : 200) * kTimerK / kTimerRate;
+            o.pulling = false;
+        }
         if (o.type != 10 && o.type != 11) continue;
         // (Type 11, f03_0865: a kind 0 target, `a` its points.)
         o.kind = o.type == 11 ? 0 : std::min(o.args[2], 10);

@@ -368,7 +368,7 @@ bool Science::thingClick(Object& o, const Mouse& m) {
 bool Science::contactOf(Object& o, Contact& c) {
     // An object as a body's step meets it (f08_1a42): its sphere (+4C), its
     // mass ratio (+34 / +38; 0: out of reach), its body if it has one.
-    if (o.type == 8) {
+    if (isHole(o)) {
         // A hole: soft; while the ball leaves it, out of reach (f28_0671).
         holeSphere(o, c.s);
         c.ratio = o.leaving ? 0 : 1;
@@ -447,7 +447,7 @@ bool Science::contactOf(Object& o, Contact& c) {
 void Science::contactMet(Object& o, Ball& by) {
     // The object's +34: what it does when a body meets it.
     const bool player = &by == &ball_;
-    if (o.type == 8) {
+    if (isHole(o)) {
         // f28_13fe: an idle hole takes the player's ball (f28_14a5, unless
         // shut, +2F): stopped (f07_0ead → f08_0721), hidden with its shadow
         // (f07_03be), the room busy (+F6F).

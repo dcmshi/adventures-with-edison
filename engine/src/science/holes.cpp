@@ -21,7 +21,8 @@ void Science::holeSphere(const Object& o, int out[4]) const {
     // a unit lower), radius r / 2.
     const int wall = o.args[1], big = o.args[2] != 0;
     const int r = big ? 17 : 11;
-    const int z = o.args[3] != -1 ? o.args[3] : heightUnder(o.x, o.y);
+    // (Type 9's d isn't passed on: the face's height under it.)
+    const int z = o.args[3] != -1 && o.type != 9 ? o.args[3] : heightUnder(o.x, o.y);
     out[0] = o.x - (wall == 0 ? r : 0) + r;
     out[1] = o.y + r;
     out[2] = z + r - 1;
@@ -109,8 +110,45 @@ void Science::holeTick(Object& o) {
 
 void Science::holeEntered(Object& o) {
     // f28_156a: the room's method 8 with the hole and the ball (rooms.cpp),
-    // which mostly ends in f27_2530 (holeGo).
+    // which mostly ends in f27_2530 (holeGo). A pulling hole's (f28_1b25):
+    // sound 602C, a busy wait of 132 ticks (f32_07aa), the ball lost.
+    if (o.type == 9) {
+        sound(0x602C);
+        dialogWait(0x84);
+        ballLost();
+        return;
+    }
     roomHole(o);
+}
+
+void Science::pullTick(Object& o) {
+    // f28_18fd, a pulling hole's tick: while it's idle (+21, +23, +25
+    // clear), with the player's ball (+35) within 16 times its sphere's
+    // radius, the ball pushed (f08_15d2: its +4C) towards the sphere's
+    // centre, on each axis the pull (+37) less |d| * the pull / 256, then
+    // the hole's tick; farther off, the push taken back (once) and no
+    // tick.
+    if (!o.swallow && !o.spit && !o.leaving) {
+        int s[4];
+        holeSphere(o, s);
+        Ball& b = ball_;
+        const int16_t d[3] = {static_cast<int16_t>(s[0] - b.cx), static_cast<int16_t>(s[1] - b.cy), static_cast<int16_t>(s[2] - b.cz)};
+        const int32_t far = static_cast<int32_t>(static_cast<int16_t>(s[3] * s[3])) << 8;
+        const int32_t dist = d[0] * d[0] + d[1] * d[1] + d[2] * d[2];
+        if (far < dist) {
+            if (o.pulling) {
+                o.pulling = false;
+                for (int k = 0; k < 3; ++k) b.push[k] = 0;
+            }
+            return;
+        }
+        for (int k = 0; k < 3; ++k) {
+            const int16_t f = static_cast<int16_t>(o.pull - ((std::abs(d[k]) * o.pull) >> 8));
+            b.push[k] = d[k] < 0 ? static_cast<int16_t>(-f) : f;
+        }
+        o.pulling = true;
+    }
+    holeTick(o);
 }
 
 void Science::holeGo(Object& o) {

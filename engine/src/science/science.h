@@ -130,6 +130,10 @@ private:
         int swallow = 0, spit = 0, spitMode = 0;
         bool swallowDone = false, spitDone = false, leaving = false;
         bool closed = false;            // a hole's +2F (f28_1514): shown shut, takes no ball
+        // Type 9, a pulling hole (f28_15a1, its class "suckHole"): its pull
+        // (+37) and whether it's pushing the ball (+39).
+        int pull = 0;
+        bool pulling = false;
         // A target (type 10, f03_002c; c its kind, b its points): hit (+12,
         // counting), scored (+14, counting), its frame (+18) of a sequence
         // (+16: DS offset, 0 its kind's idle frames) of +1A frames; its
@@ -343,6 +347,8 @@ private:
     // f28_1445), the ball put back (f27_287d).
     void holeSphere(const Object& o, int out[4]) const;
     void holeTick(Object& o);
+    void pullTick(Object& o);                       // f28_18fd: type 9's tick
+    static bool isHole(const Object& o) { return o.type == 8 || o.type == 9; }
     // The room's other objects (things.cpp): set up when the room is
     // built, their ticks (method 0), clicks (their core's +08) and boxes.
     void thingsBuilt();

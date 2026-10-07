@@ -86,7 +86,8 @@ void Science::aimSearch(const char* spec) {
     // for a shot to replay in the original; a negative `to`, the first
     // point target of kind -to hit (-100: the ball near a magnet; -101: a
     // switch turned over; -103: a type 11 met; -104: a type 0 ball or a
-    // block moved; -105: a block met;
+    // block moved; -105: a block met; -106: a pulling hole (type 9) took
+    // the ball;
     // -102: the ball broken (heated by a fan, zapped by
     // an electromagnet) or caught by one). An
     // eighth number, the ball type; a ninth, ticks played before each
@@ -120,7 +121,7 @@ void Science::aimSearch(const char* spec) {
                 tickRoom();
                 const Object* taken = nullptr;
                 for (const Object& o : table_.objects)
-                    if (o.type == 8 && o.swallow) taken = &o;
+                    if ((o.type == 8 || (to == -106 && o.type == 9)) && o.swallow) taken = &o;
                 if (to == -100) {
                     // (The ball within 60 of a magnet's centre instead.)
                     bool near = false;
@@ -584,6 +585,7 @@ void Science::tickRoom() {
     for (size_t i = table_.objects.size(); i-- > 0;) {
         Object& o = table_.objects[i];
         if (o.type == 8) holeTick(o);
+        else if (o.type == 9) pullTick(o);
         else if (o.type == 10 && o.kind == 6) sparkTick(o), suckholeTick(o);
         else if (o.type == 10) pointTick(o);
         else if (o.type == 11) creatureTick(o), pointTick(o);
