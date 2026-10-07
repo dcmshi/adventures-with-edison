@@ -64,11 +64,19 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
   port's capture at a time against an original screenshot.
 - `bestframe.py PORTDIR SHOT.png [x0 y0 x1 y1]`: the port's capture nearest
   an original screenshot (capture every 10 ms: 20 can skip a tick).
-- `dis.sh SEG OFF [LINES] [BITS]`, `fn.sh SEL_OFF...` (a function from
-  Ghidra's `extracted/ghidra/wmain.c`), `thunks.py SEG OFF...` (where
-  method-table thunks jump, and what they add to `this`), `vtable.py OFF
-  [COUNT]` (a method table in the data segment, its far pointers):
-  reading WMAIN.EXE.
+- `wm.py` reads WMAIN.EXE, functions named as in the docs (`f28_15a1`):
+  `fn NAME...` (Ghidra's decompilation, or the disassembly where Ghidra
+  has none), `dis NAME [LINES]` (ndisasm to the function's end, far calls
+  resolved: `call far f08_15d2`, `USER.ClipCursor`), `calls NAME` (the far
+  calls it makes), `xref NAME` (its callers and every far pointer to it),
+  `vtable OFF [N] [OFF2]` (a method table, thunks followed; two side by
+  side, the methods that differ marked), `thunk NAME...`, `ds OFF [N]`
+  (data segment words).
+- `origrun.py OUTDIR ROOM [--watch S] [SCRIPT LINE...]`: a room in the
+  original (`WMAINSKP.EXE`) with an `otvdm.ps1` script once it's up, the
+  ball and `[FFE]` traced (`ball.txt`); every step time-limited.
+  `WMAINSKP.EXE` (`tools/reference/wmain_skip.py`) also leaves the mouse
+  free (the original confines it to its window, `f74_0000`).
 - `roompics.py [--cpp | --config]`: every table room's pictures (its
   method 4) and its builder's settings, from Ghidra's output and a dump of
   the original's data segment (`--dump`, default `build/scratch/dg1.bin`).

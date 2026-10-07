@@ -876,8 +876,8 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   ball's `f08_1a42`), `+04` draw, `+08` the mouse, `+10` its area to be
   redrawn (`f08_07a7`), `+18` / `+1C` hide / show, `+34` met by the ball,
   `+4C` its sphere. An object made of parts has a wrapper with its own
-  method table (`tools/testing/vtable.py OFF` lists one; `thunks.py SEG
-  OFF...` follows the thunks, which add to `this`).
+  method table (`tools/testing/wm.py vtable OFF` lists one, following
+  the thunks, which add to `this`).
 - **The mouse in the room** (`f27_2d15`): an object that has it
   (`+186`) first; else the first in the room's list (`+18E`) whose
   rectangle has the point, its `+08`; one that takes it ends there; else
@@ -1046,6 +1046,19 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   ball broken, 227 states traced; with `[FFE]`'s phase read from the
   original (`SCI_ROOMTICKS`), the fuse before the spark and the scorched
   trail after it pixel for pixel).
+- **Type 9, a pulling hole** (`f28_15a1`, its class "suckHole"; rooms
+  6, 11, 17): a hole (`f28_0391`: leads to no room, `+0C` 0) of its own
+  sprites (`DS:212E` small, `2146` big) and colour cycle (`f32_0e7f(A0,
+  A6, 3)`); `a` and `d` unused, `b` the wall, `c` big; its pull (`+37`)
+  200 (big 400) times `[27B2]` over `[27B0]`; `+35` the player's ball. Its
+  tick (`f28_18fd`): while idle (`+21`, `+23`, `+25` clear) and the ball
+  within 16 times its sphere's radius, the ball pushed (`f08_15d2`, its
+  `+4C`) towards the sphere's centre, on each axis the pull less |d| *
+  the pull / 256 (`+39` set), then the hole's tick; farther, the push
+  taken back once and no tick. Swallowed (`+20`, `f28_1b25`): sound
+  `602C`, a busy wait of 132 ticks, the ball lost (`f31_0504`). Its
+  height isn't `d` nor the ground's: still to find (room 17's are drawn
+  lower in the port).
 - **Type 11, the smiley** (`f03_0865`): a kind 0 point target (`a` its
   points) with its own core, a cube of 34 (size 11h), its sphere kind 0's
   (radius 13). Drawn: `1357` at its rectangle's left, 9 above its bottom
@@ -1114,7 +1127,7 @@ through the run time's streams in segment 90). Text, in three parts:
    | 6 | `f05_26f7` | 46 | type 15 on a switch's power (`+F94`) |
    | 7 | `f04_01a1`, `03eb`, `0835`, `05b8` (by `d`) | 69 | switches; `d` 3 RETRY (see below) |
    | 8 | `f28_00f3` / `f28_0391` | 263 | a hole: `a` is the room it leads to (in `S1`: 502 high scores, 501 lab, 503 credits, 31, 21, 508, 509, 504 EXIT); `e` not 0: the second of a door |
-   | 9 and others | `f28_15a1` | 4 | |
+   | 9 | `f28_15a1` | 4 | a pulling hole: `b` its wall, `c` big (see above) |
    | 10 | `f03_002c`, kind 6 `f02_0be1` | 267 | point targets (`c` the kind); kind 6 a suckhole |
    | 11 | `f03_0865` | 9 | the smiley: a kind 0 target, `a` its points (up to 10000) |
    | 12, 13 | `f02_00c2`, `f02_05f2` | 2, 9 | power (`+F94`): an electromagnet that catches Iron and breaks other balls, a fan (`a` its way) that breaks Ice, Rubber, Glass and Magic ones (see above) |

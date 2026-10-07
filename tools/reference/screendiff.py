@@ -20,7 +20,7 @@ def main():
     original = Image.open(sys.argv[2]).convert("RGB")
     diff = ImageChops.difference(port, original)
     mask = diff.convert("L").point(lambda v: 255 if v > 24 else 0)
-    count = sum(1 for v in mask.getdata() if v)
+    count = mask.point(lambda v: 255 if v else 0).histogram()[255]
     print(f"box {diff.getbbox()}, {count} pixels differ")
     if len(sys.argv) > 3:
         w, h = port.size
