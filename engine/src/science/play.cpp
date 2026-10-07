@@ -791,18 +791,27 @@ void Science::tickRoom() {
 }
 
 void Science::shadowTick() {
-    // f07_15ba: the shadow object follows the ball (when it moved): shown
-    // on the ground below it (x, y, ground + 1) while its bottom is 2 or
-    // more above it.
+    // f07_15ba: the shadow object follows the ball when its centre changed
+    // (hidden or not): shown, the ball breaking (+7C), it's hidden; its
+    // bottom within 1 of the ground under it, hidden; else put on the
+    // ground below it (x, y, ground + 1), shown again if the ball is.
+    // (Hiding the ball hides it too: f07_03be, f07_0381.)
     const Ball& b = ball_;
-    if (b.hidden || (b.cx == shadowSeen_[0] && b.cy == shadowSeen_[1] && b.cz == shadowSeen_[2])) return;
-    shadowSeen_[0] = b.cx, shadowSeen_[1] = b.cy, shadowSeen_[2] = b.cz;
+    if (b.cx == shadowSeen_[0] && b.cy == shadowSeen_[1] && b.cz == shadowSeen_[2]) return;
+    if (shadowShown_ && b.state != 0) {
+        shadowShown_ = false, viewDirty_ = true;
+        return;
+    }
     const int ground = heightUnder(b.cx, b.cy);
     const int above = b.cz - b.r - ground;
-    const bool shown = !(above > -2 && above < 2);
-    if (shown || shown != shadowShown_) viewDirty_ = true;
-    shadowShown_ = shown;
+    shadowSeen_[0] = b.cx, shadowSeen_[1] = b.cy, shadowSeen_[2] = b.cz;
+    if (above > -2 && above < 2) {
+        if (shadowShown_) shadowShown_ = false, viewDirty_ = true;
+        return;
+    }
+    if (!shadowShown_ && !b.hidden) shadowShown_ = true;
     shadowX_ = b.cx, shadowY_ = b.cy, shadowZ_ = ground + 1;
+    viewDirty_ = true;
 }
 
 void Science::targetTick() {

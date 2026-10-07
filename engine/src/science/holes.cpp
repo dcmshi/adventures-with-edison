@@ -193,7 +193,8 @@ void Science::ballToStart() {
     for (int k = 0; k < 3; ++k) b.v[k] = 0, b.rem[k] = 0, b.disp[k] = 0, b.kick[k] = 0;
     b.kickTicks = 0;
     b.hidden = false;
-    lastCentre_[0] = shadowSeen_[0] = b.cx, lastCentre_[1] = shadowSeen_[1] = b.cy, lastCentre_[2] = shadowSeen_[2] = b.cz;
+    // (Not the shadow's last centre: its tick sees the move, f07_15ba.)
+    lastCentre_[0] = b.cx, lastCentre_[1] = b.cy, lastCentre_[2] = b.cz;
     shadowShown_ = false;
     viewDirty_ = true;
 }
