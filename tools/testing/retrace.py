@@ -95,6 +95,10 @@ CASES = {
     # rooms 36, 66, 49 and 38: the ball onto it, broken.
     **{f"break{r}": (f"brk/o{r}/bonly.txt", None, f"--room {r} {shot(2000, x, y)} {fire(3000)} --quit-after 10000", {"SCI_SKIPDIALOGS": "1"})
        for r, x, y in ((36, 240, 80), (66, 300, 140), (49, 72, 20), (38, 72, 20))},
+    # Room 17: its Iron ball pulled to the left wall at rest, its loose
+    # magnet creeping (f05_1749); a shot along the wall from there, at the
+    # moment the original's was (the magnet's phase), remainders and all.
+    "wall17": ("t9/o17t/rem.txt", "rem", f"--room 17 {shot(2000, 292, 68)} {fire(10120)} --quit-after 22000"),
     # Room 69: the lever OBJ4 on, its magnets carry the ball into the 200
     # bin (its +24, f54_07fa: the room ends, then lesson 508).
     "bin69": ("r69/o1/trace.txt", None, "--room 69 --click 1000 440 80 --drag 1100 540 340 540 340 80 --move 1230 544 340 --quit-after 9000"),

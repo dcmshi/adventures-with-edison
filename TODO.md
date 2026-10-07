@@ -70,7 +70,7 @@ scene objects and an event queue, floating point), so it goes in stages:
   - [x] Type 9, the pulling hole: rooms 6 (swallowed, the ball lost) and 11 (pulled round it) traced against the original state for state; rooms 6, 11 and 17 drawn as the original's.
   - [x] Type 14, the hot field (a lava puddle growing in spots, burning the ball): room 5's growth and puddle, room 32's burn traced against the original.
   - [x] Room 96's greeting's second click aims (the press's event sees the button down, `[6EC4]`); the ball into its pit (z -390) traced, 329 states.
-  - [ ] Room 17's Iron ball at rest against the left wall (by the magnets, before any shot): the original's x velocity goes -28, 5, -28, -27, the port's -26, -32; a shot from there drifts apart (`build/scratch/t9/p17`, aim 292, 68).
+  - [x] Room 17's Iron ball at rest against the left wall matches the original (86 states); a shot from there (aim 292, 68) too, fired at the same moment of its loose magnet's creep (278 states with the remainders).
   - [x] The rooms' face hooks (`+24`): the ball broken on a box (14 rooms, room 33's water), room 91's goal, the bins of 60, 64, 69, room 96's pit; room 2's circuit and gate (its tick, `[27B4]`).
   - [x] Box looks (`+3C`: a face's own picture, or none) in rooms 5, 10, 13, 18, 37, 40, 42, 45, 52, 53, 55, 92; the builders' own objects of rooms 10 (its gate of blocks, loose balls, hole to 12), 18 (a magnet), 55 (two magnetic balls); room 10's face hook. Rooms 45, 92, 13 checked at rest.
   - [x] Room 55's face hook (`f51_1777`, traced: 705 states of seven bodies); room 12's magnet (`f43_0386`) and tick (`f43_043d`, pixel for pixel); room 54's bullseye and magnets (`f51_09ce`) and tick (`f51_0dc2`, its way down traced).

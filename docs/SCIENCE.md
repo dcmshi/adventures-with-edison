@@ -1024,6 +1024,10 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   level + 3; type Iron (`28DE`). Type 4 steps as a body (`f05_1f76` →
   `f08_1a42`), type 5 doesn't. Drawn (`f13_0720`) as `DS:151E` + 10 for S
   + 2 level (`1045`-`1049` N, `104B`-`104F` S) at its rectangle's centre.
+  Checked: room 17 at rest (its Iron ball held on the left wall, its
+  loose magnet creeping right for some seconds) and a shot along the wall
+  from there, remainders and all, when fired at the same point of the
+  magnet's creep (a few ticks off and it drifts apart).
 - **Types 15 and 6** (`f05_233e`, `f05_26f7`; a, b, c its wall, d its
   height, -1 the ground): the core's box at (x, y, the ground) (`f05_2243`)
   2a + 6 deep, 2a high, 2a + 6 wide, 2a + 18 on the left wall (c 0); the
