@@ -62,6 +62,7 @@ void Science::textAt(int x, int y, const std::string& s, int colour) {
 
 void Science::sound(uint16_t id) {
     // f32_13f2 / f36_007e: a WAV from GRAFX.DAT by id (sounds on).
+    if (!soundsOn_) return;
     std::vector<uint8_t> wav;
     if (!ctx_.read(id, wav) || wav.empty() || wav.size() > 120000) return;
     ctx_.platform.playWav(wav);

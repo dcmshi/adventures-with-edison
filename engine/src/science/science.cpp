@@ -197,6 +197,7 @@ void Science::narration(int n, bool story) {
     // game's data\ folder.
     // (The second list is reached as the original does, wrapping at 64 KB:
     // (n * 9 + 9700) & FFFF, so the lessons' 6169 is WSA1521.)
+    if (!soundsOn_) return;  // ([27F6])
     const size_t at = story ? 0x519u + 9u * static_cast<size_t>(n) : (static_cast<unsigned>(n) * 9u + 0x9700u) & 0xFFFFu;
     std::string name;
     for (size_t i = at; i < strings_.size() && strings_[i] && name.size() < 9; ++i) name += static_cast<char>(strings_[i]);

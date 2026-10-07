@@ -494,6 +494,8 @@ private:
     int exitRoom_ = 0;           // event 9's room, when a hole sends the ball on
     int exitHole_ = -1;          // and the hole (its +3), to spit the ball out of on coming back
     void mouseEvent(const Mouse& m);                // f31_241a (event 7)
+    void keyEvent(int key);                         // f31_1d70 (event 8)
+    bool soundsOn_ = true;                          // [27F6]: the sounds (the s key)
     bool sliderClick(Control c, const Mouse& m);    // f30_306a
     bool buttonClick(Control c, const Mouse& m);    // f30_28f1
     void columnClick(bool right, const Mouse& m);   // f30_0496

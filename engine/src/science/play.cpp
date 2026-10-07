@@ -62,6 +62,7 @@ int Science::playRoom(int room) {
             mouseEvent(m);
             last = m;
         }
+        if (const int key = ctx_.platform.takeKey()) keyEvent(key);
         heartbeat("room " + std::to_string(currentRoom_) + " tick " + std::to_string(timerTicks_) +
                   (hasBall_ ? " ball " + std::to_string(ball_.cx) + "," + std::to_string(ball_.cy) + "," + std::to_string(ball_.cz) : ""));
         // The 50 Hz timer's tick (event 4).
@@ -310,6 +311,81 @@ void Science::saveTickShot(const std::string& dir) {
     if (FILE* f = std::fopen((dir + "/t" + std::to_string(timerTicks_) + ".bmp").c_str(), "wb")) {
         std::fwrite(out.data(), 1, out.size(), f);
         std::fclose(f);
+    }
+}
+
+void Science::keyEvent(int key) {
+    // f31_1d70, the player's method 3 (event 8, a key). With a room (+AE)
+    // and nothing holding the keys (+B0):
+    // - p: a pause, box 609 (face 1, style 1, narration 6181), 120 ticks,
+    //   the music off, OK, the music on (music 25);
+    // - q: "quit?" (face 0, 20B, buttons 202, sound 6016): yes, event 3;
+    // - m: face 2, 613 (buttons 202, narration 618B), yes: 614 (618C),
+    //   yes: face 0, 615 (style 1, sound 6018), event 9 to room 24.
+    // Any time: s turns the sounds over ([27F6]; off: the WAV stopped and
+    // the music off, f75_0000, f32_135d(0); on: music 25); S and two
+    // digits (Borland's ctype, bit 2): event 9 to that room (1 outside
+    // 1-110). Other keys go to the room (its +1C) or the panel: none of
+    // theirs is ported. (No FM music in this game yet.)
+    const Rect& v = table_.view;
+    auto box = [&](int face, int style, uint16_t message, uint16_t firstLine, int lines) {
+        Dialog d;
+        d.centreX = v.x + (v.w >> 1), d.centreY = v.y + (v.h >> 1);
+        d.face = face, d.style = style, d.lines = lines, d.single = lines == 1, d.message = message, d.firstLine = firstLine;
+        return d;
+    };
+    switch (key) {
+    case 'p':
+    case 'P': {
+        Dialog d = box(1, 1, 0x609, 0, 1);
+        dialogOpen(d);
+        narration(0x6181, false);
+        dialogWait(0x78);
+        dialogRun(d);
+        return;
+    }
+    case 'q':
+    case 'Q': {
+        Dialog d = box(0, 0, 0x20B, 0x202, 2);
+        dialogOpen(d);
+        sound(0x6016);
+        if (dialogRun(d) != 0) exitRoom_ = -1;  // (event 3)
+        return;
+    }
+    case 'm':
+    case 'M': {
+        Dialog first = box(2, 0, 0x613, 0x202, 2);
+        dialogOpen(first);
+        narration(0x618B, false);
+        if (dialogRun(first) == 0) return;
+        Dialog second = box(2, 0, 0x614, 0x202, 2);
+        dialogOpen(second);
+        narration(0x618C, false);
+        if (dialogRun(second) == 0) return;
+        Dialog third = box(0, 1, 0x615, 0, 1);
+        dialogOpen(third);
+        sound(0x6018);
+        dialogRun(third);
+        exitRoom_ = 24;
+        return;
+    }
+    case 's':
+        soundsOn_ = !soundsOn_;
+        if (!soundsOn_) ctx_.platform.stopWav();
+        return;
+    case 'S': {
+        // (f36_0000 till a key, twice.)
+        int keys[2];
+        for (int& k : keys)
+            while ((k = ctx_.platform.takeKey()) == 0) ctx_.pump();
+        if (keys[0] < '0' || keys[0] > '9' || keys[1] < '0' || keys[1] > '9') return;
+        int room = (keys[0] - '0') * 10 + (keys[1] - '0');
+        if (room < 1 || room > 110) room = 1;
+        exitRoom_ = room;
+        return;
+    }
+    default:
+        return;
     }
 }
 

@@ -1259,6 +1259,20 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   hit); at the bottom the original draws N in front of S where their
   boxes overlap (the port, by `f35_0744`'s rules, S: likely its redraw of
   the changed rectangles, `f29_0380`).
+- **The keys** (`f31_1d70`, the player's method 3, event 8; ported:
+  `keyEvent`): with a room (`+AE`) and nothing holding the keys (`+B0`),
+  `p` pauses (face 1, style 1, `609` "What are we waiting for?",
+  narration `6181`, 120 ticks, the music off till OK), `q` asks to quit
+  (face 0, `20B`, buttons `202` NO / YES, sound `6016`; YES: event 3),
+  `m` is an easter egg (face 2, `613` "Hey wait! You can't go through
+  here! Press NO!", narration `618B`; YES: `614`, `618C`; YES: face 0,
+  `615`, sound `6018`, event 9 to room 24). Any time: `s` turns the
+  sounds over (`[27F6]`: off, the WAV stopped and the music off, music 25
+  back on), `S` and two digits goes to that room (1 outside 1-110). Other
+  keys go to the holder (`+B0`), the room (its `+1C`) or the panel (`+A4`,
+  `+A8`): none ported. Checked: the three boxes against the original's
+  (but for the left column's random ball frames and the `m` box's random
+  picture).
 - **The high scores** (room 502, `f40_0000`; ported: `highScores`,
   `recordGame`, `loadPlayers`): the display cleared, `200A` on screen 2,
   `wscience.hs` loaded (`f19_115a`, `f21_0041`: up to 50 records of four
