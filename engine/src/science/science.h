@@ -571,6 +571,7 @@ private:
     };
     std::vector<PlayerEntry> players_;  // the high scores (and looks), wscience.hs
     void sortPlayers(int lo, int hi);    // f39_1183 (its partition f39_129d)
+    static void sortChildren(Box& parent);  // f12_3e0d's sort of a box's children
     void addPlayer(const PlayerEntry& p);  // appended, first and last swapped (f39_1940), sorted
     std::string playerName_;            // DS:8D22
     unsigned labFrame_ = 0;             // [1D40]

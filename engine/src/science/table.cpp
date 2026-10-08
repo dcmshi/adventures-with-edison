@@ -12,6 +12,7 @@
 #include <iterator>
 
 #include "science/science.h"
+#include "science/sorter.h"
 
 namespace edison {
 
@@ -142,6 +143,7 @@ bool Science::loadTable(int room) {
                 hiddenSides(*child);
                 box = child.get();
                 parent->children.push_back(std::move(child));
+                sortChildren(*parent);
             }
         }
         for (char m = r.marker(); m != '\2'; m = r.marker()) {
@@ -183,6 +185,42 @@ bool Science::loadTable(int room) {
     panel_.power = std::clamp(panel_.power, 0, 16);
     panel_.ballType = ((panel_.ballType % 6) + 6) % 6;
     return true;
+}
+
+void Science::sortChildren(Box& parent) {
+    // f12_3e0d: each child added, the parent's list sorted (segment 39's
+    // sorter) by f12_029c → f25_027a on the boxes' extents (+18, set by
+    // f12_093b: the bottom from the lower of the two heights, the
+    // difference high; a box at its parent's height is empty). The more
+    // ones first: an empty one before the rest; else apart along y the
+    // further back, along x the further left, along z the lower; else by
+    // y (the same: 1).
+    struct Extent {
+        int x, y, z, w, h, d;
+    };
+    auto extent = [](const Box& b) {
+        const int P = b.parentHeight();
+        int z = P, d = b.height - P;
+        if (d < 0) z += d, d = -d;
+        return Extent{b.bottom.x, b.bottom.y, z, b.bottom.w, b.bottom.h, d};
+    };
+    // f25_0000, f25_00a9, f25_0157: one's ends within the other's span.
+    auto meet = [](int a, int aw, int b, int bw) {
+        if (aw == 0 || bw == 0) return false;
+        const int bEnd = b + bw - 1, aEnd = a + aw - 1;
+        return (b <= a && a <= bEnd) || (b <= aEnd && aEnd <= bEnd) || (a <= b && bEnd <= aEnd);
+    };
+    auto& list = parent.children;
+    sorterSort(0, static_cast<int>(list.size()) - 1, [&](int i, int j) {
+        const Extent a = extent(*list[static_cast<size_t>(i)]), b = extent(*list[static_cast<size_t>(j)]);
+        const bool aEmpty = a.w == 0 || a.h == 0 || a.d == 0, bEmpty = b.w == 0 || b.h == 0 || b.d == 0;
+        if (aEmpty) return bEmpty ? 1 : 2;
+        if (bEmpty) return 0;
+        if (!meet(a.y, a.h, b.y, b.h)) return b.y <= a.y ? 2 : 0;
+        if (!meet(a.x, a.w, b.x, b.w)) return a.x < b.x ? 2 : 0;
+        if (!meet(a.z, a.d, b.z, b.d)) return a.z < b.z ? 2 : 0;
+        return b.y < a.y ? 2 : a.y < b.y ? 0 : 1;
+    }, [&](int i, int j) { std::swap(list[static_cast<size_t>(i)], list[static_cast<size_t>(j)]); });
 }
 
 int Science::heightUnder(int x, int y) const {

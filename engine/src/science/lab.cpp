@@ -2,6 +2,7 @@
 // Edison walks in, asks the player's name, and the Character Enhancer.
 
 #include "science/science.h"
+#include "science/sorter.h"
 
 #include <algorithm>
 #include <cctype>
@@ -226,51 +227,11 @@ void Science::characterEnhancer() {
 // --- the players' files ---------------------------------------------------------
 
 void Science::sortPlayers(int lo, int hi) {
-    // f39_1183, through the list's compare (f19_1061: 0 less, 1 the same,
-    // 2 more, by score) and swap (f39_1940): none if all are the same;
-    // the pivot the first, unless the first different one after it is
-    // less: then that one. f39_129d partitions: the pivot to the end,
-    // the more ones to the front.
-    auto cmp = [&](int i, int j) {
+    // f39_1183 through the list's compare (f19_1061: by score).
+    sorterSort(lo, hi, [&](int i, int j) {
         const long a = players_[static_cast<size_t>(i)].score, b = players_[static_cast<size_t>(j)].score;
         return a < b ? 0 : a == b ? 1 : 2;
-    };
-    auto swapAt = [&](int i, int j) { std::swap(players_[static_cast<size_t>(i)], players_[static_cast<size_t>(j)]); };
-    if (lo == hi) return;
-    int k = lo;
-    while (k <= hi) {
-        const int r = cmp(k, lo);
-        if (r != 1 && r != 2) break;
-        if (r == 2) {
-            k = lo;
-            break;
-        }
-        ++k;
-    }
-    if (k > hi) return;
-    int i = lo, j = hi;
-    swapAt(k, hi);
-    int p;
-    for (;;) {
-        bool done = false;
-        while (cmp(i, hi) == 2)
-            if (++i >= j) {
-                done = true;
-                break;
-            }
-        if (done) break;
-        while (cmp(j, hi) != 2)
-            if (--j == i) {
-                done = true;
-                break;
-            }
-        if (done) break;
-        swapAt(i, j);
-        if (++i >= j) break;
-    }
-    p = i;
-    sortPlayers(lo, p - 1);
-    sortPlayers(p, hi);
+    }, [&](int i, int j) { std::swap(players_[static_cast<size_t>(i)], players_[static_cast<size_t>(j)]); });
 }
 
 void Science::addPlayer(const PlayerEntry& p) {

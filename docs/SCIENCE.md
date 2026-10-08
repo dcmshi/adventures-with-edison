@@ -930,10 +930,9 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
     original with the S key (`S02`): the box, the ball set down
     (317, 226, 10) and (529, 292, 10), and the holes drawn shut.
 - Rooms 18 (`+FC4`), 34 (`+FA4`, `+FA6`), 35 (`+FC0`) and 55 (`+FB4`,
-  `+FB6`) read fields their own code (not ported) sets. Room 35 shows a
-  "POW" sack (one of its objects, not ported) and its middle walls in a
-  different order (the standing boxes' painter's order). The port draws
-  a dark line along room 2's ramp's edge.
+  `+FB6`) read fields their own code (not ported) sets. Rooms 2 and 35
+  at rest match the original (the boxes' order, above) but for the
+  columns' random balls and a target's sparkle.
 
 ## The room's other objects (being ported: `things.cpp`)
 
@@ -1476,7 +1475,19 @@ through the run time's streams in segment 90). Text, in three parts:
    height; then the byte 01 and a child box, as many as it has, and the
    byte 02. Each
    box is relative to its parent (its x, y and height are taken off) and is
-   made by the room's method 1. The root is the floor, `0 0 809 789` (the
+   made by the room's method 1. Each one added, its parent's children are
+   sorted (`f12_3e0d`: segment 39's quicksort, as the high scores', with
+   `f12_029c` → `f25_027a` on the boxes' extents, `+18`, set by
+   `f12_093b`: the bottom from the lower of the two heights, the
+   difference high), the "more" ones first: an empty extent (a box at its
+   parent's height) before the rest; else, apart along y, the further back;
+   along x, the further left; along z, the lower; else the larger y. So
+   the tree's order (what's drawn first, `f12_38ad`, and the face under a
+   point) isn't the file's: in room 35 the block at x 419-538 comes before
+   the one at 539, which hides its right side. Checked against the
+   original at rest: rooms 35, 39 and 63 then match but for the columns'
+   random balls (40's walls too; its lips and targets are a frame apart).
+   The root is the floor, `0 0 809 789` (the
    world is 809 x 789). `S1.SRF` (the menu) is the floor, two walls 400 high
    and a pit 50 deep whose floor (660, 60, 149, 149) is smaller than its
    mouth (570, 0, 239, 209): the ramp at the front and left down to EXIT.
