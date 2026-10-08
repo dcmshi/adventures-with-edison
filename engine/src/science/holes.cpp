@@ -255,7 +255,8 @@ void Science::dropBall(bool right) {
             logLine("drop c " + std::to_string(b.cx) + "," + std::to_string(b.cy) + "," + std::to_string(b.cz) + " v 0,0,0");
         viewDirty_ = true;
         uint64_t now = ctx_.platform.milliseconds();
-        while (now < start + static_cast<uint64_t>(step / 2)) now = ctx_.platform.milliseconds();
+        // (Pumped while it waits: under --virtual-clock that's what moves time.)
+        while (now < start + static_cast<uint64_t>(step / 2)) ctx_.pump(), now = ctx_.platform.milliseconds();
         if (now >= shown + 16 || (x == b.startX && y == b.startY && z == gz)) {
             flushRoom();
             ctx_.pump();

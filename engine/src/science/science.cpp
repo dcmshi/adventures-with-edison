@@ -75,7 +75,7 @@ void Science::run() {
     // from the arcade's holes.
     int room = -1;
     if (start < 0 || start == 501) room = lesson(5);  // room 505, then room 1
-    else if (start >= 505 && start <= 510) room = lesson(start - 500);
+    else if (start >= 505 && start <= 510) room = start;  // (the arcade's loop plays it)
     if (room > 0) arcade(room);
     if (options_.music) ctx_.platform.setFmDriver(std::string());
 }
@@ -130,8 +130,18 @@ void Science::arcade(int room) {
             if (room >= 505 && room <= 510) {
                 if (from > 0 && roomEndFlag_) roomEnd();
                 previousRoom_ = room;
-                room = lesson(room - 500);
+                const int n = room - 500;
+                room = lesson(n);
                 quietScore_ = true;  // f15_08b7, the lesson's end: [171C]
+                if (n == 10) {
+                    // Its last step (15:29C5): the game's won ([26CC]),
+                    // then f31_06c0: the game recorded (f40_068b: room
+                    // 65's level and screen), the high scores (f40_0000),
+                    // event 2 (a new game).
+                    gameWon_ = true;
+                    recordGame();
+                    gameOver_ = true, room = 502;
+                }
                 break;
             }
             logLine("Wild Science Arcade: room " + std::to_string(room) + " isn't ported");

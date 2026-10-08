@@ -457,7 +457,7 @@ private:
     int roomVar_[7] = {};      // the room's own +FA2, +FA4, +FA6, +FC0, +FC4, +FBE, +FC2
     int roomObj_[5] = {-1, -1, -1, -1, -1};  // the room's own objects (list indices): +FB4, +FB6, +FB8, +FA8, +FBA
     int gameFlag_[3] = {};     // [8E50], [8E52], [8E54] (cleared for a new game, f31_1b48)
-    bool gameWon_ = false;     // [26CC]: the game's won (set by lesson 10's end, not ported yet)
+    bool gameWon_ = false;     // [26CC]: the game's won (set by lesson 10's end)
     bool gameOver_ = false;    // the last ball lost: after the high scores, event 2 (a new game)
     void spitBall(Object& o, int mode);
     void ballToStart();

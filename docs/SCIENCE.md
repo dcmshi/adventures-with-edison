@@ -113,8 +113,13 @@ on screen 1, up to 130 countdown ticks or a key or click, then `f20_0094`.
   then room 50) six lines, 7 (`2003`, room 2) three, 8 (`2003`, room 57)
   three (the last Edison's: anchor (166, 282), tail 0), 9 (`2006`, room
   67) three (Edison (100, 250) tail 0; the professor (352, 300)), 10
-  (`2005`, no room: `[26CC]` = 1, then `f31_001a` and `31:1728`) four
-  (anchors (530, 186), (216, 210) tail 1 width 150, (550, 146)).
+  (`2005`, no room) four (anchors (530, 186), (216, 210) tail 1 width
+  150, (550, 146)); its last step (`15:29C5`) wins the game: the bubble
+  gone, `[26CC]` = 1, then `f31_06c0` with the player (`[26D6]`,
+  `f31_001a`): the game recorded (`f40_068b`, below), the high scores
+  (`f40_0000` with 0), event 2 (a new game). Entering a lesson keeps the
+  room (`+AE`; its end, `f38_020f`, if `+F71`), so the score recorded is
+  the last room's.
 - Two animated objects in each (added before the bubbles, so under them):
   the professor (`f15_0bde`: `13BB`, 3 frames over 50 ticks, at (500,
   130); lesson 9 `f15_0f19`: `13C7`, 6, at (14, 210); 10 `f15_0e43`:
@@ -1353,8 +1358,13 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   502, then event 2 (`f31_1b45` with 1: a new game, `[8E50]`-`[8E56]`,
   `[26CC]`, the score cleared, the balls 7 and 0, event 9 to room 1).
   Checked against the original pixel for pixel: the screen from room 1's
-  hole (its tie order and the file it saves); the game over only in the
-  port (`SCI_BALLS=0,0`: room 32's lava, `Player 0 4 4` recorded).
+  hole (its tie order and the file it saves); the game over (room 32: all
+  eight balls, one on the table and seven in the column, shot into its
+  lava; `Player 0 4 4` recorded, the screen the same); the game won (room
+  65 at power 16 into its hole to 510, its bonus 3000, lesson 10 to its
+  end: `Player 3000 5 15` recorded, room 65's level and screen, the
+  screen the same). The saved files the same but for the empty record
+  the original appends.
 - **The credits** (room 503, `f38_0eb9`; ported: `credits`): the display
   cleared, `2009` with the player's look on screen 2 (`f14_092c`,
   `f19_06bc`), sound `6013`, shown till a key or a button, then event 9
