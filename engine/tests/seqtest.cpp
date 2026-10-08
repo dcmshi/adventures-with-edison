@@ -257,7 +257,7 @@ int main(int argc, char** argv) {
         else if (arg == "--trace" && i + 1 < argc) gTracePath = argv[++i];
         else dlls.push_back(arg);
     }
-    if (dlls.empty() && !casesOnly) dlls = {"ADLIB", "ADLIB1", "ADLIB2", "ADLIB3", "ADLIB4", "CADLIB", "MADLIB"};
+    if (dlls.empty() && !casesOnly) dlls = {"ADLIB", "ADLIB1", "ADLIB2", "ADLIB3", "ADLIB4", "CADLIB", "MADLIB", "SADLIB"};
 
     Result total;
     auto add = [&total](const Result& r) {

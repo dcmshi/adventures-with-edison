@@ -39,8 +39,10 @@ CASES = {
              "--drag", 2000, 540, 340, 540, 340, 80, "--move", 2100, 544, 340, "--quit-after", 13000],
 }
 # The whole screen at the end against a shot of the original: known counts
-# (the table's grid lines, the score), failing only if they grow.
-WHOLE = {"rest": (SCRATCH / "room1_ref.png", 590), "shot": (SCRATCH / "orig_shot" / "bend.png", 542)}
+# (the table's grid lines, the score, the left column's balls: random, as
+# the original's, and moved by every draw, the music's too), failing only if
+# they grow.
+WHOLE = {"rest": (SCRATCH / "room1_ref.png", 514), "shot": (SCRATCH / "orig_shot" / "bend.png", 677)}
 # Frames against the original's at the same times.
 FRAMES = {
     "sl": ("orig_play4", ["2000:s1", "4000:s2"]),

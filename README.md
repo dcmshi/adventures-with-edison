@@ -75,7 +75,7 @@ cmake --build build
 
 ## Running the port
 
-`edison` is the native version of EDISON.EXE: the opening, the main menu and Mystery at the Museums (the whole game), with FM music and sound effects. Rock and Bach is ported; Wild Science Arcade is well along (its title, story, laboratory, lessons and the arcade's tables and rooms, checked against the original; it has no FM music yet). Open items are tracked in [TODO.md](TODO.md).
+`edison` is the native version of EDISON.EXE: the opening, the main menu and Mystery at the Museums (the whole game), with FM music and sound effects. Rock and Bach is ported; Wild Science Arcade is well along (its title, story, laboratory, lessons and the arcade's tables and rooms, checked against the original, with its FM music). Open items are tracked in [TODO.md](TODO.md).
 
 Run it from the repository's folder (the CD folder defaults to `original/cd/DSK3`, and saved games and high scores go to `save/`), or pass the CD's `DSK3` folder:
 
@@ -112,6 +112,7 @@ at the game's music rate (72 updates per 76 ticks of a 13 ms timer, about 72.9 H
 build/engine/fmplay original/cd/DSK3/ADLIB.DLL                  # list sounds by name
 build/engine/fmplay original/cd/DSK3/ADLIB.DLL SUNROCK1 SUNROCK2 SUNROCK3 SUNROCK4                     SUNROCK5 SUNROCK6 SUNROCK7 SUNROCK8          # a Rock and Bach band
 build/engine/fmplay original/cd/DSK3/MADLIB.DLL DROPTILE --wav droptile.wav
+build/engine/fmplay original/cd/DSK3/SADLIB.DLL 13             # Wild Science's title song (by id: its debug info has no names)
 ```
 
 ### Sequencer test

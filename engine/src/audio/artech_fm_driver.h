@@ -8,7 +8,7 @@
 
 namespace edison {
 
-// Native port of Artech's FM sound driver (ADLIB*.DLL, CADLIB, MADLIB).
+// Native port of Artech's FM sound driver (ADLIB*.DLL, CADLIB, MADLIB, SADLIB).
 //
 // All driver state lives in a copy of the DLL's 64 KB data segment at the
 // original offsets: song data addresses it directly (jumps, calls, tables),
@@ -57,7 +57,7 @@ public:
     void flushEvents();   // GFLUSH
     // Rock and Bach's entries (ADLIB.DLL, ADLIB1-4.DLL).
     uint16_t getAddr(int which) const;              // GETADDR: 1/2 the sound table, 3 patches, 4 motor tables
-    uint16_t getVar() const { return 0x52E; }       // GETVAR: the byte song data sets (the same in every build)
+    uint16_t getVar() const { return static_cast<uint16_t>(0x52E + base_); }  // GETVAR: the byte song data sets
     uint8_t channelStatus(uint8_t channel);         // SSTATUS: the channel's ticks left (+05)
     void installPatch(uint8_t channel, uint8_t patch);  // INSTALL_PATCH (171C): WRITEPATCH on the channel
     void directDrumOut(uint8_t drums);              // DIRECTDRUMOUT (1749): key drums on in reg BD
@@ -87,33 +87,34 @@ public:
     const std::array<uint32_t, 0x53>& opcodeCounts() const { return opcodeCounts_; }
 
 private:
-    // Data-segment variables at fixed addresses (identical in every build).
-    enum : uint16_t {
-        LASTDUR = 0x1E0,        // duration of the last note/rest parsed
-        CURCHANNEL = 0x1E3,     // channel being processed
-        DO_SOUND = 0x1E4,       // sequencer running
-        DRUMMASK = 0x1E5,       // rhythm mode enabled / drums keyed (reg BD bits)
-        DRUMBITS = 0x1E6,       // drums keyed by the last DODRUM
-        GLOBALTEMPO = 0x1E7,
-        MOTORFLAG = 0x1E8,
-        MOTORDUR = 0x1E9,
-        MOTORDCNT = 0x1EA,
-        NOISEINDEX = 0x1EB,
-        SEED = 0x1ED,
-        STATE = 0x1EF,          // motor key toggle
-        SHADOWBD = 0x1F0,       // AM/vibrato depth bits of reg BD
-        YAMOFF = 0x1F1,         // operator offset of the current channel
-        NOTESYNC = 0x201, NOTECNTR = 0x202, PRESYNC = 0x203, SYNCBYTE = 0x204, SYNCHI = 0x205,
-        DURTABLEPTR = 0x206, PITCHTABLEPTR = 0x208,
-        SOUNDTABLEPTR = 0x20A,
-        SOUNDSYSTICK = 0x214,
-        BUFFHEAD = 0x225, BUFFTAIL = 0x227, BUFF = 0x229,  // SENDSND queue
-        SPRAM1 = 0x239,         // channel 0's block
-        SCHNLPTR = 0x4D7,       // channel block pointers
-        OPOFFSETS = 0x4EB,      // operator register offset per channel
-        FREQTABLE = 0x4F4,      // 12 F-numbers
-        GQ = 0x50C, GQ_W = 0x52C, GQ_R = 0x52D,  // game-event ring (32 entries)
-    };
+    // Data-segment variables, at ADLIB.DLL's addresses; loadDll moves them by
+    // the build's base (SADLIB, Wild Science's older build: 0x4F8, after its
+    // C runtime's data).
+    uint16_t BENDTABLES = 0x000;  // the bend tables' pointers, one per semitone
+    uint16_t LASTDUR = 0x1E0;  // duration of the last note/rest parsed
+    uint16_t CURCHANNEL = 0x1E3;  // channel being processed
+    uint16_t DO_SOUND = 0x1E4;  // sequencer running
+    uint16_t DRUMMASK = 0x1E5;  // rhythm mode enabled / drums keyed (reg BD bits)
+    uint16_t DRUMBITS = 0x1E6;  // drums keyed by the last DODRUM
+    uint16_t GLOBALTEMPO = 0x1E7;
+    uint16_t MOTORFLAG = 0x1E8;
+    uint16_t MOTORDUR = 0x1E9;
+    uint16_t MOTORDCNT = 0x1EA;
+    uint16_t NOISEINDEX = 0x1EB;
+    uint16_t SEED = 0x1ED;
+    uint16_t STATE = 0x1EF;  // motor key toggle
+    uint16_t SHADOWBD = 0x1F0;  // AM/vibrato depth bits of reg BD
+    uint16_t YAMOFF = 0x1F1;  // operator offset of the current channel
+    uint16_t NOTESYNC = 0x201, NOTECNTR = 0x202, PRESYNC = 0x203, SYNCBYTE = 0x204, SYNCHI = 0x205;
+    uint16_t DURTABLEPTR = 0x206, PITCHTABLEPTR = 0x208;
+    uint16_t SOUNDTABLEPTR = 0x20A;
+    uint16_t SOUNDSYSTICK = 0x214;
+    uint16_t BUFFHEAD = 0x225, BUFFTAIL = 0x227, BUFF = 0x229;  // SENDSND queue
+    uint16_t SPRAM1 = 0x239;  // channel 0's block
+    uint16_t SCHNLPTR = 0x4D7;  // channel block pointers
+    uint16_t OPOFFSETS = 0x4EB;  // operator register offset per channel
+    uint16_t FREQTABLE = 0x4F4;  // 12 F-numbers
+    uint16_t GQ = 0x50C, GQ_W = 0x52C, GQ_R = 0x52D;  // game-event ring (32 entries)
 
     // What the sequencer does after handling an event (0C5E / 0CC5 / 0CCB).
     enum class Flow { Parse, Effects, NextChannel };
@@ -211,7 +212,8 @@ private:
         return Channel(*this, word(static_cast<uint16_t>(SCHNLPTR + static_cast<uint8_t>(index << 1))));
     }
     uint8_t opOffset(uint8_t channelIndex) {
-        return mem_[static_cast<uint16_t>(0x0400 | static_cast<uint8_t>(OPOFFSETS + channelIndex))];
+        // (add bl,[CURCHANNEL] on mov bx,OPOFFSETS: an 8-bit add.)
+        return mem_[static_cast<uint16_t>((OPOFFSETS & 0xFF00) | static_cast<uint8_t>(OPOFFSETS + channelIndex))];
     }
     uint8_t nextByte() { return mem_[pc_++]; }
     uint16_t nextWord() { const uint16_t v = word(pc_); pc_ = static_cast<uint16_t>(pc_ + 2); return v; }
@@ -249,7 +251,10 @@ private:
     void pushEvent(uint8_t value);
     void drumLevels(uint8_t mask, uint8_t value, int mode);  // DRUMATTN / DRUMFADE / DRUMMASTERATTN
 
+    void relocate(uint16_t base);  // the variables above moved to this build's base
+
     std::array<uint8_t, 0x10000> mem_{};
+    uint16_t base_ = 0;  // where this build's variables are past ADLIB.DLL's
     Layout layout_;
     OplWrite opl_;
     uint16_t pc_ = 0;  // event stream read position (SI in the original)

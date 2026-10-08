@@ -143,7 +143,7 @@ A DOS-style sound driver ported to a Win16 DLL. Disassemble with `tools/disasm.p
   - `AL` bit 7 clear: note event
   - `AL` bit 7 set: command `AL & 0x7F` (up to `0x70`), dispatched via a near-pointer jump table (`cs:1AEE` in ADLIB.DLL)
 - **Music data** lives in data segment 2 of each DLL (ADLIB 58 KB, CADLIB 19 KB, ADLIB1 5.6 KB, MADLIB 7 KB).
-- ADLIB, ADLIB1-4, CADLIB, MADLIB share the same driver code (tables at nearly identical offsets); SADLIB (Wild Science) is a smaller variant.
+- ADLIB, ADLIB1-4, CADLIB, MADLIB share the same driver code (tables at nearly identical offsets); SADLIB (Wild Science) is an older build of it: ops up to 52 only, its code in segment 2 and data in 3, its variables 0x4F8 further on.
 - Exports: `INIT_ADLIB`, `UPDATE_ADLIB`, `SENDSND`, `SSTATUS`, `SWITCHSOUNDTABLE`, `INSTALL_PATCH`, `PLAYINS`, `DIRECTDRUMOUT`, `ABORTSAMPLE`, ...
 
 ### Plan

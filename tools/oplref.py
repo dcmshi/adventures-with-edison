@@ -36,20 +36,36 @@ MEM_SIZE = 0x60000
 
 
 
-def detect_layout(ne):
-    """Find the driver's data addresses in its own code (they shift per DLL).
+# The tick's start: mov byte [CURCHANNEL],9 / mov bl,[CURCHANNEL] / mov bh,0 /
+# shl bl,1 / mov di,[bx+SCHNLPTR] (ADLIB's CURCHANNEL is 1E3).
+TICK = re.compile(rb"\xc6\x06(..)\x09\x8a\x1e\1\xb7\x00\xd0\xe3\x8b\xbf(..)", re.S)
 
-    See docs/SEQUENCER.md; offsets named after ADLIB.DLL's values.
+
+def detect_layout(ne):
+    """Find the driver's segments and data addresses in its own code (they
+    shift per DLL).
+
+    See docs/SEQUENCER.md; offsets named after ADLIB.DLL's values. The ADLIB
+    family has its driver in segment 1 and data in 2; SADLIB (Wild Science)
+    has Borland C++ wrappers in 1, the same driver in 2 and data in 3, every
+    driver variable 0x4F8 bytes further on.
     """
-    code = ne.segment_bytes(1)
     u16 = lambda b: int.from_bytes(b, "little")
-    # SWITCHSOUNDTABLE: shl bx,1 / mov bx,[bx+TABLES] / mov [CUR],bx
-    m = re.search(rb"\xd1\xe3\x8b\x9f(..)\x89\x1e(..)", code, re.S)
+    for code_seg in range(1, len(ne.segments)):
+        code = ne.segment_bytes(code_seg)
+        tick = TICK.search(code)
+        if tick:
+            break
+    else:
+        raise ValueError("not an Artech ADLIB-family driver")
+    base = u16(tick.group(1)) - 0x1E3
+    # SWITCHSOUNDTABLE: shl bx,1 / mov bx,[bx+TABLES] / mov [SOUNDTABLEPTR],bx
+    current = 0x20A + base
+    m = re.search(rb"\xd1\xe3\x8b\x9f(..)\x89\x1e" + re.escape(current.to_bytes(2, "little")), code, re.S)
     if not m:
         raise ValueError("not an Artech ADLIB-family driver")
-    tables, current = u16(m.group(1)), u16(m.group(2))
-    # channel pointer table: mov di,[bx+CHAN]
-    chan = u16(re.search(rb"\x8b\xbf(..)", code, re.S).group(1))
+    tables = u16(m.group(1))
+    chan = u16(tick.group(2))
     # opcode dispatch: mov si,JUMPTABLE / mov bx,cs:[bx+si]; op 26 = GTEMPO: mov [TEMPO],ah
     jt = u16(re.search(rb"\xbe(..)\x2e\x8b\x18", code, re.S).group(1))
     op26 = u16(code[jt + 2 * 0x26:jt + 2 * 0x26 + 2])
@@ -57,11 +73,12 @@ def detect_layout(ne):
         raise ValueError("unexpected GTEMPO handler")
     tempo = u16(code[op26 + 2:op26 + 4])
     # STUFFPATCH: mov cl,[YAMOFF] / sub bx,bx / mov bl,ah / shl bx,1 / mov si,[bx+PATCH]
-    patch = u16(re.search(rb"\x8a\x0e\xf1\x01\x2b\xdb\x8a\xdc\xd1\xe3\x8b\xb7(..)", code, re.S).group(1))
+    yamoff = re.escape((0x1F1 + base).to_bytes(2, "little"))
+    patch = u16(re.search(rb"\x8a\x0e" + yamoff + rb"\x2b\xdb\x8a\xdc\xd1\xe3\x8b\xb7(..)", code, re.S).group(1))
     init = next(n for n in ne.names.values() if n.startswith("INIT_ADLIB"))
     return {"sound_tables": tables, "current_table": current, "chan_table": chan,
             "global_tempo": tempo, "jump_table": jt, "patch_table": patch,
-            "suffix": init[len("INIT_ADLIB"):]}
+            "suffix": init[len("INIT_ADLIB"):], "code_seg": code_seg, "data_seg": code_seg + 1}
 
 
 class DriverHarness:
@@ -75,7 +92,7 @@ class DriverHarness:
         self._stubs = {}
         for index, para in SEG_PARA.items():
             uc.mem_write(para << 4, self._relocated(index))
-        self.data_base = SEG_PARA[2] << 4
+        self.data_base = SEG_PARA[self.layout["data_seg"]] << 4
         self.tick = 0
         self.log = []
         self._latch = 0
@@ -141,6 +158,14 @@ class DriverHarness:
         """
         seg, off = self.ne.export(name + self.layout["suffix"])
         uc = self.uc
+        if seg != self.layout["code_seg"]:
+            # A Borland wrapper (SADLIB): its stack check can't run here, so
+            # call the driver routine its far call goes to (the arguments are
+            # where that routine expects them either way).
+            wrapper = bytes(uc.mem_read((SEG_PARA[seg] << 4) + off, 0x20))
+            at = wrapper.index(b"\x9a")
+            off, para = struct.unpack_from("<HH", wrapper, at + 1)
+            seg = next(i for i, p in SEG_PARA.items() if p == para)
         uc.reg_write(UC_X86_REG_SS, STACK_PARA)
         sp = 0xFFF0
         for a in args:  # pascal: push left to right
@@ -149,8 +174,8 @@ class DriverHarness:
         sp -= 4
         uc.mem_write((STACK_PARA << 4) + sp, struct.pack("<HH", 0x0000, STUB_PARA))
         uc.reg_write(UC_X86_REG_SP, sp)
-        uc.reg_write(UC_X86_REG_DS, SEG_PARA[3])  # DGROUP, as Windows would set
-        uc.reg_write(UC_X86_REG_ES, SEG_PARA[3])
+        uc.reg_write(UC_X86_REG_DS, SEG_PARA[self.layout["data_seg"]])  # DGROUP, as Windows would set
+        uc.reg_write(UC_X86_REG_ES, SEG_PARA[self.layout["data_seg"]])
         uc.reg_write(UC_X86_REG_CS, SEG_PARA[seg])
         uc.reg_write(UC_X86_REG_IP, off)
         try:
@@ -235,7 +260,7 @@ def record(dll, ids=None, max_ticks=6000, tempo=0x80):
         ended = "ends" if h.idle() else "loops/long"
         ptr = h.word(h.word(h.layout["current_table"]) + 2 * sid)
         chan = h.byte(ptr)
-        name = names.get((2, ptr), "")
+        name = names.get((h.layout["data_seg"], ptr), "")
         (outdir / f"{sid:03d}.txt").write_text(
             "".join(f"{t} {r:02x} {v:02x}\n" for t, r, v in h.log))
         summary.append(f"{sid:3d} {name:<14} ch{chan:<2} ticks {h.tick:5d} writes {len(h.log):6d} {ended}")

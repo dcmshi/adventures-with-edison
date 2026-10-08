@@ -1370,6 +1370,9 @@ void Science::enterRoom(int room) {
     roomPictures(room);
     roomArrival(room);
     toDisplay(3);
+    // Then the look (f19_06bc) and the arcade's music (31:19B5, f32_135d(25)),
+    // before event 5.
+    fmSound(0x25);
     redrawTable({0, 0, Screen::kWidth, Screen::kHeight});
     // The player's objects (f31_27de: +A4 the panel, +AA and +AC the
     // columns, their method +40); the columns keep the player's counts

@@ -64,7 +64,7 @@ Bit 1 of the held-keys bitmap (`DS:9560`, Escape) skips the rest.
 4. Screen 1, fill the clip box with colour 2, fade (`f14_0000(3)`), palette
    (`f14_003a(1)`).
 
-The title before it (`f32_0319`): FM sound `0D` (`SADLIB`), picture `2000`
+The title before it (`f32_0319`): FM sound `0D` (`SADLIB`, a song that plays on through the story), picture `2000`
 on screen 1, up to 130 countdown ticks or a key or click, then `f20_0094`.
 
 ## The laboratory (room 501, `f19_0a59`, ported: `lab.cpp`)
@@ -169,6 +169,42 @@ on screen 1, up to 130 countdown ticks or a key or click, then `f20_0094`.
   line's length), back to the space before (`f23_0193`, the space left
   for the next line) while too wide, else on to the next space
   (`f23_0218`, the space kept) while it fits.
+
+## The FM music (`SADLIB.DLL`, ported: `audio/artech_fm_driver.cpp`)
+
+`SADLIB` is the ADLIB family's driver (docs/SEQUENCER.md), an older build:
+Borland C++ wrappers in code segment 1 (each export a stack check and a far
+call), the driver in segment 2 and its data in 3. Against ADLIB.DLL's driver
+the code is the same instruction for instruction but for two things: every
+driver variable is 0x4F8 bytes further on (after the C runtime's data:
+`CURCHANNEL` 6DB, `SCHNLPTR` 9CF, the bend tables' pointers at 4F8 rather
+than 0), and ops 50-52 have no `GE_FLG` counter (as CADLIB and MADLIB); its
+jump table stops at op 52. The native driver finds the base from the tick's
+code and moves its variables by it; all 68 of SADLIB's sounds match the
+original driver's register writes (`tools/oplref.py`, `seqtest`). The songs
+set their own tempo (the same writes at a global tempo of 0 or 80h); the game
+never sets it.
+
+WMAIN uses only `INIT_ADLIB`, `REMOVE_ADLIB`, `SENDSND` and `UPDATE_ADLIB`
+(72 Hz through `SArtDLL`'s timer, `f77_0000`, as the other games). Its
+`SENDSND`s go through `f32_135d` but one:
+
+- `f32_135d(n)` (`[26D0]`, always 1): with the sounds off (`[27F6]`, the `s`
+  key) only 0, the music off. 25 is the arcade's music: one of three songs
+  by Borland's `rand` x 20 / 8000h, under 8 song 31, under 14 song 25, else
+  39 (a byte it works out from the first is never used); the draw is made
+  even with the music off. Then `SENDSND` with the music on (`[5FF6]`: none of
+  WinMain's four switches).
+- Its calls: the title (`f32_0319`, 0D, a song that loops: it plays through
+  the story); event 9 (`f31_0783`) begins with 0, and a table's ends with 25
+  once it's on the display (31:19B5: the high scores, credits and lab stay
+  quiet); a lesson's picture (`f15_076a`, 25); PUSH (`f30_0496`, 0); `p`
+  (after 120 ticks, with the sounds on, the WAV stopped and 0; after OK, 25);
+  `s` (off: the WAV stopped and 0; on: 25); the game object's end
+  (`f32_059c`, 0).
+- `f36_004e` is the story's `s` (`[9562]` bit 15, read by `f36_0000`): the
+  sounds over, and when off the WAV stopped and `SENDSND(0)` itself (with
+  `[5FF6]`). Not ported: the port's story has no `s` key.
 
 ## The segments
 

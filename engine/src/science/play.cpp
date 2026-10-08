@@ -322,7 +322,8 @@ void Science::keyEvent(int key) {
     // f31_1d70, the player's method 3 (event 8, a key). With a room (+AE)
     // and nothing holding the keys (+B0):
     // - p: a pause, box 609 (face 1, style 1, narration 6181), 120 ticks,
-    //   the music off, OK, the music on (music 25);
+    //   with the sounds on the WAV stopped and the music off (f75_0000,
+    //   f32_135d(0)), OK, the music on (music 25);
     // - q: "quit?" (face 0, 20B, buttons 202, sound 6016): yes, event 3;
     // - m: face 2, 613 (buttons 202, narration 618B), yes: 614 (618C),
     //   yes: face 0, 615 (style 1, sound 6018), event 9 to room 24.
@@ -330,8 +331,7 @@ void Science::keyEvent(int key) {
     // the music off, f75_0000, f32_135d(0); on: music 25); S and two
     // digits (Borland's ctype, bit 2): event 9 to that room (1 outside
     // 1-110). Other keys go to the holder (+B0: none in play), else the
-    // room (its +1C, f27_31fb in every room), else the panel. (No FM music
-    // in this game yet.)
+    // room (its +1C, f27_31fb in every room), else the panel.
     const Rect& v = table_.view;
     auto box = [&](int face, int style, uint16_t message, uint16_t firstLine, int lines) {
         Dialog d;
@@ -346,7 +346,12 @@ void Science::keyEvent(int key) {
         dialogOpen(d);
         narration(0x6181, false);
         dialogWait(0x78);
+        if (soundsOn_) {
+            ctx_.platform.stopWav();
+            fmSound(0);
+        }
         dialogRun(d);
+        if (soundsOn_) fmSound(0x25);
         return;
     }
     case 'q':
@@ -376,7 +381,12 @@ void Science::keyEvent(int key) {
     }
     case 's':
         soundsOn_ = !soundsOn_;
-        if (!soundsOn_) ctx_.platform.stopWav();
+        if (!soundsOn_) {
+            ctx_.platform.stopWav();
+            fmSound(0);
+        } else {
+            fmSound(0x25);
+        }
         return;
     case 'S': {
         // (f36_0000 till a key, twice.)

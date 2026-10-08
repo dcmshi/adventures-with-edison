@@ -58,19 +58,30 @@ uint8_t u8(unsigned v) { return static_cast<uint8_t>(v); }
 bool ArtechFmDriver::loadDll(const std::string& path, std::string* error) {
     NeFile ne;
     if (!ne.load(path, error)) return false;
-    const std::vector<uint8_t> code = ne.segment(1);
-    const std::vector<uint8_t> data = ne.segment(2);
-    if (code.empty() || data.empty()) {
-        if (error) *error = path + ": missing code or data segment";
+    // The driver's code: the segment with its tick (0BF1: mov byte [CURCHANNEL],9 /
+    // mov bl,[CURCHANNEL] / mov bh,0 / shl bl,1), its data the next one. The
+    // ADLIB family has them in 1 and 2; SADLIB has Borland C++ wrappers in 1.
+    std::vector<uint8_t> code, data;
+    long tick = -1;
+    for (int s = 1; s < ne.segmentCount() && tick < 0; ++s) {
+        code = ne.segment(s);
+        tick = findPattern(code, {0xC6, 0x06, X, X, 0x09, 0x8A, 0x1E, X, X, 0xB7, 0x00, 0xD0, 0xE3});
+        if (tick >= 0) data = ne.segment(s + 1);
+    }
+    if (tick < 0 || data.empty()) {
+        if (error) *error = path + ": not an Artech ADLIB-family driver";
         return false;
     }
+    relocate(static_cast<uint16_t>(le16(code, tick + 2) - 0x1E3));
+    const auto lo = [](uint16_t a) { return a & 0xFF; };
+    const auto hi = [](uint16_t a) { return a >> 8; };
 
     // SWITCHSOUNDTABLE: shl bx,1 / mov bx,[bx+TABLES] / mov [SOUNDTABLEPTR],bx
-    const long tables = findPattern(code, {0xD1, 0xE3, 0x8B, 0x9F, X, X, 0x89, 0x1E, 0x0A, 0x02});
+    const long tables = findPattern(code, {0xD1, 0xE3, 0x8B, 0x9F, X, X, 0x89, 0x1E, lo(SOUNDTABLEPTR), hi(SOUNDTABLEPTR)});
     // STUFFPATCH: mov cl,[YAMOFF] / sub bx,bx / mov bl,ah / shl bx,1 / mov si,[bx+PATCH]
-    const long patch = findPattern(code, {0x8A, 0x0E, 0xF1, 0x01, 0x2B, 0xDB, 0x8A, 0xDC, 0xD1, 0xE3, 0x8B, 0xB7, X, X});
+    const long patch = findPattern(code, {0x8A, 0x0E, lo(YAMOFF), hi(YAMOFF), 0x2B, 0xDB, 0x8A, 0xDC, 0xD1, 0xE3, 0x8B, 0xB7, X, X});
     // MOTORON: mov bx,[bx+MOTORTABLES] / mov [DURTABLEPTR],bx
-    const long motor = findPattern(code, {0x8B, 0x9F, X, X, 0x89, 0x1E, 0x06, 0x02});
+    const long motor = findPattern(code, {0x8B, 0x9F, X, X, 0x89, 0x1E, lo(DURTABLEPTR), hi(DURTABLEPTR)});
     // op 50: inc byte [GE_FLG] / xor bx,bx / mov bl,[GQ_W]  (absent in some builds)
     const long geflag = findPattern(code, {0xFE, 0x06, X, X, 0x33, 0xDB, 0x8A, 0x1E});
     // Effect routine addresses, from the code that installs them:
@@ -103,6 +114,17 @@ bool ArtechFmDriver::loadDll(const std::string& path, std::string* error) {
     std::copy(data.begin(), data.end(), mem_.begin());
     unknownOpcodes_ = 0;
     return true;
+}
+
+void ArtechFmDriver::relocate(uint16_t base) {
+    const uint16_t by = static_cast<uint16_t>(base - base_);
+    for (uint16_t* v : {&BENDTABLES, &LASTDUR, &CURCHANNEL, &DO_SOUND, &DRUMMASK, &DRUMBITS, &GLOBALTEMPO,
+                        &MOTORFLAG, &MOTORDUR, &MOTORDCNT, &NOISEINDEX, &SEED, &STATE, &SHADOWBD, &YAMOFF,
+                        &NOTESYNC, &NOTECNTR, &PRESYNC, &SYNCBYTE, &SYNCHI, &DURTABLEPTR, &PITCHTABLEPTR,
+                        &SOUNDTABLEPTR, &SOUNDSYSTICK, &BUFFHEAD, &BUFFTAIL, &BUFF, &SPRAM1, &SCHNLPTR,
+                        &OPOFFSETS, &FREQTABLE, &GQ, &GQ_W, &GQ_R})
+        *v = static_cast<uint16_t>(*v + by);
+    base_ = base;
 }
 
 // --- exported API --------------------------------------------------------------
@@ -393,14 +415,14 @@ void ArtechFmDriver::setFrequency(Channel& c, uint8_t note, bool bendCommand) { 
 
     const uint8_t bend = c.bend();
     if (bend != 0 || bendCommand) {
-        // Per-semitone bend tables: pointers at DS:0000 (up uses the entry two
-        // semitones higher).
+        // Per-semitone bend tables: pointers at BENDTABLES (up uses the entry
+        // two semitones higher).
         const uint8_t semi = c.lastNote() & 0x0F;
         if (static_cast<int8_t>(bend) >= 0) {
-            const uint16_t table = word(static_cast<uint16_t>((semi + 2) << 1));
+            const uint16_t table = word(static_cast<uint16_t>(BENDTABLES + ((semi + 2) << 1)));
             freq = static_cast<uint16_t>(freq + byte(static_cast<uint16_t>(table + bend)));
         } else {
-            const uint16_t table = word(static_cast<uint16_t>(semi << 1));
+            const uint16_t table = word(static_cast<uint16_t>(BENDTABLES + (semi << 1)));
             freq = static_cast<uint16_t>(freq - byte(static_cast<uint16_t>(table + u8(-bend))));
         }
     }
@@ -595,8 +617,11 @@ void ArtechFmDriver::drumLevels(uint8_t mask, uint8_t value, int mode) {
         {0x08, 0x54, 0x1F3, 0x1F8, 0x1FD},  // snare
         {0x10, 0x53, 0x1F2, 0x1F7, 0x1FC},  // kick
     };
-    for (const Drum& d : kDrums) {
+    for (Drum d : kDrums) {
         if ((mask & d.bit) == 0) continue;
+        d.shadow = static_cast<uint16_t>(d.shadow + base_);
+        d.master = static_cast<uint16_t>(d.master + base_);
+        d.attn = static_cast<uint16_t>(d.attn + base_);
         uint8_t level;
         if (mode == 0) {
             byte(d.attn) = value;
@@ -828,10 +853,10 @@ ArtechFmDriver::Flow ArtechFmDriver::execute(Channel& c, uint8_t op, uint8_t par
             byte(YAMOFF) = opOffset(voice);
             const uint16_t patch = word(static_cast<uint16_t>(layout_.patchTable + patches[k] * 2));
             if (k == 0) {
-                byte(kShadowMod[0]) = byte(static_cast<uint16_t>(patch + 6));
+                byte(static_cast<uint16_t>(kShadowMod[0] + base_)) = byte(static_cast<uint16_t>(patch + 6));
             } else {
-                byte(kShadowMod[k]) = byte(static_cast<uint16_t>(patch + 5));
-                byte(kShadowCar[k]) = byte(static_cast<uint16_t>(patch + 6));
+                byte(static_cast<uint16_t>(kShadowMod[k] + base_)) = byte(static_cast<uint16_t>(patch + 5));
+                byte(static_cast<uint16_t>(kShadowCar[k] + base_)) = byte(static_cast<uint16_t>(patch + 6));
             }
             // Note: level bookkeeping uses the calling channel, as in the original.
             writePatch(c, patch, byte(YAMOFF));
@@ -839,7 +864,7 @@ ArtechFmDriver::Flow ArtechFmDriver::execute(Channel& c, uint8_t op, uint8_t par
         static const uint16_t kB0Shadow[3] = {0x3F3, 0x436, 0x479};  // channels 6-8, +28
         for (int k = 0; k < 3; ++k) {
             const uint8_t b0 = nextByte() & 0x2F;
-            byte(kB0Shadow[k]) = b0;
+            byte(static_cast<uint16_t>(kB0Shadow[k] + base_)) = b0;
             writeReg(u8(0xB6 + k), b0);
             writeReg(u8(0xA6 + k), nextByte());
         }

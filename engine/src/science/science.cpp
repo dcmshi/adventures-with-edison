@@ -65,7 +65,12 @@ void Science::run() {
         title();
         story();
     }
-    if (start < 0 || start == 501) lab();  // room 501
+    // Event 9 (f31_0783) first sends the music off (f32_135d(0)): so the
+    // title's song plays through the story till the lab.
+    if (start < 0 || start == 501) {
+        fmSound(0);
+        lab();  // room 501
+    }
     if (start >= 505 && start <= 510) {
         // (Testing: the look and name as the lab would leave them.)
         loadLook();
@@ -75,7 +80,10 @@ void Science::run() {
     // Room 501 goes on to the first lesson (f31_0783); the others come
     // from the arcade's holes.
     int room = -1;
-    if (start < 0 || start == 501) room = lesson(5);  // room 505, then room 1
+    if (start < 0 || start == 501) {
+        fmSound(0);  // (event 9)
+        room = lesson(5);  // room 505, then room 1
+    }
     else if (start >= 505 && start <= 510) room = start;  // (the arcade's loop plays it)
     if (room > 0) arcade(room);
     if (options_.music) ctx_.platform.setFmDriver(std::string());
@@ -93,6 +101,9 @@ void Science::arcade(int room) {
     // (Testing: SCI_BALLS=l,r, the columns' balls to start with.)
     if (const char* balls = std::getenv("SCI_BALLS")) std::sscanf(balls, "%d,%d", &leftBalls_, &rightBalls_);
     while (room > 0) {
+        // Event 9 begins with the music off (f32_135d(0)); a table's comes on
+        // when it's built (enterRoom), a lesson's with its picture.
+        fmSound(0);
         if (room <= 110) {
             // The last table's end (f38_020f), unless this is room 1 (a
             // lesson between keeps the old room).
@@ -205,7 +216,17 @@ void Science::clearDisplay() {
 }
 
 void Science::fmSound(uint16_t sound) {
-    // f32_135d.
+    // f32_135d ([26D0], always 1): with the sounds off ([27F6]) only 0, the
+    // music off. 25 is the arcade's music, one of three songs at random
+    // (Borland's rand x 20 / 8000h: under 8 song 31, under 14 song 25, else
+    // 39; a byte it works out from the first is never used), drawn even
+    // with the music off. Sent with the music on ([5FF6]: no switch on the
+    // command line).
+    if (!soundsOn_ && sound != 0) return;
+    if (sound == 0x25) {
+        const long r = static_cast<long>(borlandRand()) * 20 / 0x8000;
+        sound = r < 8 ? 0x31 : r < 14 ? 0x25 : 0x39;
+    }
     if (options_.music) ctx_.platform.sendFm(sound);
 }
 

@@ -189,8 +189,13 @@ original under emulation):
 - **SENDSND** stores words at byte indexes (entries overlap).
 
 Per-DLL differences handled by detecting addresses in each DLL's code: the
-sound/patch/motor tables, the GE_FLG counter (absent in CADLIB/MADLIB), and
+sound/patch/motor tables, the GE_FLG counter (absent in CADLIB/MADLIB/SADLIB), and
 the effect-routine code addresses that channels store in their data.
+SADLIB (Wild Science) is an older build of the same driver: its code in
+segment 2 (Borland C++ wrappers in 1), its data in 3, and every driver
+variable 0x4F8 bytes further on (the bend tables' pointers at 4F8, not 0);
+the driver finds that base from the tick's `mov byte [CURCHANNEL],9` and
+moves its variables by it (see docs/SCIENCE.md).
 
 Not reproduced: reading past offset FFFF of the data segment (the original
 faults on real hardware), and opcodes 53-70, which jump into unrelated code

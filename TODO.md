@@ -48,7 +48,8 @@ scene objects and an event queue, floating point), so it goes in stages:
 - [x] Map the library layers (segment 14 over 63-83) and the framework: the game and player objects, the events, the room dispatcher (110 rooms and the special ones).
 - [ ] Map the room base class (segment 27: the `.SRF` rooms, the table's drawing) and the object classes (segments 2-8, 15, 28-30), the physics (11, 24-26).
 - [x] `edison --game science` (and the main menu's Wild Science): the archive, the title and the story (`f38_0718`) with narration; both pixel-identical to the original.
-- [ ] The FM music: `SADLIB.DLL` is a different driver from the ADLIB family (none of their code patterns), so it needs its own emulation; till then the game has no FM music.
+- [x] The FM music: `SADLIB.DLL` is the ADLIB family's driver (an older build, its variables 0x4F8 further on), played by the native driver; all 68 sounds match the original's register writes. The game's calls (`f32_135d`: the arcade's music one of three songs at random) where the original makes them.
+- [ ] The story's `s` key (`f36_004e`: the sounds over, the WAV and the music off).
 - [x] The laboratory, room 501 (`f19_0a59`): Edison walks in, the name, "Do you wanna change the way I look?", the Character Enhancer, "Cool!"; `wscience.edi` and the players in `wscience.hs`. The name prompt matches the original pixel for pixel.
 - [x] The professor's first lesson (room 505, `f15_0fee`): the classroom (`2003`), his eight lines in bubbles (laid out and wrapped as `f15_31fa` and segment 23 do), the narration, MORE. The bubbles match the original pixel for pixel.
 - [x] All six lessons (rooms 505-510): their pictures, scripts (anchors, tails, widths, texts, narration) and the rooms they lead to. All compared with the original (lessons 6-10 through room 61's holes): the bubbles match pixel for pixel.
