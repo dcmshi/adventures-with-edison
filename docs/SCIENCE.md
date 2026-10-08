@@ -1012,7 +1012,9 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   (an Iron ball caught, Glass and Rubber ones broken, traced state for
   state). The original redraws only an object's rectangle (`f08_07a7`), so
   the burst's pieces outside it can stay on the display (ported, below:
-  the redraw of changed rectangles; not compared yet).
+  the redraw of changed rectangles). Checked in room 25 (an Iron ball
+  caught; Glass and Rubber ones zapped): at rest the same as the original
+  but for the head's drop at the moment of the shot.
 - **Type 13, the fan** (`f02_05f2`; `a` its way, 0-3): its motion part at
   `+0` (sphere `+2`: a 26 cube's centre a unit lower, radius 13), its power
   part at `+0C` (table `1C4`: `+0C` the plain `f04_008e`, `+10` says 2), its
@@ -1023,7 +1025,10 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   `1409`-`140C`, `13FA`-`13FD`, `1404`-`1407`); `+1B` the blades' frame
   (-1 still); `+1D` its picture (`DS:16DC` + 2a: `13FE`, `1408`, `13F9`,
   `1403`); `+1F` its wind's corner from its rectangle's ((18, -17), (-47,
-  11), (22, 0), (-60, 0)) and its size. Its step (`f02_08e9`), while
+  11), (22, 0), (-60, 0)) and its size (56 x 36, 56 x 36, 72 x 30, 72 x
+  30): each new frame redraws the fan (its core's `+10`) and then that
+  area (`f02_0870` → `f29_0494`), so the wind, outside the fan's
+  rectangle, leaves nothing behind when it stops (checked in room 25). Its step (`f02_08e9`), while
   powered or its blades still turn, with the player's ball: d from its
   sphere's centre to the ball's. Every 10 room ticks (`[FFE]`), powered
   and d within 8r, the next frame (0-3, round) and sound 601B; else,

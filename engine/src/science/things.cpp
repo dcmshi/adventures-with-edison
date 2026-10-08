@@ -451,15 +451,28 @@ void Science::thingTick(Object& o) {
                   dz = static_cast<int16_t>(ball_.cz - c.s[2]);
         const int32_t r2 = r * r;
         const int32_t d2 = static_cast<int32_t>(dx) * dx + static_cast<int32_t>(dy) * dy + static_cast<int32_t>(dz) * dz;
+        // f02_0870, after each frame's redraw: the wind's area (+1F: its
+        // corner from the fan's rectangle and its size, by its way) drawn
+        // again too (f29_0494), so a wind that stops leaves nothing behind.
+        auto windArea = [&] {
+            static const int kWind[4][4] = {{18, -17, 56, 36}, {-47, 11, 56, 36}, {22, 0, 72, 30}, {-60, 0, 72, 30}};
+            const int* w = kWind[std::clamp(o.args[0], 0, 3)];
+            int b[6];
+            thingBox(o, b);
+            const Rect fan = objectRect(b[0], b[1], b[2], b[3], b[4], b[5]);
+            queueArea({fan.x + w[0], fan.y + w[1], w[2], w[3]});
+        };
         if (roomTicks_ % 10 == 0) {
             if (d2 > r2 * 64 || !o.powered) {
                 if (o.fanFrame >= 0) {
                     if (++o.fanFrame > 3) o.fanFrame = -1;
                     viewDirty_ = true;
+                    windArea();
                 }
             } else {
                 if (++o.fanFrame > 3) o.fanFrame = 0;
                 viewDirty_ = true;
+                windArea();
                 sound(0x601B);
             }
         }
