@@ -147,7 +147,13 @@ on screen 1, up to 130 countdown ticks or a key or click, then `f20_0094`.
   colours 1-254 on the display and its palette into the other screens, so
   a room's table picture (`2002` on screen 3) brings the room's colours
   before its greeting, even after a lesson (lesson 9's `2006` left the
-  port's room 67 greeting in the lesson's colours).
+  port's room 67 greeting in the lesson's colours). Only 1-254 go into
+  the other screens: their 0 and 255 stay the library's black and white.
+  Under winevdm on a true-colour desktop WinG blits each screen with its
+  own colour table, so `2002`'s own 255 (255, 247, 247) shows in the panel
+  (from screen 3) while the view (from screen 2) shows white; on a
+  256-colour display 255 is Windows' static white everywhere, as the port
+  draws it (with one display palette).
 - The colour cycle: `f32_0e7f(70, 7F, 8)` registers colours 70-7F to turn
   a step every 8 ticks (`f32_1113`, `f14_0148`), but only on a palette
   display (`[61F9]`, from `GetDeviceCaps`).
