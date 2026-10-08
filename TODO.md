@@ -91,5 +91,4 @@ scene objects and an event queue, floating point), so it goes in stages:
 
 ## Formats and tooling
 
-- [ ] Document the animation and layout formats (groups 03, 50, 60, `.VID`, `.SRF`).
-- [ ] Document the `.SRF` and `.HS` formats.
+- [x] Document the formats in `FORMATS.md`: SHELL's scripts (group 03) and animations (group 50), Mystery's unused group 60, `.SRF`, `.HS`, `.VID`.

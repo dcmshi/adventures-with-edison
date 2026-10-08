@@ -1443,7 +1443,8 @@ through the run time's streams in segment 90). Text, in three parts:
    rectangles `x y w h` (its top, at the box's height, then its bottom, at
    the parent's: `f27_0d4a` hands the second read over as the bottom; so
    sides can slope) and a
-   height; then `01` and a child box, as many as it has, and `02`. Each
+   height; then the byte 01 and a child box, as many as it has, and the
+   byte 02. Each
    box is relative to its parent (its x, y and height are taken off) and is
    made by the room's method 1. The root is the floor, `0 0 809 789` (the
    world is 809 x 789). `S1.SRF` (the menu) is the floor, two walls 400 high
@@ -1540,9 +1541,9 @@ restore an area, `f14_0000`-`f14_0384` palettes (fades, turning a range).
 |---|---|
 | `GRAFX.DAT` | The art and some sounds and data (the archive format of the other games, see `FORMATS.md`); extracted to `extracted/grafx/` |
 | `\SCIENCE\*.WAV` | 153 sounds: narration, the professor's and Edison's lines |
-| `S0.SRF`-`S110.SRF` | Rooms (playfields): ASCII rectangles in a world about 809 x 789 (four numbers twice and a depth, per piece), then named objects (`OBJ0 448 180`), then `END` |
-| `WSCIENCE.HS` | The high scores |
-| `wscience.edi` | The players (written by the game) |
+| `S0.SRF`-`S110.SRF` | The rooms (above; `FORMATS.md`) |
+| `WSCIENCE.HS` | The high scores (`FORMATS.md`) |
+| `wscience.edi` | The player's look: four numbers (written by the game) |
 
 ## Running the original
 
