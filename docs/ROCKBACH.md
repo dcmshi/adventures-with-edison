@@ -67,6 +67,42 @@ The port's driver (`engine/src/audio/artech_fm_driver`) has them all.
 channel, `PLAYINS(ch)` keys it off and on again, and `DIRECTDRUMOUT(bits)`
 keys drums in register `BD`. The exports are Pascal calls.
 
+### The tempo
+
+Every driver's global tempo (`GLOBALTEMPO`, `1E7`) starts at 0, which holds
+the parts that follow it (`SETAUTOTEMPO`, `GETMUSICTEMPO`) still; rendered at
+0 and at 80h, 41 of `ADLIB`'s sounds, 76 of `ADLIB2`'s, 51 of `ADLIB3`'s and
+129 of `ADLIB4`'s differ, none of `ADLIB1`'s. The game sets it with an `A6 tempo`
+command (`SETMUSICTEMPO`) written over a sound and started:
+
+| Activity | Driver | Where | Tempo |
+|---|---|---|---|
+| The jukebox | `ADLIB` | `f09_0320` through sound 1 | `A0` (`f09_0000`), then `B4` as its screen is set up (`f03_1e9a`); the slider is `7A` + 0-96h, the hare and turtle steps of 8 |
+| The Drum Clinic | `ADLIB1` | none | its timer plays a step every period / 8 ticks, the period `8C - tempo` (`f10_04b6`), from `55` |
+| Harmony Hall | `ADLIB3` | `f11_04a2` through sound `B` | `C0` (`f11_0000`); the slider `7A` + its value |
+| The Music Library | `ADLIB4` | `f12_0270` through sound `F` | the piece's: below |
+| The Studio, the logo's song | `ADLIB2` | sound 6's byte 1 (`f20_0070`) | `[20B6]`: the video's (`6799`, `F0` in a new one); the logo `F0` |
+
+The Music Library scales the slider (`t`, `7A`-`FF`) from `BC`-`FF` onto the
+piece's own tempo `b` (its record's byte 3) to `FF`: `(t - BC) * (FF - b) / 43
++ b`, a signed division, kept to a byte. Choosing a piece puts the slider at
+`DS:2DBA[5c + n] + 7A`, so each piece starts at (sounds; `b`, `t`, the tempo):
+
+| Composer | Pieces |
+|---|---|
+| 0 Bach | TOCA 7-12: 90, C0, **96** · ANNA 27-28: 90, C0, **96** · BACHAIR 29-33: 90, A2, **65** · BASHEEP 34-36: B0, AA, **9B** · BACHFUGUE 75-81: 90, C0, **96** |
+| 1 Beethoven | BEETHPATHE 19-21: 80, B3, **6F** · BEE5TH 37-44: B0, C3, **B8** · BEE9TH 45-52: C0, B2, **B7** · MOONLITE 53-57: B0, A5, **95** |
+| 2 Brahms | BRAHUNGAR 24-26: B0, AD, **9F** · LULLABY 82-86: 90, AB, **74** · RHAPSODY 102-108: B0, 93, **80** · BRAHMWALTZ 87-93: B0, 9F, **8E** |
+| 3 Chopin | CHOPWALTZ 16-18: 80, FF, **FF** · FANTASIE 109-115: B0, 7A, **63** · CHOPNOCT 170-174: A0, B8, **9B** · POLONAISE 175-182: A0, DC, **CD** |
+| 4 Debussy | COLINES 94-101: B0, C0, **B4** · DEBGIRL 124-131: A0, A7, **83** · LUNE 116-123: A0, AA, **87** |
+| 5 Gershwin | BESS 67-74: 80, B2, **6E** · GERPRELUDE 132-136: B0, DD, **D6** · GERRHAP 137-143: B0, 7A, **63** |
+| 6 Mozart | MOZTURKA 22-23: A0, D2, **BF** · MOZHORN 58-62: A0, B8, **9B** · MOZSON 63-66: A0, D4, **C2** · MOZEINEK 144-148: B0, C0, **B4** |
+| 7 Sousa | SOOSTARS 149-154: B0, B3, **A6** · SOOSEMP 155-162: A0, C4, **AB** · SOOWASH 163-169: A0, CE, **B9** |
+
+`fmplay` uses these by default (`--tempo` overrides): a Rock and Bach
+driver's tempo from the table above, a piece's from `WINMAIN.EXE` beside the
+DLL, and 80h for the other games' drivers.
+
 ## Songs (segment 20)
 
 The song player lives in the driver's sound table (ADLIB2's, for example):

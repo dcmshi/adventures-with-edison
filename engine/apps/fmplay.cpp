@@ -3,10 +3,14 @@
 //   fmplay ADLIB.DLL                          list sounds
 //   fmplay ADLIB.DLL CONDUCTOR SUNROCK1 ...   play sounds together (names or ids)
 //   fmplay ADLIB.DLL ... --wav out.wav        render to a WAV file instead
-//   options: --seconds N (limit), --tempo T (global tempo, 0-255, default 128)
+//   options: --seconds N (limit), --tempo T (global tempo, 0-255; default: the game's, see below)
 //
-// The global tempo drives Rock and Bach's band parts (SETAUTOTEMPO). The game
-// sets it itself; the value it uses isn't decoded yet, so 128 is a stand-in.
+// The global tempo drives the parts that follow it (SETAUTOTEMPO, GETMUSICTEMPO).
+// Every driver starts it at 0, which holds those parts still, and the game sets
+// it with an "A6 tempo" command; the default is the value Rock and Bach plays
+// each of its drivers at (kGameTempos), and for the Music Library's pieces the
+// piece's own (libraryTempo, from WINMAIN.EXE next to the DLL). Other drivers
+// get 128, a stand-in.
 
 // A plain main(): this is a console tool and only needs SDL's audio, so we
 // skip SDL_main's replacement entry point.
@@ -19,6 +23,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <map>
 #include <memory>
@@ -56,6 +61,37 @@ bool writeWav(const std::string& path, const std::vector<int16_t>& stereo) {
     return static_cast<bool>(out);
 }
 
+// The global tempo Rock and Bach sets for each driver: the jukebox B4 (f03_1e9a
+// sets up its screen at B4, slider 3A; f09_0000's A0 is overwritten first), the
+// Studio F0 (sound 6's, f20_0070, from the video's [6799]; the logo's song too),
+// Harmony Hall C0 (f11_0000). The Drum Clinic (ADLIB1) never sets it: none of its
+// sounds follow it, and its timer paces the steps (f10_04b6: period 8C - tempo).
+constexpr std::pair<const char*, int> kGameTempos[] = {
+    {"ADLIB.DLL", 0xB4}, {"ADLIB2.DLL", 0xF0}, {"ADLIB3.DLL", 0xC0}};
+
+// The Music Library's tempo (ADLIB4.DLL) for the piece that plays sound `id`,
+// or -1: f12_0270 scales the slider's start (DS:2DBA, + 7A) from BC-FF onto the
+// piece's own tempo to FF. The records are WINMAIN's DS:1858 (8 composers x 5
+// words; DS:17DC is none): a count of sounds, the first, the piece's tempo.
+int libraryTempo(const std::string& dllPath, int id) {
+    edison::NeFile exe;
+    if (!exe.load((std::filesystem::path(dllPath).parent_path() / "WINMAIN.EXE").string())) return -1;
+    const auto data = exe.segment(exe.segmentCount());
+    const auto word = [&data](size_t a) { return a + 1 < data.size() ? data[a] | data[a + 1] << 8 : 0; };
+    for (int c = 0; c < 8; ++c) {
+        for (int n = 0; n < 5; ++n) {
+            const size_t record = word(0x1858 + c * 10 + n * 2);
+            if (record == 0x17DC || record + 3 >= data.size()) continue;
+            const int first = data[record + 2];
+            if (id < first || id >= first + word(record)) continue;
+            const int base = data[record + 3];
+            const int t = data[0x2DBA + c * 5 + n] + 0x7A;
+            return ((t - 0xBC) * (0xFF - base) / 0x43 + base) & 0xFF;
+        }
+    }
+    return -1;
+}
+
 // Keeps rendering until the sounds have ended plus a short release tail.
 struct Session {
     edison::ArtechFmDriver& driver;
@@ -79,7 +115,7 @@ int main(int argc, char** argv) {
     std::string dllPath, wavPath;
     std::vector<std::string> soundArgs;
     double seconds = 600;
-    int tempo = 128;
+    int tempo = -1;
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
         if (a == "--wav" && i + 1 < argc) wavPath = argv[++i];
@@ -134,6 +170,15 @@ int main(int argc, char** argv) {
             std::fprintf(stderr, "unknown sound '%s' (run without sounds to list them)\n", s.c_str());
             return 1;
         }
+    }
+
+    if (tempo < 0) {
+        const std::string file = upper(std::filesystem::path(dllPath).filename().string());
+        for (const auto& [name, t] : kGameTempos)
+            if (file == name) tempo = t;
+        if (file == "ADLIB4.DLL") tempo = libraryTempo(dllPath, ids.front());
+        if (tempo < 0) tempo = 128;
+        std::printf("global tempo %02X\n", tempo);
     }
 
     edison::FmRenderer renderer(driver, kSampleRate);

@@ -113,7 +113,11 @@ build/engine/fmplay original/cd/DSK3/ADLIB.DLL                  # list sounds by
 build/engine/fmplay original/cd/DSK3/ADLIB.DLL SUNROCK1 SUNROCK2 SUNROCK3 SUNROCK4                     SUNROCK5 SUNROCK6 SUNROCK7 SUNROCK8          # a Rock and Bach band
 build/engine/fmplay original/cd/DSK3/MADLIB.DLL DROPTILE --wav droptile.wav
 build/engine/fmplay original/cd/DSK3/SADLIB.DLL 13             # Wild Science's title song (by id: its debug info has no names)
+build/engine/fmplay original/cd/DSK3/ADLIB4.DLL 7 8 9 10 11 12  # the Music Library's Toccata, at its own tempo
 ```
+
+Rock and Bach's drivers play at the tempo the game sets for them (a Music
+Library piece's from `WINMAIN.EXE` beside the DLL); `--tempo T` overrides it.
 
 ### Sequencer test
 
@@ -174,7 +178,7 @@ pwsh tools/reference/otvdm.ps1 unlock               # if the game already died
 - [x] Native C++ sequencer: all 898 sounds match the original driver write-for-write
 - [x] Software OPL + audio output: `fmplay` (Nuked-OPL3, SDL3)
 - [x] Readable refactor of the sequencer; differential tests cover all 57 opcodes (1,685 cases match)
-- [ ] Decode the game's real Rock and Bach tempo (fmplay uses 128 for now)
+- [x] Decode the game's real Rock and Bach tempo (docs/ROCKBACH.md; fmplay plays each driver at the game's)
 - [x] Document `.SRF` / `.HS` formats
 - [ ] Decompile game logic (Ghidra, 16-bit NE)
 - [x] Engine skeleton (SDL) + software OPL for FM music
