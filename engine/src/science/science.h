@@ -521,7 +521,13 @@ private:
     void ballLost();                                // f31_0504
     void dropBall(bool right);                      // f30_02d8 → f27_293b
     void slideBall(int x, int y, int z);            // f27_293b
+    void holdShadow();
     bool noShadow_ = false;      // [14E0]: the ball's shadow not drawn (while one drops)
+    // The ball last drawn while its shadow object was shown (f27_287d,
+    // f07_03fb) or [14E0] set (a slide): nothing redraws it till it moves,
+    // so its shadow (f13_01ce) stays out till its centre changes.
+    bool shadowHeld_ = false;
+    int heldAt_[3] = {};
     int roomTicks_ = 0;          // [FFE]: the room ticks (to 1000)
     int crackStage_[5] = {};     // the room's glass marks: +F65 stages, +F3D rectangles
     Rect crackRect_[5];

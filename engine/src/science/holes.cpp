@@ -196,7 +196,15 @@ void Science::ballToStart() {
     // (Not the shadow's last centre: its tick sees the move, f07_15ba.)
     lastCentre_[0] = b.cx, lastCentre_[1] = b.cy, lastCentre_[2] = b.cz;
     shadowShown_ = false;
+    holdShadow();
     viewDirty_ = true;
+}
+
+void Science::holdShadow() {
+    // The ball drawn now without its shadow (f13_01ce: its shadow object
+    // shown by f07_03fb, or [14E0] set), and redrawn only when it moves.
+    shadowHeld_ = true;
+    heldAt_[0] = ball_.cx, heldAt_[1] = ball_.cy, heldAt_[2] = ball_.cz;
 }
 
 void Science::ballLost() {
@@ -278,6 +286,7 @@ void Science::slideBall(int x, int y, int z) {
     }
     noShadow_ = false;
     lastCentre_[0] = shadowSeen_[0] = b.cx, lastCentre_[1] = shadowSeen_[1] = b.cy, lastCentre_[2] = shadowSeen_[2] = b.cz;
+    holdShadow();
     viewDirty_ = true;
 }
 

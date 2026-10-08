@@ -839,9 +839,8 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
 - Checked against the original: EXIT's box, NO by a key, the ball back,
   the warp code's box, typing, the caret, "That's right!" and "Sorry,
   wrong answer." with ZAP!, all pixel for pixel; the clicks' turns; the
-  score in room 57. Still different: after the wrong code the original
-  shows no shadow under the ball put back and the port draws one (29
-  pixels; the shadow object's state through the spit, `f07_15ba`).
+  score in room 57; the ball put back after the wrong code, without the
+  shadow under it (below).
 - Room 1's holes: 502 High Score, 501 Lab, 503 Credits, 31 the play room,
   21 Level 1, 508 and 509 Levels 4 and 5, 504 EXIT. Every one checked
   against the original from a shot in room 1 (power 5: the lab (280, 156),
@@ -1373,9 +1372,16 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   its PUSH (`+132`), takes the ball back: slid (`f27_293b`, as PUSH's
   drop) from its centre (`f07_04c1`, taken as its bottom) to the room's
   place, then 300 points off (`f06_0208`); other keys nothing. Checked
-  against the original in room 1 (a shot, then `r`): the same but for the
-  shadow under the ball at the end, which the original leaves out (29
-  pixels; as after a wrong warp code, below). Checked: the three boxes against the original's
+  against the original in room 1 (a shot, then `r`): the same, the ball
+  without the shadow under it at the end.
+- **The shadow under a ball put back**: `f13_01ce` draws it only while the
+  shadow object is hidden and `[14E0]` clear. `f27_287d` (spit mode 2: a
+  wrong warp code) shows the ball through its motion part's `+18`
+  (`f07_03fb`), which shows the shadow object too, and a slide
+  (`f27_293b`: PUSH, `r`) draws its every step with `[14E0]` set; the
+  shadow object then hides on its tick (`f07_15ba`), queuing only its
+  own old rectangle, so the ball isn't drawn again, and stays without
+  its shadow, till it moves (the port: `shadowHeld_`). Checked: the three boxes against the original's
   (but for the left column's random ball frames and the `m` box's random
   picture).
 - **The high scores** (room 502, `f40_0000`; ported: `highScores`,

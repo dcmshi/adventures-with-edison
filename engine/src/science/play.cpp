@@ -812,6 +812,7 @@ void Science::shadowTick() {
     // ground below it (x, y, ground + 1), shown again if the ball is.
     // (Hiding the ball hides it too: f07_03be, f07_0381.)
     const Ball& b = ball_;
+    if (shadowHeld_ && (b.cx != heldAt_[0] || b.cy != heldAt_[1] || b.cz != heldAt_[2])) shadowHeld_ = false, viewDirty_ = true;
     if (b.cx == shadowSeen_[0] && b.cy == shadowSeen_[1] && b.cz == shadowSeen_[2]) return;
     if (shadowShown_ && b.state != 0) {
         shadowShown_ = false, viewDirty_ = true;

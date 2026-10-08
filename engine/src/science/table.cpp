@@ -564,7 +564,7 @@ void Science::listDrawables(std::vector<Drawable>& list, const Rect& redraw) {
                 // its type's rolling frames (f07_04d5: DS:1348 Ice, 1330
                 // Stone, 1300 Rubber, 1378 Iron, 1318 Glass, 1360 Magic).
                 const auto [bx, by] = objectCentre(b.cx - b.r, b.cy - b.r, b.cz - b.r, 2 * b.r + 1, 2 * b.r + 1, 2 * b.r + 1);
-                if (b.state == 0 && !shadowShown_ && !noShadow_) objectSprite(bx, by + b.r - 1, 0x1040);
+                if (b.state == 0 && !shadowShown_ && !noShadow_ && !shadowHeld_) objectSprite(bx, by + b.r - 1, 0x1040);
                 static const uint16_t kFrames[6] = {0x1348, 0x1330, 0x1300, 0x1378, 0x1318, 0x1360};
                 ballSprite(b, kFrames[std::clamp(panel_.ballType, 0, 5)]);
             };
