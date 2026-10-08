@@ -329,8 +329,9 @@ void Science::keyEvent(int key) {
     // Any time: s turns the sounds over ([27F6]; off: the WAV stopped and
     // the music off, f75_0000, f32_135d(0); on: music 25); S and two
     // digits (Borland's ctype, bit 2): event 9 to that room (1 outside
-    // 1-110). Other keys go to the room (its +1C) or the panel: none of
-    // theirs is ported. (No FM music in this game yet.)
+    // 1-110). Other keys go to the holder (+B0: none in play), else the
+    // room (its +1C, f27_31fb in every room), else the panel. (No FM music
+    // in this game yet.)
     const Rect& v = table_.view;
     auto box = [&](int face, int style, uint16_t message, uint16_t firstLine, int lines) {
         Dialog d;
@@ -388,6 +389,16 @@ void Science::keyEvent(int key) {
         exitRoom_ = room;
         return;
     }
+    case 'r':
+        // f27_31fb, the room's +1C: with +F85 (always set, f27_03da), the
+        // room not busy (+F6F), the ball not breaking (+7C) and neither
+        // column waiting for its PUSH (+132): the ball slid from its centre
+        // (f07_04c1, as its bottom) to the room's place (f27_293b), and 300
+        // points off the score (f06_0208). Other keys: nothing.
+        if (roomBusy_ || !hasBall_ || ball_.state != 0 || !columns_[0].ballOut || !columns_[1].ballOut) return;
+        slideBall(ball_.cx, ball_.cy, ball_.cz);
+        addScore(-300);
+        return;
     default:
         return;
     }

@@ -1355,8 +1355,16 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   `615`, sound `6018`, event 9 to room 24). Any time: `s` turns the
   sounds over (`[27F6]`: off, the WAV stopped and the music off, music 25
   back on), `S` and two digits goes to that room (1 outside 1-110). Other
-  keys go to the holder (`+B0`), the room (its `+1C`) or the panel (`+A4`,
-  `+A8`): none ported. Checked: the three boxes against the original's
+  keys go to the holder (`+B0`), else the room (its `+1C`), else the panel
+  (`+A4`, `+A8`): in play, the room's. Every room's `+1C` is the base's
+  `f27_31fb`: `r`, with `+F85` (always 1, `f27_03da`), the room not busy
+  (`+F6F`), the ball not breaking (`+7C`) and neither column waiting for
+  its PUSH (`+132`), takes the ball back: slid (`f27_293b`, as PUSH's
+  drop) from its centre (`f07_04c1`, taken as its bottom) to the room's
+  place, then 300 points off (`f06_0208`); other keys nothing. Checked
+  against the original in room 1 (a shot, then `r`): the same but for the
+  shadow under the ball at the end, which the original leaves out (29
+  pixels; as after a wrong warp code, below). Checked: the three boxes against the original's
   (but for the left column's random ball frames and the `m` box's random
   picture).
 - **The high scores** (room 502, `f40_0000`; ported: `highScores`,

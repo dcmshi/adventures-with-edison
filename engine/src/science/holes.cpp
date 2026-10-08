@@ -235,7 +235,18 @@ void Science::dropBall(bool right) {
     for (int k = 0; k < 3; ++k) b.v[k] = 0, b.rem[k] = 0, b.disp[k] = 0, b.kick[k] = 0, b.push[k] = 0;
     b.kickTicks = 0;
     b.hidden = false;
-    int x = right ? 809 - 10 : 279 + 10, y = 0, z = right ? 140 : 250;
+    slideBall(right ? 809 - 10 : 279 + 10, 0, right ? 140 : 250);
+}
+
+void Science::slideBall(int x, int y, int z) {
+    // f27_293b: the ball shown (f07_03fb), its shadow hidden, then moved
+    // from (x, y), its bottom at z, to where the room puts it (+F73, +F75,
+    // on the ground): 2 a step on each axis (1 when nearer), stopped each
+    // step (f08_056e), the room drawn again each step, nothing else
+    // running meanwhile ([14E0] set: no shadows; [200A] clear).
+    Ball& b = ball_;
+    for (int k = 0; k < 3; ++k) b.v[k] = 0, b.rem[k] = 0, b.kick[k] = 0;
+    b.hidden = false;
     const int gz = faceHeight(faceUnder(b.startX, b.startY), b.startX, b.startY);
     shadowShown_ = false;
     noShadow_ = true;
