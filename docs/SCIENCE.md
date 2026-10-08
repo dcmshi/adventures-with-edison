@@ -128,8 +128,23 @@ on screen 1, up to 130 countdown ticks or a key or click, then `f20_0094`.
   frame are generators (segment 16: `f16_0000` a constant, `f16_010e` a
   cycle, frame = (tick mod period) x count / period, `f16_0281` up and
   down), stepped each tick (`f15_01fa`, 50 a second); the sprite is the
-  frame's base + its value. Clicking the professor swaps his animation
-  (`g15_0cb7`).
+  frame's base + its value. Each generator counts its own steps from 0
+  (`f16_01a8`: frame = (count mod period) x frames / period).
+- The easter egg (lessons 5-8's professor, `f15_0bde`, its `+08`
+  `g15_0cb7`; lessons 9 and 10's take no clicks, `f10_00c2`): a press on
+  him (his rectangle) takes the mouse (`[27AC]`, `[27AE]`) and makes his
+  animation `13BE`, 3 frames over 25 ticks (the badge lights); at the
+  button's release `13BB`, 3 over 50, again (`f32_00cf` lets the mouse
+  go); each a new generator, from its first frame.
+- Checked against the original (lessons 6-10 entered through room 61's
+  holes to 506-510): every bubble of every lesson, the easter egg in
+  lessons 6-8 and, after lesson 10, the game won (below); all but a few
+  pixels at a bubble's edge (8-22, as in lesson 5).
+- The palette: the picture with the look (`f14_092c`) always puts its
+  colours 1-254 on the display and its palette into the other screens, so
+  a room's table picture (`2002` on screen 3) brings the room's colours
+  before its greeting, even after a lesson (lesson 9's `2006` left the
+  port's room 67 greeting in the lesson's colours).
 - The colour cycle: `f32_0e7f(70, 7F, 8)` registers colours 70-7F to turn
   a step every 8 ticks (`f32_1113`, `f14_0148`), but only on a palette
   display (`[61F9]`, from `GetDeviceCaps`).

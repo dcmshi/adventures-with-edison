@@ -178,7 +178,13 @@ void Science::showScreenWithLook(uint16_t picture, int screen) {
             // (f19_0614), they're right.
             pal[kParts[t].first + k] = looksConverted_ ? lookColour(t, look_[t], k) : Rgb{looks_[at + 2], looks_[at + 1], looks_[at]};
         }
-    if (screen == 1) ctx_.setDisplayPalette(1);
+    // Then, whatever the screen, its colours 1-254 to the display (f70_0557)
+    // and its palette into the other screens' (f70_07c5): so the table's
+    // picture (2002, on screen 3) brings the room's colours before its
+    // greeting, even after a lesson's picture.
+    for (int s = 1; s <= 3; ++s)
+        if (s != screen) ctx_.screens[s].palette = pal;
+    ctx_.setDisplayPalette(screen);
 }
 
 void Science::toDisplay(int screen) {

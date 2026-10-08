@@ -200,7 +200,10 @@ int Science::lesson(int n) {
     // 3) whenever a frame changes: the animations, then the bubble.
     const Lesson& l = kLessons[n - 5];
     lessonStart(l.picture);
-    const Anim anims[2] = {l.professor, l.edison};
+    Anim anims[2] = {l.professor, l.edison};
+    // Each animation's counter (f16_01a8: its own, from 0 when made): the
+    // tick it started at.
+    uint64_t began[2] = {0, 0};
     const uint64_t start = ctx_.platform.milliseconds();
     int shown[2] = {-1, -1};
     const Step* current = nullptr;
@@ -219,7 +222,7 @@ int Science::lesson(int n) {
         bool changed = false;
         for (int i = 0; i < 2; ++i) {
             const uint64_t period = static_cast<uint64_t>(anims[i].period);
-            const int frame = static_cast<int>((ticks % period) * static_cast<uint64_t>(anims[i].count) / period);
+            const int frame = static_cast<int>(((ticks - began[i]) % period) * static_cast<uint64_t>(anims[i].count) / period);
             if (frame != shown[i]) shown[i] = frame, changed = true;
         }
         if (changed) compose();
@@ -240,6 +243,23 @@ int Science::lesson(int n) {
             ctx_.displayPalette[i] = base[0x70 + static_cast<int>((static_cast<uint64_t>(i - 0x70) + steps) % 16)];
     };
     tick();
+    // Lessons 5-8's professor (f15_0bde, its +08 g15_0cb7): pressed, he
+    // takes the mouse ([27AC], [27AE]) and his animation becomes 13BE, 3
+    // frames over 25 ticks; at the button's release, 13BB, 3 over 50 again
+    // (f32_00cf lets the mouse go). Each a new cycle, from its first frame.
+    // (Lessons 9 and 10's professors take no clicks: f10_00c2.)
+    bool grabbed = false;
+    auto swap = [&](const Anim& a) {
+        anims[0].sprite = a.sprite, anims[0].count = a.count, anims[0].period = a.period;
+        began[0] = (ctx_.platform.milliseconds() - start) / 20;
+        shown[0] = -1;
+        tick();
+    };
+    auto onProfessor = [&](int x, int y) {
+        if (l.professor.sprite != kProfessor.sprite) return false;
+        const Bitmap& b = ctx_.bitmap(static_cast<uint16_t>(anims[0].sprite + std::max(shown[0], 0)));
+        return x >= anims[0].x && y >= anims[0].y && x < anims[0].x + b.width && y < anims[0].y + b.height;
+    };
     uint16_t pending = l.firstSound;
     for (const Step& step : l.steps) {
         // f15_0a70 / g15_0a1d: the last bubble goes, the new one comes.
@@ -253,7 +273,16 @@ int Science::lesson(int n) {
             ctx_.pump();
             tick();
             turn();
-            if (ctx_.platform.takeClick(&x, &y) && x >= kMoreX && y >= kMoreY && x < kMoreX + kMoreW && y < kMoreY + kMoreH) break;
+            int mx, my;
+            bool down = false;
+            ctx_.platform.mouse(&mx, &my, &down);
+            if (grabbed && !down) grabbed = false, swap(kProfessor);
+            if (!ctx_.platform.takeClick(&x, &y)) continue;
+            if (!grabbed && onProfessor(x, y)) {
+                grabbed = true, swap({0x13BE, 3, 25, 0, 0});
+                continue;
+            }
+            if (x >= kMoreX && y >= kMoreY && x < kMoreX + kMoreW && y < kMoreY + kMoreH) break;
         }
     }
     ctx_.platform.stopWav();
