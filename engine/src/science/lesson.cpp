@@ -122,7 +122,7 @@ void Science::drawStretched(int x, int y, int w, int h, uint16_t id) {
     // f14_148a: the bitmap scaled (256ths) to the rectangle, about its centre.
     const Bitmap& b = ctx_.bitmap(id);
     if (b.width == 0 || b.height == 0) return;
-    drawScaledCentred(x + w / 2, y + h / 2, w * 256 / b.width, h * 256 / b.height, id);
+    scaledSprite((w >> 1) + x, (h >> 1) + y, w * 256 / b.width, h * 256 / b.height, id);
 }
 
 Science::Bubble Science::bubble(int ax, int ay, int width, int tail, const std::string& text) {

@@ -296,6 +296,27 @@ void Science::switchTurn(Object& o, int on) {
     if (!on) sound(0x6026);
 }
 
+void Science::scaledSprite(int cx, int cy, int scaleX, int scaleY, uint16_t id) {
+    // f72_02cd → f73_0324 (32-bit code): (w * scale) >> 8 wide and (h *
+    // scale) >> 8 high about the point, each pixel the source's at a 16.16
+    // step of 256 / scale on each axis, colour 0 clear, on the screen.
+    const Bitmap& bmp = ctx_.bitmap(id);
+    if (scaleX <= 0 || scaleY <= 0) return;
+    const uint32_t sx = static_cast<uint32_t>(scaleX), sy = static_cast<uint32_t>(scaleY);
+    const int w = static_cast<int>((static_cast<uint32_t>(bmp.width) * sx) >> 8), h = static_cast<int>((static_cast<uint32_t>(bmp.height) * sy) >> 8);
+    const uint32_t stepX = (0x100 / sx) << 16 | ((0x100 % sx) << 16) / sx;
+    const uint32_t stepY = (0x100 / sy) << 16 | ((0x100 % sy) << 16) / sy;
+    const int left = cx - (w >> 1), top = cy - (h >> 1);
+    Screen& scr = ctx_.screens[current()];
+    for (int r = 0; r < h; ++r)
+        for (int c = 0; c < w; ++c) {
+            const uint8_t p = bmp.at(static_cast<int>(c * stepX >> 16), static_cast<int>(r * stepY >> 16));
+            const int x = left + c, y = top + r;
+            if (p && x >= 0 && y >= 0 && x < Screen::kWidth && y < Screen::kHeight)
+                scr.pixels[static_cast<size_t>(y) * Screen::kWidth + x] = p;
+        }
+}
+
 void Science::hotMark(const Object::HotSpot& s) {
     // f13_16f9: from radius 2, 140D at the spot's centre projected, at the
     // radius (6 at least) over 26, on screen 3 and on the display.
@@ -317,18 +338,8 @@ void Science::hotMark(const Object::HotSpot& s) {
             objectSprite(px, py, 0x140D);
             continue;
         }
-        const uint32_t scale = static_cast<uint32_t>(e) * 0x100 / 0x1A;
-        const int w = static_cast<int>((bmp.width * scale) >> 8), h = static_cast<int>((bmp.height * scale) >> 8);
-        const uint32_t step = (0x100 / scale) << 16 | ((0x100 % scale) << 16) / scale;
-        const int left = px - (w >> 1), top = py - (h >> 1);
-        Screen& scr = ctx_.screens[screenNo];
-        for (int r = 0; r < h; ++r)
-            for (int c = 0; c < w; ++c) {
-                const uint8_t p = bmp.at(static_cast<int>(c * step >> 16), static_cast<int>(r * step >> 16));
-                const int x = left + c, y = top + r;
-                if (p && x >= 0 && y >= 0 && x < Screen::kWidth && y < Screen::kHeight)
-                    scr.pixels[static_cast<size_t>(y) * Screen::kWidth + x] = p;
-            }
+        const int scale = e * 0x100 / 0x1A;
+        scaledSprite(px, py, scale, scale, 0x140D);
     }
     select(was);
     viewDirty_ = true;

@@ -51,10 +51,10 @@ scene objects and an event queue, floating point), so it goes in stages:
 - [ ] The FM music: `SADLIB.DLL` is a different driver from the ADLIB family (none of their code patterns), so it needs its own emulation; till then the game has no FM music.
 - [x] The laboratory, room 501 (`f19_0a59`): Edison walks in, the name, "Do you wanna change the way I look?", the Character Enhancer, "Cool!"; `wscience.edi` and the players in `wscience.hs`. The name prompt matches the original pixel for pixel.
 - [x] The professor's first lesson (room 505, `f15_0fee`): the classroom (`2003`), his eight lines in bubbles (laid out and wrapped as `f15_31fa` and segment 23 do), the narration, MORE. The bubbles match the original pixel for pixel.
-- [x] All six lessons (rooms 505-510): their pictures, scripts (anchors, tails, widths, texts, narration) and the rooms they lead to. All compared with the original (lessons 6-10 through room 61's holes): the bubbles match but for a few pixels at a bubble's edge.
+- [x] All six lessons (rooms 505-510): their pictures, scripts (anchors, tails, widths, texts, narration) and the rooms they lead to. All compared with the original (lessons 6-10 through room 61's holes): the bubbles match pixel for pixel.
 - [x] The lessons' animations (the professor and Edison, cycling sprites) and the colour cycle (70-7F every 8 ticks; the original only cycles on a 256-colour display, so not under winevdm). With the animations, lesson 5's frames match the original within 8 pixels (a bubble's right edge).
 - [x] The professor's easter egg (`g15_0cb7`: pressed, lessons 5-8's professor turns to `13BE` till the release), checked against the original; the table's picture brings the room's colours to the display (`f14_092c`), so a greeting after a lesson is in the room's colours.
-- [ ] The bubbles: 8-22 pixels at a bubble's edge differ from the original in every lesson.
+- [x] The bubbles' stretched edges as the original's scaler (`f73_0324`: 16.16 steps): every bubble of lessons 6-10 pixel for pixel.
 - [ ] The arcade's menu (room 1) against the original.
 - [x] `--room 501` (the lab) and `--room 505`-`510` (a lesson) to start there when testing.
 - [x] The table: room 1, its controls, the ball's physics (traced state for state), the shadow in the air, the painter's order, holes and going to their rooms, breaking, losing the ball, PUSH's drop, the glass's marks (see `docs/SCIENCE.md`); checked against the original pixel for pixel.

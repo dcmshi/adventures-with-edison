@@ -253,6 +253,7 @@ private:
     std::pair<int, int> objectCentre(int x, int y, int z, int w, int d, int h) const;  // f25_0a51
     Rect objectRect(int x, int y, int z, int w, int d, int h) const;               // f27_16ae
     void objectSprite(int cx, int cy, uint16_t id);  // f14_0d69 at 1:1
+    void scaledSprite(int cx, int cy, int scaleX, int scaleY, uint16_t id);  // f72_02cd, in 256ths
     void drawObjects(const Rect& area);             // the drawables at rest
     void listDrawables(std::vector<Drawable>& list, const Rect& area);  // the room's list (+1AD)
     // The room's "drawn after" table (+5FD) kept between draws: the

@@ -138,8 +138,11 @@ on screen 1, up to 130 countdown ticks or a key or click, then `f20_0094`.
   go); each a new generator, from its first frame.
 - Checked against the original (lessons 6-10 entered through room 61's
   holes to 506-510): every bubble of every lesson, the easter egg in
-  lessons 6-8 and, after lesson 10, the game won (below); all but a few
-  pixels at a bubble's edge (8-22, as in lesson 5).
+  lessons 6-8 and, after lesson 10, the game won (below), pixel for
+  pixel. (The bubble's edges are stretched by `f14_148a` → `f72_02cd` →
+  `f73_0324`: each pixel the source's at a 16.16 step of 256 / scale, as
+  room 5's marks; a plain proportional scale missed a pixel here and there
+  at their curved ends.)
 - The palette: the picture with the look (`f14_092c`) always puts its
   colours 1-254 on the display and its palette into the other screens, so
   a room's table picture (`2002` on screen 3) brings the room's colours
