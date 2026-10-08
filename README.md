@@ -122,7 +122,7 @@ OPL register stream with reference logs recorded from the original driver:
 
 ```sh
 python -m venv .venv && .venv/Scripts/pip install -r requirements.txt
-.venv/Scripts/python tools/oplref.py ADLIB.DLL ADLIB1.DLL ADLIB2.DLL ADLIB3.DLL ADLIB4.DLL CADLIB.DLL MADLIB.DLL
+.venv/Scripts/python tools/oplref.py ADLIB.DLL ADLIB1.DLL ADLIB2.DLL ADLIB3.DLL ADLIB4.DLL CADLIB.DLL MADLIB.DLL SADLIB.DLL
 .venv/Scripts/python tools/oplfuzz.py            # synthetic songs covering every opcode
 ctest --test-dir build --output-on-failure
 ```
@@ -130,6 +130,7 @@ ctest --test-dir build --output-on-failure
 ## Reverse-engineering tools
 
 - `tools/nedis.py FILE.EXE`: whole-program disassembly with Windows imports named, cross-segment calls resolved and string references shown. It writes `extracted/disasm/<exe>.asm`, plus `<exe>.funcs.txt`, a one-line-per-function summary to grep.
+- `tools/wmclasses.py [--rooms]`: Wild Science's C++ classes (after `nedis.py` on `WMAIN.EXE`): their names from Borland's RTTI, bases (virtual ones too), vtables and slots, to `extracted/disasm/wmain.classes.txt` (see `docs/SCIENCE.md`).
 - `tools/ghidra/decompile.sh FILE.EXE ...`: headless Ghidra decompilation to `extracted/ghidra/<exe>.c`.
   - Imports from the CD's DLLs are named, and functions found by `nedis.py` are added.
   - Needs [Ghidra](https://github.com/NationalSecurityAgency/ghidra) 12 and a JDK 21. Set `GHIDRA` to its folder, and `JAVA_HOME` unless `java` is on the PATH.

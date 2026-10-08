@@ -46,7 +46,7 @@ scene objects and an event queue, floating point), so it goes in stages:
 
 - [x] First look: the game's flow under winevdm, WinMain, the game loop, the files.
 - [x] Map the library layers (segment 14 over 63-83) and the framework: the game and player objects, the events, the room dispatcher (110 rooms and the special ones).
-- [ ] Map the room base class (segment 27: the `.SRF` rooms, the table's drawing) and the object classes (segments 2-8, 15, 28-30), the physics (11, 24-26).
+- [x] Map the classes (`tools/wmclasses.py`, `docs/SCIENCE.md`'s "The classes"): every vtable, base (virtual ones too) and slot, with the class names from Borland's RTTI; the room base (27), the objects (2-8, 28), the lessons (15, 16), the panel (30), the camera and the magnets' rooms (25, 26). The physics (11, 24-26) has no classes of its own: its functions are in "The ball's physics".
 - [x] `edison --game science` (and the main menu's Wild Science): the archive, the title and the story (`f38_0718`) with narration; both pixel-identical to the original.
 - [x] The FM music: `SADLIB.DLL` is the ADLIB family's driver (an older build, its variables 0x4F8 further on), played by the native driver; all 68 sounds match the original's register writes. The game's calls (`f32_135d`: the arcade's music one of three songs at random) where the original makes them.
 - [x] The story's `s` key (`f36_004e`: the sounds over, the WAV and the music off), checked after each page, sound and wait as the original's (scan code 1Fh in `[9563]`).

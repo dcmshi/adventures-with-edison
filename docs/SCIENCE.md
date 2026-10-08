@@ -265,9 +265,121 @@ Borland's `mov ax, ss; nop; inc bp` prologue): `f31_0783` is
   (`f41_0123`) draws its labels (`1399`-`139F`, High Score, Lab, Credits,
   play room, Levels 1, 4 and 5), the logo (`13D0`) and EXIT (`13D2`) on
   screen 3. The builder sets the gravity from `[1FF2]` first.
-- Other classes (vtables stored at `+10` by their constructors): about 60,
-  most in segments 2-8 (the table's objects), 15 (the lessons' pictures and
-  buttons) and 28-30.
+- Other classes: about 70 of the game's own and one for each room, mapped
+  with their names below (The classes).
+
+## The classes (`tools/wmclasses.py`)
+
+WMAIN is Borland C++ with RTTI, so its classes can be read from the code:
+`tools/wmclasses.py` (after `tools/nedis.py`) writes the tree to
+`extracted/disasm/wmain.classes.txt`, `--rooms` with the 100 rooms' too.
+
+- **Vtables** are runs of far pointers in the data segment; a constructor
+  (or destructor) stores them into its object: at an offset of `this`, or
+  of the virtual base its pointer at `this+0` leads to (written `v+10`
+  below). Bases' constructors are inlined or called first, so at an offset
+  the last vtable stored is the class's own.
+- **Names**: 8 bytes before a class's first vtable is a far pointer to its
+  RTTI record (in a code segment), whose word at `+4` is the offset of the
+  class's name.
+- **Multiple and virtual inheritance**: an object on the table is its parts
+  (a box, a sphere, a magnet's pole, a switch's power) around one shared
+  virtual base, `sonyobj`, the body. A part's own vtable lists its methods;
+  the body's vtable in the object (at `v+10`) points at them through
+  Borland's adjustor thunks (`mov bx,sp / add word ss:[bx+4],n / jmp far`:
+  `this` moved by n to the part).
+- Slot n of a vtable is at `+4n` (far pointers): what the notes elsewhere
+  call "method +18" is slot 6.
+
+The game's classes (segment: the constructor, the type in `S<n>.SRF`):
+
+```
+gameObj (10)                  a thing on the screen (vtable 10A4 at +10)
+  Obj3d (9)                   in the room's space
+    sonyobj (8)               a body: the physics ("sony")
+      sonyBox (7: 0ed0)       its box part (+A)
+        chopper (2: 00c2)     type 12, the electromagnet (and switchable: its power)
+        blowTorch (2: 05f2)   type 13, the fan (and switchable)
+        puddle (2: 1234)      type 14, the hot field
+        ornament (3: 002c)    type 10, a point target
+          happyFace (3: 0865) type 11, the smiley
+        boxMagpole (5: 1749)  type 4, a magnet (and magnetpole)
+          statboxMagpole (5: 210d)   type 5, a magnet that doesn't move
+          biMag (5: 233e)            type 15, a magnet on a wall
+            electroMag (5: 26f7)     type 6, type 15 on a switch's power (and switchable)
+        playerTarget (6: 0877)       the ball's target
+        sphereShadow (7: 12d6)       the ball's shadow
+          powderTrail (2: 0be1)      type 10 kind 6, the suckhole (and ornament)
+        logo (7: 17f2)        type 16, a block
+        door (28: 00f3)       type 8, a hole
+          suckHole (28: 15a1) type 9, the pulling hole
+      sonySphere (7: 0000)    its sphere part (+2C): type 0, a loose ball
+        playerSphere (6: 0043)          type 1, the ball
+          playerMagSphere (6: 0348)     type 3, with a magnet's pole (and sphereMagpole)
+        sphereMagpole (5: 11c1)         type 2, a magnetic ball
+      magnetpole (5: 00e7)    a magnet's pole (+18): a source of the field (segment 26)
+      switchable (4: 0000)    a power part (+0C in a powered object)
+        sswitch (4: 01a1)     type 7 d 0, the lever
+          bswitch (4: 03eb)   d 1, the bullseye
+            scrnSwitch (4: 0502)   a bullseye without power (room 54's)
+              retry (4: 05b8)      d 3, RETRY
+            peekSwitch (4: 0835)   d 2, blinking
+  animation (15: 00a2)        a lesson's cycling sprite
+  objBubble (15: 0467)        a lesson's bubble
+  gamearea (29: 01d2)         an area of the screen and its objects, with the
+                              redraw queue (f29_0313, f29_0380)
+    storyPlayer (15: 076a)    a lesson: blackboard (0fee) lesson 5, level2-level5
+                              (1524, 19d4, 1dbb, 21a2) lessons 6-9, winanim (2591)
+                              lesson 10; their heads ProfHead1-3, EdHead1-3 built
+                              in them, driven by signalers (16: sigPeriodic,
+                              sigRamp, sigUpDown)
+    ballArea (30: 0000)       the left column; bonusballArea (30: 0860) the right
+    EdisonArea (30: 0910)     Edison walking the panel with OUT OF ORDER signs
+      frontPanel (30: 1268)   the panel
+  control (30: 2013)          a control on the panel
+    scorer (30: 22c4)         the score box
+    button (30: 283c)         balltype (244e), fire (2730: SHOOT), readout (2aa7)
+    lever (30: 2eb7)          momentLever (360f: power), gravityLever (37f1),
+                              frictionLever (3a88)
+surface (25: 03bf)            the camera (vtable 1F62 at +5E)
+  sonysurf (27: 03da)         the room base (also a gamearea, at +60: vtable at +70)
+    magsurf (26: 0000)        the magnets' rooms (the field)
+      screen1-screen100 (41-60)   each room's own
+game (32: 0319)               the game (vtable 280A at +8C)
+  sony (31: 0025)             the player
+plateauSort, sortableArray, quickSort (12)   the boxes' order (segment 39's sort)
+```
+
+Segment 90's classes are Borland's library (`ios`, `streambuf`, `filebuf`,
+the file streams; the high scores' lists in 19 and 21 derive from them).
+
+- **`gameObj`'s slots** (segment 10): 0 the tick and 1 the draw (nothing),
+  2 a press and 3 a key (none taken: 0), 4 a redraw of a rectangle (the
+  object's own without one: `f29_0313`), 5 the destructor, 6 hide and 7 show
+  (`+A`, then a redraw), 8 `+C` set to (arg = 0), 9 a move (the old place
+  redrawn, the position at `+0`, the new one).
+- **`sonyobj`'s** (segments 8 and 9; ported in `physics.cpp`,
+  `things.cpp`): 0 the step (`f08_1a42`), 1 its draw (`f13_0000`, an
+  outline), 2 a press: dragged (`f08_07c6`), 3 `f08_0a97`, 4 its redraw
+  (`f08_07a7`), 5 the destructor, 6 / 7 hide / show (`f08_0469`,
+  `f08_04b3`), 8 `gameObj`'s, 9 / 10 `Obj3d`'s move (`f09_006d`, `f09_003a`),
+  11 the velocity set (`f08_1371`), 12 the acceleration (`f08_125c`), 13 met
+  by the ball (`f08_122b`), 14 `f08_1233`, 15 its place and box (none: a
+  part's, a sphere's `f07_04d5`, a box's `f07_11c5`), 16 stopped
+  (`f08_0721`; a sphere's move `f07_0ead`), 17 `+52` set (`f08_077f`; a
+  sphere's frames by type `f07_05bf`), 18 `f08_0aa1`, 19 its sphere (none:
+  a part's, `f07_04c1`, `f07_11b1`).
+- **The room's** (`sonysurf`, `+5E`): 0 the
+  camera (`f27_0ec5`), 3 a redraw (`f27_1e36`), 4 its pictures (each room's
+  own, `f27_0e5b` in the base), 5 the tick (`f27_2434`), 6 the mouse
+  (`f27_2d15`), 7 a key (`f27_31fb`), 8 a hole's word (each room's own,
+  `f27_2530`), 9 a body onto a face (`f27_2657`), 10 an object from the
+  file (`f61_011d`; the magnets' rooms `f61_09bd`), 11 the destructor. Its
+  `gamearea` part (`+70`) reaches these through thunks (-96): its tick,
+  draw, press, key and redraw are the room's `f27_2434`, `f27_0ec5`,
+  `f27_2d15`, `f27_31fb` and `f27_1e36`.
+- **The game's** (`+8C`, 7 slots) are the event methods (see the game
+  class above): the player (`sony`) has its own 0-4 and 6.
 
 ## The arcade's table (being mapped)
 
