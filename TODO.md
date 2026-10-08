@@ -53,7 +53,7 @@ scene objects and an event queue, floating point), so it goes in stages:
 - [x] The professor's first lesson (room 505, `f15_0fee`): the classroom (`2003`), his eight lines in bubbles (laid out and wrapped as `f15_31fa` and segment 23 do), the narration, MORE. The bubbles match the original pixel for pixel.
 - [x] All six lessons (rooms 505-510): their pictures, scripts (anchors, tails, widths, texts, narration) and the rooms they lead to. Only lesson 5 has been compared with the original so far.
 - [x] The lessons' animations (the professor and Edison, cycling sprites) and the colour cycle (70-7F every 8 ticks; the original only cycles on a 256-colour display, so not under winevdm). With the animations, lesson 5's frames match the original within 8 pixels (a bubble's right edge).
-- [ ] The lessons: the professor's click easter egg (`g15_0cb7`); what lesson 10's end starts (`f31_001a`, then `31:1728`); lessons 6-10 against the original; then the arcade's menu (room 1).
+- [ ] The lessons: the professor's click easter egg (`g15_0cb7`); lessons 6-10 against the original; then the arcade's menu (room 1).
 - [x] `--room 501` (the lab) and `--room 505`-`510` (a lesson) to start there when testing.
 - [x] The table: room 1, its controls, the ball's physics (traced state for state), the shadow in the air, the painter's order, holes and going to their rooms, breaking, losing the ball, PUSH's drop, the glass's marks (see `docs/SCIENCE.md`); checked against the original pixel for pixel.
 - [ ] The arcade, next:
