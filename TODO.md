@@ -55,7 +55,7 @@ scene objects and an event queue, floating point), so it goes in stages:
 - [x] The lessons' animations (the professor and Edison, cycling sprites) and the colour cycle (70-7F every 8 ticks; the original only cycles on a 256-colour display, so not under winevdm). With the animations, lesson 5's frames match the original within 8 pixels (a bubble's right edge).
 - [x] The professor's easter egg (`g15_0cb7`: pressed, lessons 5-8's professor turns to `13BE` till the release), checked against the original; the table's picture brings the room's colours to the display (`f14_092c`), so a greeting after a lesson is in the room's colours.
 - [x] The bubbles' stretched edges as the original's scaler (`f73_0324`: 16.16 steps): every bubble of lessons 6-10 pixel for pixel.
-- [ ] The arcade's menu (room 1) against the original.
+- [x] The arcade's menu (room 1) against the original: every hole from a shot (the play room 31, Level 1's 21, the lab through to room 1 again; the others before); at rest only the columns' random balls differ, as the original's own runs do.
 - [x] `--room 501` (the lab) and `--room 505`-`510` (a lesson) to start there when testing.
 - [x] The table: room 1, its controls, the ball's physics (traced state for state), the shadow in the air, the painter's order, holes and going to their rooms, breaking, losing the ball, PUSH's drop, the glass's marks (see `docs/SCIENCE.md`); checked against the original pixel for pixel.
 - [ ] The arcade, next:
@@ -88,7 +88,7 @@ scene objects and an event queue, floating point), so it goes in stages:
   - [x] The keys (`f31_1d70`: p pause, q quit, m the easter egg to room 24, s the sounds, S and two digits a room); the boxes checked against the original. Not yet: the keys the room and the panel take (their `+1C`, `+0C`).
   - [x] Mode 2's shadow: the shadow's tick (`f07_15ba`) as the original's, running while the ball's hidden, hidden while it breaks; the ball put back (`f27_287d`) leaves the shadow's last centre, so its tick hides it.
   - Test tools: `tools/testing/` (see its README: `check.py` (all of them, before a commit), `trace.sh`, `retrace.py`, `regress.py`, `aimsearch.py`, `origrun.py`, `wm.py` (reading WMAIN.EXE), `cmp.py`, `bestframe.py`, `roompics.py`, the `SCI_*` switches). They and `tools/reference/` need `EDISON_RUN` (the game's folder) and `OTVDM` (winevdm's `otvdmw.exe`, unless on the PATH); `tools/ghidra/decompile.sh` needs `GHIDRA`. The test scripts run the port with `--virtual-clock`, so load doesn't change their results; by hand, under load (ComfyUI on the GPU) timed captures skip ticks: use `--virtual-clock` or `SCI_TICKSHOTS`.
-- [ ] The arcade's menu table, the levels, high scores (`WSCIENCE.HS`), the lab, the credits.
+- [x] The arcade's menu table, the levels, high scores (`WSCIENCE.HS`), the lab, the credits.
 - [ ] Compare with the original under winevdm as each part lands (`memwatch.py` reads the original's state: use it on Mystery and Rock and Bach too, for oddities in their ports).
 
 ## Formats and tooling

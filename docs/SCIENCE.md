@@ -836,6 +836,18 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   score in room 57. Still different: after the wrong code the original
   shows no shadow under the ball put back and the port draws one (29
   pixels; the shadow object's state through the spit, `f07_15ba`).
+- Room 1's holes: 502 High Score, 501 Lab, 503 Credits, 31 the play room,
+  21 Level 1, 508 and 509 Levels 4 and 5, 504 EXIT. Every one checked
+  against the original from a shot in room 1 (power 5: the lab (280, 156),
+  31 (260, 148), 21 (332, 148)): rooms 31 and 21 as they come (21's
+  targets rising, the walker's side aside), the lab through the name, the
+  Character Enhancer and DONE back to room 1 (0 pixels at rest but for
+  the professor's, the flask's and Edison's frames). Left at rest, the
+  columns' balls differ from the original's (some 590 pixels): each is a
+  random frame (`f30_0599`, Borland's `rand`), and the original's differ
+  from run to run too. Between the lab and room 1 the original shows the
+  black display a while (the lab's clear, then room 1 built under
+  winevdm; `f31_0783`'s `f14_0000(1)` only keeps the palette, no fade).
 
 ## Each room's word on its holes, the room's end (ported: `rooms.cpp`)
 
