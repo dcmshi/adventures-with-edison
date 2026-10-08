@@ -179,7 +179,7 @@ void Mystery::mapTalk(int side, int frames) {
         }
         copyArea(2, 1, mx, 0xE8, mw, mh);
         duplicateArea(3, 2, 0, 0, mw, mh, mx, 0xE8);
-        waitCountdown(2);
+        spinCountdown(2);  // takes no messages
     }
     duplicateArea(3, 2, 0, 0xA0, kW, kH, kX, kY);
     select(1);
@@ -195,7 +195,7 @@ void Mystery::smittyTalk() {
         drawLogo(0x6C, 0xF0, static_cast<uint16_t>(i < 4 ? 0x22AA + (i & 1) : 0x22AB));
         copyArea(2, 1, 0x6C, 0xF0, 0x32, 0x5E);
         duplicateArea(3, 2, 200, 0, 0x32, 0x5E, 0x6C, 0xF0);
-        waitCountdown(3);
+        spinCountdown(3);  // takes no messages
     }
     select(previous);
 }
@@ -275,7 +275,7 @@ void Mystery::entrance(bool first, int found) {
     };
     select(2);
     music(0x23);
-    waitCountdown(4);
+    spinCountdown(4);  // its waits take no messages
     for (int i = 0; i < static_cast<int>(std::size(kSteps)); ++i) {
         const Step& s = kSteps[i];
         if (i == 1) music(0x28);
@@ -307,7 +307,7 @@ void Mystery::entrance(bool first, int found) {
             smittySays(first ? 1 : 0, found);
             select(2);
         }
-        waitCountdown(s.wait);
+        spinCountdown(s.wait);
         if (!first && i == 5) break;
     }
     select(1);
@@ -704,7 +704,12 @@ int Mystery::play() {
         } else {
             copyArea(2, 1, kGridX, kGridY, 0xD8, 0xB4);
             drawObjects(0);
-            waitOrClick(10);
+            // A second, cut short only by the button held as the game last
+            // saw it ([739E], read before it takes its messages): a press
+            // on the letter's last page is still held here, as Edison's
+            // talk since took none, so a quick click skips the wait.
+            ctx_.countdown[0] = 10;
+            while (ctx_.countdown[0] != 0 && !ctx_.held) ctx_.pump();
             bubble = speechBox(bx, by, dataLines(0x1346), 3, true);
             sound(0x4012);
             mapTalk(1, 5);

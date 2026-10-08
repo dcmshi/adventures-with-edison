@@ -64,6 +64,12 @@ void GameContext::startTimer() {
 }
 
 void GameContext::pump() {
+    spin();
+    int x, y;
+    platform.mouse(&x, &y, &held);
+}
+
+void GameContext::spin() {
     if (!platform.pumpEvents()) throw Closed{};
     timer.advance(platform.milliseconds());
     platform.present(screens[1], displayPalette);

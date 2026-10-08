@@ -49,13 +49,20 @@ def key(t, text):
 
 def office(level=0):
     """The level picked at 0, then the Director's letter read (six presses
-    of its arrow): the office's map is up by about 30 s."""
-    return [click(0, *LEVELS[level])] + [click(11 + 1.5 * i, *ARROW) for i in range(6)]
+    of its arrow, held 80 ms as a click: the last is still held, as the
+    game sees it, when the objects are up, which skips their wait): the
+    office's map is up by about 30 s."""
+    return [click(0, *LEVELS[level])] + [hold(11 + 1.5 * i, *ARROW) for i in range(6)]
 
+
+DOOR = (268, 309)  # the office's door to the Museum (DS:0E76: 210-326, 284-334)
 
 SCENARIOS = {
     "office": dict(events=office(0), shots=[(-0.01, "pick"), (1, "letsdoit"), (6, "office"), (10, "letter"), (13, "page2"),
                                             (20, "objects"), (26, "goodluck"), (32, "map")]),
+    "clock": dict(events=office(0), shots=[(18 + 0.5 * i, f"c{i:02d}") for i in range(21)]),
+    "floor": dict(events=office(0) + [click(34, *DOOR)], shots=[(33.9, "map"), (35, "door"), (37, "floor1"),
+                                                               (40, "floor2"), (44, "floor3")]),
 }
 
 

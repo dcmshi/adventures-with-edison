@@ -304,6 +304,11 @@ void ArtechGame::waitCountdown(int tenths) {
     while (ctx_.countdown[0] != 0) ctx_.pump();
 }
 
+void ArtechGame::spinCountdown(int tenths) {
+    ctx_.countdown[0] = tenths;
+    while (ctx_.countdown[0] != 0) ctx_.spin();
+}
+
 void ArtechGame::drawOpaque(int x, int y, uint16_t id) {
     const Bitmap& bmp = ctx_.bitmap(id);
     if (x + bmp.width > Screen::kWidth) x = Screen::kWidth - bmp.width - 1;

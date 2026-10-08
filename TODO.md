@@ -10,7 +10,7 @@ of a game, high scores, saved games, custom levels and the idle animations).
 What's left is checking it against the original:
 
 - [x] The original's random numbers (segment 46, never seeded) and line drawing ported, so both deal the same boards and puzzles; `tools/testing/mmcompare.py` compares them (`MALLSKIP.EXE` against `EDISON_SKIP`). The level pick to the office's map match pixel for pixel (`docs/MYSTERY.md`).
-- [ ] Compare each puzzle with the original at an easy and a hard level (layout, timing, scoring), with `mmcompare.py` scenarios (`--puzzle`/`EDISON_SQUARE`). Next: get from the office to the Museum floor (clicking the door at (60, 230) does nothing in either; find the floor's way in) and on into a square.
+- [ ] Compare each puzzle with the original at an easy and a hard level (layout, timing, scoring), with `mmcompare.py` scenarios (`--puzzle`/`EDISON_SQUARE`). The way in is the map on the office's table (`mmcompare.py floor`: to the Museum's map of buildings, pixel for pixel; the countdown's second fixed on the way, `docs/MYSTERY.md`'s `[739E]`). Next: on from the buildings into a square.
 - [ ] Compare the end of a game (dance, quiz, bonus maze, endings, high scores), especially the bonus maze's speed, which the original doesn't pace (the port uses 40 ms a step).
 - [ ] Compare the setup prompts, saved games and the custom level editor.
 

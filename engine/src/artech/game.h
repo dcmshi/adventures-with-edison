@@ -82,6 +82,7 @@ protected:
     void clearInput();                                          // drop pending clicks and keys
     bool anyInput();                                            // a click or key since the last check
     void waitCountdown(int tenths);                             // countdown 0 = n; wait for 0
+    void spinCountdown(int tenths);                             // ... taking no messages (GameContext::spin)
     bool waitOrClick(int tenths);                               // ... or a click or key (true)
 
     GameContext ctx_;
