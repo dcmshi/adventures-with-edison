@@ -58,7 +58,7 @@ scene objects and an event queue, floating point), so it goes in stages:
 - [x] The arcade's menu (room 1) against the original: every hole from a shot (the play room 31, Level 1's 21, the lab through to room 1 again; the others before); at rest only the columns' random balls differ, as the original's own runs do.
 - [x] `--room 501` (the lab) and `--room 505`-`510` (a lesson) to start there when testing.
 - [x] The table: room 1, its controls, the ball's physics (traced state for state), the shadow in the air, the painter's order, holes and going to their rooms, breaking, losing the ball, PUSH's drop, the glass's marks (see `docs/SCIENCE.md`); checked against the original pixel for pixel.
-- [ ] The arcade, next:
+- [x] The arcade, next:
   - [x] Each room's pictures and builder settings; point targets (type 10) and the score.
   - [x] The panel's locked controls: OUT OF ORDER signs and Edison putting them up.
   - [x] Segment 24's dialog boxes and room 1's method 8: EXIT's question, the warp codes of levels 4 and 5 (and their points in the next table), checked against the original pixel for pixel. `SCI_HOLE=n` gets there without a shot.
