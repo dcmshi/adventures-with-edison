@@ -2,18 +2,12 @@
 // the middle; pick the small picture of the same sculpture. Five of them.
 
 #include <algorithm>
-#include <random>
 
 #include "mystery/mystery.h"
 
 namespace edison {
 
 namespace {
-
-int random(int n) {
-    static std::mt19937 rng{std::random_device{}()};
-    return n > 0 ? std::uniform_int_distribution<int>(0, n - 1)(rng) : 0;
-}
 
 constexpr int kSecondSlot = 6;
 constexpr int kSpots = 0x1B;  // DS:63DE: the frame's 27 places

@@ -2,18 +2,12 @@
 // the end of a won game.
 
 #include <algorithm>
-#include <random>
 
 #include "mystery/mystery.h"
 
 namespace edison {
 
 namespace {
-
-int random(int n) {
-    static std::mt19937 rng{std::random_device{}()};
-    return std::uniform_int_distribution<int>(0, n - 1)(rng);
-}
 
 constexpr int kSecondSlot = 6;
 
@@ -34,6 +28,7 @@ constexpr int kCardX = 0x7C, kCardY = 0x66, kCardW = 0x188, kCardH = 0x12A;
 
 bool Mystery::questionPeriod(int level, bool asPuzzle) {
     // f19_16a2. As the final quiz (not a puzzle) the easy levels have none.
+    stirRandom();
     if (!asPuzzle && level < 3) return true;
     int count = 16, total = 300;  // [8582], [B772]
     if (level == 3) count = 9, total = 0xF0;

@@ -2,6 +2,8 @@
 // plays its game (f10_0708).
 
 #include <algorithm>
+#include <cstdio>
+#include <cstdlib>
 #include <string>
 
 #include "mystery/mystery.h"
@@ -205,7 +207,15 @@ int Mystery::floor() {
         square_ = squareAt(cx, cy);
         if (square_ < 0) continue;
         Square& sq = squares_[square_];
-        const bool won = sq.puzzle < 16 && puzzle(sq.puzzle, sq.level);
+        int game = sq.puzzle, level = sq.level;
+        // For testing, as MALLSKIP.EXE's --puzzle and --difficulty:
+        // EDISON_SQUARE=P or P,D plays puzzle P (at difficulty D) on every square.
+        if (const char* forced = std::getenv("EDISON_SQUARE")) {
+            int p = -1, d = -1;
+            if (std::sscanf(forced, "%d,%d", &p, &d) >= 1 && p >= 0) game = p;
+            if (d >= 0) level = d;
+        }
+        const bool won = game < 16 && puzzle(game, level);
         if (won) {
             if (sq.state != 0) sq.state = 2;
             if (sq.object != 0xFF && objects_[sq.object].museum != 0xFF) {

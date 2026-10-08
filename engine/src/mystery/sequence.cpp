@@ -2,7 +2,6 @@
 // question mark; pick the one of four on the right that comes next.
 
 #include <algorithm>
-#include <random>
 #include <utility>
 
 #include "mystery/mystery.h"
@@ -10,11 +9,6 @@
 namespace edison {
 
 namespace {
-
-int random(int n) {
-    static std::mt19937 rng{std::random_device{}()};
-    return std::uniform_int_distribution<int>(0, n - 1)(rng);
-}
 
 constexpr int kSecondSlot = 6;
 constexpr int kRowX = 0x5F, kAnswersX = 0x16D, kRowY = 0x3C, kRowStep = 0x37, kItemStep = 0x3C;

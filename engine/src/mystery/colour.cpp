@@ -4,7 +4,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <random>
 #include <utility>
 
 #include "mystery/mystery.h"
@@ -12,11 +11,6 @@
 namespace edison {
 
 namespace {
-
-int random(int n) {
-    static std::mt19937 rng{std::random_device{}()};
-    return std::uniform_int_distribution<int>(0, n - 1)(rng);
-}
 
 constexpr int kSecondSlot = 6;
 constexpr int kFigureW = 0x46, kFigureH = 0x28;

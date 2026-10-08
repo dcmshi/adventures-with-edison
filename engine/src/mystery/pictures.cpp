@@ -3,18 +3,12 @@
 // the player puts back together on a board of size x size cells.
 
 #include <algorithm>
-#include <random>
 
 #include "mystery/mystery.h"
 
 namespace edison {
 
 namespace {
-
-int random(int n) {
-    static std::mt19937 rng{std::random_device{}()};
-    return std::uniform_int_distribution<int>(0, n - 1)(rng);
-}
 
 constexpr int kPictures = 17;
 constexpr int kGap = 2;  // between the board's cells

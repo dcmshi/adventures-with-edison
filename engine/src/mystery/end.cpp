@@ -10,21 +10,12 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
-#include <random>
 
 #include "mystery/mystery.h"
 
 namespace edison {
 
 namespace {
-
-// f46_001d: random(n).
-int random(int n) {
-    // EDISON_SEED makes the maze repeatable (for testing).
-    static std::mt19937 rng{std::getenv("EDISON_SEED") ? static_cast<unsigned>(std::atoi(std::getenv("EDISON_SEED")))
-                                                      : std::random_device{}()};
-    return std::uniform_int_distribution<int>(0, n - 1)(rng);
-}
 
 // A pose of an end-screen animation: where it's drawn and its bitmap.
 struct Pose {

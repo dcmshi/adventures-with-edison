@@ -48,8 +48,9 @@ void Mystery::title() {
     ctx_.screens[2].clear();  // f04_0000: screen 2 cleared and shown
     ctx_.screens.copyAll(2, 1);
     ctx_.showFullScreen(0x100E, 2);
-    ctx_.setDisplayPalette(2);
+    ctx_.setDisplayPalette(2);  // f04_005c(2)
     ctx_.screens.copyAll(2, 1);
+    stirRandom();
     music(0x29);
     ctx_.countdown[0] = 100;
     clearInput();
@@ -67,9 +68,7 @@ void Mystery::setupScreen() {
     ctx_.screens.copyAll(2, 1);
     ctx_.showFullScreen(0x1006, 2);
     applyColours(2, false);     // f09_0b88(1, 2, 0)
-    ctx_.setDisplayPalette(2);  // f04_005c(2)
-    ctx_.screens[1].palette = ctx_.screens[2].palette;
-    ctx_.screens.copyAll(2, 1);
+    show(2);
     computeUiColours();
     // Keep a clean copy of the scene area at the top left of screen 2.
     duplicateArea(2, 2, 0, kSceneTop, kSceneW, kSceneH, 0, 0);
@@ -326,7 +325,7 @@ bool Mystery::askChangeLooks() {
 
 void Mystery::letsDoIt() {
     // f08_157e: "Let's do it."
-    const int bubble = speechBox(1, Screen::kHeight / 2, dataLines(0x978), 3, true);
+    const int bubble = speechBox(4, Screen::kHeight / 2, dataLines(0x978), 3, true);
     sound(0x4046);
     talk(4);
     ctx_.countdown[0] = 4;
@@ -698,15 +697,18 @@ int Mystery::setup(int mode) {
     // mode 1: the first time (the title, then a new player); 0 after a
     // game ("Do you want to play again?"); 0x0F after "play again" from the
     // map's quit button. Returns 1 when the player leaves.
-    if (mode == 1) title();
+    if (mode == 1 && !skipToLevelPick_) title();
     loadLook();
     customLevel_ = false;
     savedGame_ = false;
     idle_ = false;
-    bool returning = mode != 1;  // [B786]
+    playedAgain_ = mode != 1;  // [B786]
+    bool returning = playedAgain_;
     if (mode == 1) std::fill(std::begin(player_.colours), std::end(player_.colours), 0);
     setupScreen();
     menuEvent_ = 0;
+    const bool skip = skipToLevelPick_;
+    skipToLevelPick_ = false;
     int step = 0;
     while (step != -1) {
         switch (step) {
@@ -719,7 +721,8 @@ int Mystery::setup(int mode) {
                 }
                 step = 3;
             } else {
-                step = mode == 0x0F ? 3 : 1;
+                // (Mode 0x0F also adds an empty panel, DS:0728.)
+                step = skip ? 11 : mode == 0x0F ? 3 : 1;
             }
             break;
         case 1:

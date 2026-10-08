@@ -3,18 +3,12 @@
 // into it. Five cubes.
 
 #include <algorithm>
-#include <random>
 
 #include "mystery/mystery.h"
 
 namespace edison {
 
 namespace {
-
-int random(int n) {
-    static std::mt19937 rng{std::random_device{}()};
-    return n > 0 ? std::uniform_int_distribution<int>(0, n - 1)(rng) : 0;
-}
 
 constexpr int kSecondSlot = 6;
 constexpr uint16_t kNets = 0x60EE;  // 37 nets of 3 x 4 cells; 0-28 fold up, 29-36 don't

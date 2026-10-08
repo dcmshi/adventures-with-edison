@@ -2,18 +2,12 @@
 
 #include <algorithm>
 #include <cstdio>
-#include <random>
 
 #include "mystery/mystery.h"
 
 namespace edison {
 
 namespace {
-
-int random(int n) {
-    static std::mt19937 rng{std::random_device{}()};
-    return std::uniform_int_distribution<int>(0, n - 1)(rng);
-}
 
 constexpr int kSecondSlot = 6;
 
@@ -766,6 +760,7 @@ bool Mystery::binaryLights(int level) {
     // switch of each row is 8); the machine shows them, the operation and
     // the answer, and the answer has to match the target. The clock runs
     // (5 minutes) but only counts for the bonus.
+    stirRandom();
     level = std::clamp(level, 0, 3);
     int rounds = 5;           // [823A]
     int timeLeft = 300;       // [8224]

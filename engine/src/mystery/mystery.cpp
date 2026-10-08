@@ -19,6 +19,7 @@ bool Mystery::load(const Options& options, std::string* error) {
         if (error) *error = "MALL.EXE: unexpected data segment";
         return false;
     }
+    seedRandom(&data_[0x7638]);
     sine_ = exe.segment(51);
     puzzles_ = exe.segment(62);
     if (sine_.size() < 0x1000 || puzzles_.size() < 0x198) {
@@ -90,6 +91,12 @@ void Mystery::run() {
         }
     }
     int mode = 1;
+    if (std::getenv("EDISON_SKIP")) {
+        // For testing, as tools/reference/mall_skip.py's MALLSKIP.EXE: no
+        // title, straight to "Please pick a level" as the player SKIP.
+        player_.name = "SKIP";
+        skipToLevelPick_ = true;
+    }
     if (options_.startLevel >= 0) {
         player_.name = "Test";
         player_.level = static_cast<uint8_t>(std::min(options_.startLevel, 7));

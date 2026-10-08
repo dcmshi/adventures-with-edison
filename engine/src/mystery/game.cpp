@@ -2,19 +2,12 @@
 
 #include <algorithm>
 #include <cstdio>
-#include <random>
 
 #include "mystery/mystery.h"
 
 namespace edison {
 
 namespace {
-
-// f46_001d: random(n).
-int random(int n) {
-    static std::mt19937 rng{std::random_device{}()};
-    return std::uniform_int_distribution<int>(0, n - 1)(rng);
-}
 
 // f09_1dd8's per-level tables (immediates in its code): the time limit in
 // seconds, which of the 29 squares are used, how many of the 16 object
@@ -69,6 +62,7 @@ void Mystery::show(int screen) {
     ctx_.setDisplayPalette(screen);
     ctx_.screens[1].palette = ctx_.screens[screen].palette;
     ctx_.screens.copyAll(screen, 1);
+    stirRandom();
 }
 
 void Mystery::backdrop(uint16_t id) {
@@ -220,8 +214,10 @@ void Mystery::smittySays(int mode, int result) {
     if (mode != 0) {
         if (savedGame_) {
             lines = 0x11C8, speech = 0x4035;
+        } else if (!playedAgain_) {
+            lines = 0x11E8, speech = 0x4056;
         } else {
-            lines = 0x11E8, speech = 0x4056;  // [B786] is never set by the port yet
+            lines = 0x1212, speech = 0x4052;
         }
     } else if (result == -1) {
         lines = 0x122C, speech = 0x4042;
@@ -298,7 +294,7 @@ void Mystery::entrance(bool first, int found) {
         copyArea(2, 1, rx, ry, rw, rh);
         if (i != 1) duplicateArea(3, 2, 0x190, 0, rw, rh, rx, ry);
         if (i == 8 && first) {
-            museumList();
+            if (!playedAgain_) museumList();  // the Director's letter
             select(1);
             const std::vector<std::string> lines = {dataString(0x12FD), dataString(0x1319)};
             const int bubble =

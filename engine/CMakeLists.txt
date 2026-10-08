@@ -58,6 +58,7 @@ add_library(edison_core
     src/mystery/editor.cpp
     src/mystery/end.cpp
     src/mystery/three.cpp
+    src/mystery/random.cpp
     src/mystery/planetarium.cpp
     src/mystery/cube.cpp
     src/mystery/ball.cpp

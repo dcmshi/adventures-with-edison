@@ -318,18 +318,57 @@ void ArtechGame::line(int x0, int y0, int x1, int y1, uint8_t colour) {
     y1 = std::min(y1, Screen::kHeight - 1);
     x0 = std::max(x0, 0);
     y0 = std::max(y0, 0);
+    // The library's line (MALL f57_0024, WINMAIN f59, EDISON f31: 32-bit
+    // code): one run of pixels a row from the top end down, each row's run
+    // ending where the line is half a row further on (16.16, rounded).
+    struct Run {
+        int start, length;
+    };
+    std::vector<Run> runs;
+    int dx = x1 - x0, dy = y1 - y0, flags = 0;  // 1: x falls going down, 2: from (x1, y1)
+    if (dx == 0) {
+        if (dy < 0) dy = -dy, flags ^= 3;
+        runs.assign(static_cast<size_t>(dy) + 1, Run{x0, 1});
+    } else {
+        if (dx < 0) dx = -dx, flags |= 1;
+        if (dy == 0) {
+            runs.push_back({(flags & 1) ? x1 : x0, dx + 1});
+        } else {
+            if (dy < 0) dy = -dy, flags ^= 3;
+            const uint32_t slope = (static_cast<uint32_t>(dx) << 16) / static_cast<uint32_t>(dy);
+            const int from = (flags & 2) ? x1 : x0, to = (flags & 2) ? x0 : x1;
+            auto half = [](uint32_t pos) {  // shr 1, adc 0
+                const int i = static_cast<int>((pos >> 16) & 0xFFFF);
+                return (i >> 1) + (i & 1);
+            };
+            int x = from;
+            if (!(flags & 1)) {
+                uint32_t pos = (static_cast<uint32_t>(from) << 17) + slope;
+                for (int k = 0; k < dy; ++k, pos += 2 * slope) {
+                    const int m = half(pos);
+                    runs.push_back({x, m == x ? 1 : m - x});
+                    x = m;
+                }
+                runs.push_back({x, to - x + 1});
+            } else {
+                uint32_t pos = (static_cast<uint32_t>(from) << 17) - slope;
+                for (int k = 0; k < dy; ++k, pos -= 2 * slope) {
+                    const int m = half(pos);
+                    runs.push_back(m == x ? Run{m, 1} : Run{m + 1, x - m});
+                    x = m;
+                }
+                runs.push_back({to, x - to + 1});
+            }
+        }
+    }
+    const int top = (flags & 2) ? y1 : y0;
     auto plot = [&](int s) {
         Screen& scr = ctx_.screens[s];
-        const int dx = std::abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
-        const int dy = -std::abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
-        int err = dx + dy, x = x0, y = y0;
-        for (;;) {
-            if (x >= 0 && x < Screen::kWidth && y >= 0 && y < Screen::kHeight)
-                scr.pixels[static_cast<size_t>(y) * Screen::kWidth + x] = colour;
-            if (x == x1 && y == y1) break;
-            const int e2 = 2 * err;
-            if (e2 >= dy) { err += dy; x += sx; }
-            if (e2 <= dx) { err += dx; y += sy; }
+        for (size_t r = 0; r < runs.size(); ++r) {
+            const int y = top + static_cast<int>(r);
+            if (y < 0 || y >= Screen::kHeight) continue;
+            for (int x = runs[r].start; x < runs[r].start + runs[r].length; ++x)
+                if (x >= 0 && x < Screen::kWidth) scr.pixels[static_cast<size_t>(y) * Screen::kWidth + x] = colour;
         }
     };
     const int x = std::min(x0, x1), y = std::min(y0, y1);

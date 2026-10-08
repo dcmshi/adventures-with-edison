@@ -3,18 +3,12 @@
 // Five rounds.
 
 #include <algorithm>
-#include <random>
 
 #include "mystery/mystery.h"
 
 namespace edison {
 
 namespace {
-
-int random(int n) {
-    static std::mt19937 rng{std::random_device{}()};
-    return n > 0 ? std::uniform_int_distribution<int>(0, n - 1)(rng) : 0;
-}
 
 constexpr int kSecondSlot = 6;
 constexpr int kConstellations = 16;

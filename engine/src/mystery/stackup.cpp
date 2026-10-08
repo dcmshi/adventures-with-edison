@@ -3,7 +3,6 @@
 // four in order, left to right.
 
 #include <algorithm>
-#include <random>
 #include <utility>
 
 #include "mystery/mystery.h"
@@ -11,11 +10,6 @@
 namespace edison {
 
 namespace {
-
-int random(int n) {
-    static std::mt19937 rng{std::random_device{}()};
-    return n > 0 ? std::uniform_int_distribution<int>(0, n - 1)(rng) : 0;
-}
 
 constexpr int kSecondSlot = 6;
 constexpr int kItemsX = 0x5F, kChoicesX = 0x18B, kRowY = 0x3C, kRowStep = 0x37, kItemStep = 0x3C, kChoiceStep = 0x46;

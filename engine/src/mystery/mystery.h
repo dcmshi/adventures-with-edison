@@ -12,6 +12,12 @@
 
 namespace edison {
 
+// Segment 46's random numbers (random.cpp), as the original draws them.
+void seedRandom(const uint8_t* words);  // DS:7638's six words, from the data segment
+uint16_t rand16();                      // f46_0000
+int random(int n);                      // f46_001d: 0 to n-1 (n 0x10000 and up: f46_0000)
+void stirRandom();                      // f06_2cf8
+
 // Mystery at the Museums (MALL.EXE). See docs/MYSTERY.md for the map of
 // the original; functions here name the one they port (fSS_OOOO).
 class Mystery : public ArtechGame {
@@ -294,6 +300,8 @@ private:
     bool savedGame_ = false;        // [B76B]
     bool lastOne_ = false;          // [B054]: one object left
     bool greeted_ = false;          // [0C9E]
+    bool playedAgain_ = false;      // [B786]: setup ran after a game (mode not 1)
+    bool skipToLevelPick_ = false;  // for testing (EDISON_SKIP): setup starts at the level pick
     int square_ = 0;                // [C76C], the square being played
     int bubble_ = 0;                // [81CE]
     bool modal_ = false;            // [C23E]

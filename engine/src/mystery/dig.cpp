@@ -4,20 +4,12 @@
 
 #include <algorithm>
 #include <cstdlib>
-#include <random>
 
 #include "mystery/mystery.h"
 
 namespace edison {
 
 namespace {
-
-int random(int n) {
-    // EDISON_SEED makes the layout repeatable (for testing).
-    static std::mt19937 rng{std::getenv("EDISON_SEED") ? static_cast<unsigned>(std::atoi(std::getenv("EDISON_SEED")))
-                                                       : std::random_device{}()};
-    return std::uniform_int_distribution<int>(0, n - 1)(rng);
-}
 
 constexpr int kSecondSlot = 6;
 constexpr int kTileW = 100, kTileH = 60;

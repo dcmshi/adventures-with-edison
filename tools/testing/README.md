@@ -78,6 +78,16 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
   `build/scratch/rbcompare/`. Needs the CD image mounted (the
   instruments' and effects' WAVs). Not in `check.py`: it only reports
   (`docs/ROCKBACH.md` lists what always differs).
+- `mmcompare.py [NAME...] [--port-only | --compare-only] [--list]`:
+  Mystery's scenarios, each a timeline of clicks, holds and keys from the
+  level pick, played in the port (`EDISON_SKIP`, `EDISON_SQUARE`) and in
+  the original (`MALLSKIP.EXE`, written for each by
+  `tools/reference/mall_skip.py`); both deal the same boards and puzzles
+  (the original's generator is never seeded). Each of the original's
+  shots against the port's closest frame within 1.5 s, the diffs to
+  `build/scratch/mmcompare/`; the original's `MYSTERY.HS` and
+  `MEDISON.COL` put back after. Needs the CD image mounted (the speech).
+  Not in `check.py`.
 - `aimsearch.py SPEC [--jobs N] [--limit S] -- ARGS...`: `SCI_AIMSEARCH`
   split by rows over N processes (default half the cores), dialogs
   skipped; progress per process to stderr, the aims found to stdout; a

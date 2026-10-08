@@ -9,9 +9,13 @@ puzzle at one difficulty.
 - The setup jumps from its start (08:2339) over the title (f08_2284) to
   Edison's and Smitty's colours (f06_1ce0 with the looks [C65C], [C130],
   [92AC], [C76E]: 0, the defaults), which only mode 1 sets.
-- The setup's first step ([bp-4], 08:2467) is 11, the level pick: the
-  name, the player's file, the looks and the saved game's question are
-  skipped. The player is "SKIP" ([B465]) with the file SKIP.INF ([C3F2],
+- The setup's "after a game" flag ([B786], 08:245D) stays 0, as on the
+  first setup: the map shows the Director's letter and the first greeting,
+  as the port's --level does.
+- After its first step (the courtyard scene, which draws Edison), mode
+  0x0F's next step is 11, the level pick, instead of 3 (08:250E: `add
+  word [bp-4], 2` becomes 10; 1 more follows): the name, the player's
+  file, the looks and the saved game's question are skipped. The player is "SKIP" ([B465]) with the file SKIP.INF ([C3F2],
   which the skipped step 2 would have built: g08_0154), so the run
   folder's own players are left alone; the game writes SKIP.INF there.
 - --puzzle P (0-15, names at DS:1A9C; docs/MYSTERY.md) and --difficulty D
@@ -36,7 +40,8 @@ from ne import NEFile  # noqa: E402
 # (segment, offset, the bytes there, what they are)
 MODE = (2, 0xD8, bytes.fromhex("c646fa01"), "the first setup's mode (mov byte [bp-6], 1)")
 LOOKS = (8, 0x2339, bytes.fromhex("8a460625ff00"), "the setup's mode test (mov al, [bp+6]; and ax, 0FFh)")
-STEP = (8, 0x2467, bytes.fromhex("c746fc0000"), "the setup's first step (mov word [bp-4], 0)")
+AGAIN = (8, 0x245D, bytes.fromhex("c60686b701"), "the setup's [B786] = 1 (mov byte [B786], 1)")
+STEP = (8, 0x250E, bytes.fromhex("8346fc02"), "mode 0x0F's next step (add word [bp-4], 2)")
 DIFFICULTY = (10, 0x98A, bytes.fromhex("8a470125ff00"), "the square's difficulty (mov al, [bx+1]; and ax, 0FFh)")
 PUZZLE = (10, 0x9A4, bytes.fromhex("8a871c9325ff00"), "the square's puzzle (mov al, [bx+931Ch]; and ax, 0FFh)")
 CLIP = (42, CLIP_AT, CLIP_WAS, "the ClipCursor call's pushes")
@@ -57,7 +62,7 @@ def main():
     def at(seg, off):
         return exe.segments[seg - 1]["offset"] + off
 
-    for seg, off, was, what in (MODE, LOOKS, STEP, DIFFICULTY, PUZZLE, CLIP):
+    for seg, off, was, what in (MODE, LOOKS, AGAIN, STEP, DIFFICULTY, PUZZLE, CLIP):
         if data[at(seg, off):at(seg, off) + len(was)] != was:
             sys.exit(f"MALL.EXE: {what} isn't at {seg}:{off:04X} (another version?)")
     for where, text in ((NAME_AT, NAME), (PATH_AT, NAME + b".INF")):
@@ -66,7 +71,8 @@ def main():
         data[at(DGROUP, where):at(DGROUP, where) + len(text)] = text
     data[at(*MODE[:2]) + 3] = 0x0F
     data[at(*LOOKS[:2]):at(*LOOKS[:2]) + 2] = bytes([0xEB, 0x11])  # jmp 234C
-    data[at(*STEP[:2]) + 3] = 11
+    data[at(*AGAIN[:2]) + 4] = 0
+    data[at(*STEP[:2]) + 3] = 10
     if a.difficulty is not None:  # mov ax, D
         data[at(*DIFFICULTY[:2]):at(*DIFFICULTY[:2]) + 6] = bytes([0xB8, a.difficulty, 0, 0x90, 0x90, 0x90])
     if a.puzzle is not None:  # mov ax, P
