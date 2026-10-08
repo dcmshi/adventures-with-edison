@@ -1075,8 +1075,9 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   for points past the centre in x (left wall) or y (back wall). Drawn
   (`f13_0823`, `f13_0937`) as `DS:1532` (type 6 `155A`, powered `1582`) +
   20 for c 1 + 10 for S + 2 level. Checked: room 33 (an Iron ball shot past
-  the bar on the white block, traced till it falls in the water, which is
-  the room's own, not ported), pixel for pixel at rest.
+  the bar on the white block, traced till it falls in the water: the
+  room's `+24`, the ball broken on (405, 278), see below), pixel for pixel
+  at rest.
   Checked: room 3 (the Iron ball pulled across to a type-5 magnet and
   held inside it, 868 states) and room 13 (three loose magnets and the
   ball, 625 states), traced (`memwatch.py --follow`) state for state.
