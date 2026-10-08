@@ -62,7 +62,8 @@ bool Mystery::colourTransformation(int level) {
             if (++at >= count) at = 0;
             return static_cast<uint8_t>(c);
         };
-        auto poly = [&](std::vector<std::pair<int, int>> pts, uint8_t colour) { fillPolygon(pts, colour, true); };
+        // draw_poly (f32_2e46): the library's spans take in the edges.
+        auto poly = [&](std::vector<std::pair<int, int>> pts, uint8_t colour) { fillPolygonSolid(pts, colour); };
         auto rect = [&](int rx, int ry, int w, int h, uint8_t c) {  // g27_0082
             poly({{rx, ry}, {rx + w - 1, ry}, {rx + w - 1, ry + h - 1}, {rx, ry + h - 1}}, c);
         };

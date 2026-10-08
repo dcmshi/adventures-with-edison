@@ -19,13 +19,22 @@ puzzle at one difficulty.
   which the skipped step 2 would have built: g08_0154), so the run
   folder's own players are left alone; the game writes SKIP.INF there.
 - --puzzle P (0-15, names at DS:1A9C; docs/MYSTERY.md) and --difficulty D
-  (0-7): the floor (f10_0708) reads the square's puzzle at 10:09A4 and its
+  (0-8, below the game's count at DS:197C): the floor (f10_0708) reads the square's puzzle at 10:09A4 and its
   difficulty at 10:098A; here they're constants, so any square clicked
   (a museum on the map goes straight into one) runs that puzzle.
+- --floor: the first visit to the office goes straight into the Museum.
+  The entrance (f09_15f8) starts its steps at the table's end (09:17D9:
+  [bp-4] is 11, or -1, by the first-visit flag [bp+6], before the loop's
+  `add [bp-4], 1`; the four-tick wait before it stays), so Edison, Smitty
+  and the Director's letter don't come on; the first visit's objects and
+  "Check the map and good luck!" (f09_1dd8 at 09:29D4, only reached on
+  the first visit) become `mov [0E74], 1` (the table map's button, g09_0822)
+  and a jump to 09:2D5B (the help panel, the timers), so the loop goes
+  into the Museum at once. Later visits are as they were.
 
 It's for comparisons only: the CD's file is left as it is.
 
-Usage: python tools/reference/mall_skip.py [--puzzle P] [--difficulty D] [RUN DIR]   (default $EDISON_RUN)
+Usage: python tools/reference/mall_skip.py [--puzzle P] [--difficulty D] [--floor] [RUN DIR]   (default $EDISON_RUN)
 then:  tools/reference/otvdm.ps1 start MALLSKIP.EXE
 """
 import argparse
@@ -44,6 +53,9 @@ AGAIN = (8, 0x245D, bytes.fromhex("c60686b701"), "the setup's [B786] = 1 (mov by
 STEP = (8, 0x250E, bytes.fromhex("8346fc02"), "mode 0x0F's next step (add word [bp-4], 2)")
 DIFFICULTY = (10, 0x98A, bytes.fromhex("8a470125ff00"), "the square's difficulty (mov al, [bx+1]; and ax, 0FFh)")
 PUZZLE = (10, 0x9A4, bytes.fromhex("8a871c9325ff00"), "the square's puzzle (mov al, [bx+931Ch]; and ax, 0FFh)")
+ENTRANCE = (9, 0x17C6, bytes.fromhex("c706b2920400833eb292007503e90300e9f3ffc746fc0000e90400"),
+            "the entrance's wait and its steps' start (mov word [92B2], 4 ... jmp 17E5)")
+FIRST = (9, 0x29D4, bytes.fromhex("68b40068d8006a5c"), "the first visit's objects (push 0B4h; push 0D8h; push 5Ch)")
 CLIP = (42, CLIP_AT, CLIP_WAS, "the ClipCursor call's pushes")
 DGROUP = 73
 NAME, NAME_AT, PATH_AT = b"SKIP", 0xB465, 0xC3F2  # (zeros there in the file)
@@ -53,7 +65,8 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("run", nargs="?", help="the folder with the game files (default $EDISON_RUN)")
     ap.add_argument("--puzzle", type=int, choices=range(16), metavar="P")
-    ap.add_argument("--difficulty", type=int, choices=range(8), metavar="D")
+    ap.add_argument("--difficulty", type=int, choices=range(9), metavar="D")
+    ap.add_argument("--floor", action="store_true", help="the first visit to the office goes into the Museum")
     a = ap.parse_args()
     run = Path(a.run or os.environ.get("EDISON_RUN") or sys.exit("give the folder with the game files, or set EDISON_RUN"))
     exe = NEFile(run / "MALL.EXE")
@@ -62,7 +75,7 @@ def main():
     def at(seg, off):
         return exe.segments[seg - 1]["offset"] + off
 
-    for seg, off, was, what in (MODE, LOOKS, AGAIN, STEP, DIFFICULTY, PUZZLE, CLIP):
+    for seg, off, was, what in (MODE, LOOKS, AGAIN, STEP, DIFFICULTY, PUZZLE, ENTRANCE, FIRST, CLIP):
         if data[at(seg, off):at(seg, off) + len(was)] != was:
             sys.exit(f"MALL.EXE: {what} isn't at {seg}:{off:04X} (another version?)")
     for where, text in ((NAME_AT, NAME), (PATH_AT, NAME + b".INF")):
@@ -77,11 +90,27 @@ def main():
         data[at(*DIFFICULTY[:2]):at(*DIFFICULTY[:2]) + 6] = bytes([0xB8, a.difficulty, 0, 0x90, 0x90, 0x90])
     if a.puzzle is not None:  # mov ax, P
         data[at(*PUZZLE[:2]):at(*PUZZLE[:2]) + 7] = bytes([0xB8, a.puzzle, 0, 0x90, 0x90, 0x90, 0x90])
+    if a.floor:
+        entrance = bytes.fromhex(
+            "c706b2920400"  # 17C6 mov word [92B2], 4
+            "833eb29200"    # 17CC cmp word [92B2], 0
+            "75f9"          # 17D1 jne 17CC
+            "837e0601"      # 17D3 cmp word [bp+6], 1  (CF: not the first visit)
+            "1bc0"          # 17D7 sbb ax, ax          (-1 later, 0 the first time)
+            "83c80b"        # 17D9 or ax, 0Bh          (-1, or 11)
+            "8946fc"        # 17DC mov [bp-4], ax
+            "9090")         # 17DF; 17E1 add word [bp-4], 1: step 0, or 12 (the end)
+        assert len(entrance) == len(ENTRANCE[2])
+        data[at(*ENTRANCE[:2]):at(*ENTRANCE[:2]) + len(entrance)] = entrance
+        jmp = 0x2D5B - (0x29DA + 3)
+        first = bytes.fromhex("c706740e0100") + bytes([0xE9, jmp & 0xFF, jmp >> 8])  # mov word [0E74], 1; jmp 2D5B
+        data[at(*FIRST[:2]):at(*FIRST[:2]) + len(first)] = first
     data[at(*CLIP[:2]):at(*CLIP[:2]) + len(CLIP_NOW)] = CLIP_NOW
     out = run / "MALLSKIP.EXE"
     out.write_bytes(data)
     forced = ", ".join(f"{k} {v}" for k, v in (("puzzle", a.puzzle), ("difficulty", a.difficulty)) if v is not None)
-    print(f"wrote {out}: straight to the level pick" + (f"; every square: {forced}" if forced else ""))
+    print(f"wrote {out}: straight to the level pick" + (", then into the Museum" if a.floor else "")
+          + (f"; every square: {forced}" if forced else ""))
 
 
 if __name__ == "__main__":

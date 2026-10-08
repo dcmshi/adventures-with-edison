@@ -55,9 +55,10 @@ bool Mystery::stackup(int level) {
     auto drawBar = [&](int x, int y, int bar, int colour) {  // g25_0190
         std::vector<std::pair<int, int>> pts = bars[bar];
         for (auto& p : pts) p.first += x, p.second += y;
-        fillPolygon(pts, colour ? static_cast<uint8_t>(colour) : barColour[bar]);
-        for (size_t k = 0; k < pts.size(); ++k)
-            line(pts[k].first, pts[k].second, pts[(k + 1) % pts.size()].first, pts[(k + 1) % pts.size()].second, 0xFF);
+        // draw_poly's lists (f32_2e46): the bar, then its outline as
+        // two-point polygons of colour FF.
+        fillPolygonSolid(pts, colour ? static_cast<uint8_t>(colour) : barColour[bar]);
+        for (size_t k = 0; k < pts.size(); ++k) fillPolygonSolid({pts[k], pts[(k + 1) % pts.size()]}, 0xFF);
     };
 
     // DS:8AE6: a row.

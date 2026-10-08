@@ -56,6 +56,7 @@ bool Mystery::dig(int level) {
 
     // g21_02a8: tiles at random places, their shared edges made to match,
     // then (level + 1) * 2 of them dug out onto the belt.
+    auto deal = [&] {
     for (int& b : belt) b = -1;
     for (auto& c : wall) for (int& t : c) t = -1;
     for (auto& c : solution) for (int& t : c) t = -1;
@@ -76,6 +77,7 @@ bool Mystery::dig(int level) {
         belt[i++] = wall[a][b];
         wall[a][b] = -1;
     }
+    };
 
     auto drawTile = [&](int t, int x, int y, int screen) {  // g21_0586
         // Put together at (0x19, 0x19) on screen 2 (the symbols straddle
@@ -111,7 +113,7 @@ bool Mystery::dig(int level) {
                 const int previous = current();
                 select(screen);
                 const int lx = x + i + (i + 1) * 100;
-                line(lx, y, lx, y + 0x3B, 0xFF);
+                displayLine(lx, y, lx, y + 0x3B, 0xFF);
                 select(previous);
             }
         }
@@ -320,6 +322,7 @@ bool Mystery::dig(int level) {
     panels_.add(panel);
     select(1);
     show(2);
+    deal();  // after f04_005c's stir (21:1A24)
     computeUiColours();
     drawWall(wall);
     drawBelt(0, 5, kBeltX, kBeltY, 1);

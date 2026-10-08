@@ -113,17 +113,18 @@ void Mystery::loadPicture(int index, const int size[4]) {
     pic_.arrowsH = b * pic_.tileH + (b - 1) * kGap + 0x29;
     pic_.arrowDX = (pic_.tileW - 8) >> 1;
     pic_.arrowDY = (pic_.tileH - 8) >> 1;
-    // g40_0030: scaled, centred on (w/2, h/2).
+    // g40_0030: scaled (the library's f41_0024), centred on (w/2, h/2).
     const Bitmap& bmp = ctx_.bitmap(static_cast<uint16_t>(0x22F0 + index));
     Screen& s2 = ctx_.screens[2];
     for (int y = 0; y < 0xC8; ++y) std::fill_n(s2.pixels.begin() + static_cast<size_t>(y) * Screen::kWidth, 0x140, 0);
     const int dw = bmp.width * size[2] / 256, dh = bmp.height * size[3] / 256;
     const int x0 = size[0] / 2 - dw / 2, y0 = size[1] / 2 - dh / 2;
+    const uint32_t stepX = scaleStep(size[2]), stepY = scaleStep(size[3]);
     for (int y = 0; y < dh; ++y)
         for (int x = 0; x < dw; ++x) {
             const int px = x0 + x, py = y0 + y;
             if (px < 0 || py < 0 || px >= Screen::kWidth || py >= Screen::kHeight) continue;
-            s2.pixels[static_cast<size_t>(py) * Screen::kWidth + px] = bmp.at(x * 256 / size[2], y * 256 / size[3]);
+            s2.pixels[static_cast<size_t>(py) * Screen::kWidth + px] = bmp.at(static_cast<int>(x * stepX >> 16), static_cast<int>(y * stepY >> 16));
         }
     select(1);
 }

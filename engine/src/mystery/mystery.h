@@ -302,6 +302,7 @@ private:
     bool greeted_ = false;          // [0C9E]
     bool playedAgain_ = false;      // [B786]: setup ran after a game (mode not 1)
     bool skipToLevelPick_ = false;  // for testing (EDISON_SKIP): setup starts at the level pick
+    bool skipToFloor_ = false;      // ... (EDISON_FLOOR): the first visit to the office goes into the Museum
     int square_ = 0;                // [C76C], the square being played
     int bubble_ = 0;                // [81CE]
     bool modal_ = false;            // [C23E]

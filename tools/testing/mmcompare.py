@@ -1,9 +1,10 @@
 """Mystery at the Museums against the original: a timeline of clicks, holds
 and keys from "Please pick a level", played in the port (EDISON_SKIP:
 setup starts at the level pick as the player SKIP; EDISON_SQUARE: every
-square plays one puzzle) and in the original under winevdm (MALLSKIP.EXE,
-tools/reference/mall_skip.py, the same), each of the original's shots
-against the port's closest frame near its time.
+square plays one puzzle; EDISON_FLOOR, a scenario's floor=True: the
+first visit to the office goes into the Museum) and in the original under
+winevdm (MALLSKIP.EXE, tools/reference/mall_skip.py, the same), each of
+the original's shots against the port's closest frame near its time.
 
   python tools/testing/mmcompare.py [NAME ...] [--port-only | --compare-only] [--list]
 
@@ -60,10 +61,36 @@ DOOR = (268, 309)  # the office's door to the Museum (DS:0E76: 210-326, 284-334)
 SCENARIOS = {
     "office": dict(events=office(0), shots=[(-0.01, "pick"), (1, "letsdoit"), (6, "office"), (10, "letter"), (13, "page2"),
                                             (20, "objects"), (26, "goodluck"), (32, "map")]),
+    "skipfloor": dict(floor=True, events=[click(0, *LEVELS[0])],
+                      shots=[(5, "office"), (7, "in"), (9, "floor"), (12, "floor2")]),
     "clock": dict(events=office(0), shots=[(18 + 0.5 * i, f"c{i:02d}") for i in range(21)]),
     "floor": dict(events=office(0) + [click(34, *DOOR)], shots=[(33.9, "map"), (35, "door"), (37, "floor1"),
                                                                (40, "floor2"), (44, "floor3")]),
 }
+
+
+# The puzzles (DS:1A9C) and their numbers of levels (DS:197C): difficulty
+# 0 to the count - 1.
+PUZZLES = ["Folded Cube", "Liberty Planetarium", "3D Ball Sculpture", "Binary Lights", "Question and Answer Period",
+           "Dropping Squares", "Codes", "Concentration", "Circuit Analyzer", "Stackup", "Slide Puzzle",
+           "Color Transformation", "Switch Puzzle", "Arrow Puzzle", "What Comes Next", "The Dig"]
+LEVEL_COUNTS = [8, 3, 6, 4, 1, 4, 2, 9, 8, 3, 5, 9, 7, 3, 6, 8]
+BUILDING = (95, 75)  # square 0's building on the floor (f10_0328's first)
+
+
+def puzzle_start(p, d):
+    """Into the Museum (floor=True), then square 0's building, which plays
+    puzzle P at difficulty D: its first screens."""
+    return dict(floor=True, puzzle=p, difficulty=d, events=[click(0, *LEVELS[0]), click(9, *BUILDING)],
+                shots=[(8.9, "floor"), (10, "s10"), (12, "s12"), (15, "s15"), (20, "s20")])
+
+
+SCENARIOS["cube_long"] = dict(puzzle=0, difficulty=0, events=office(0) + [click(34, *DOOR), click(43, *BUILDING)],
+                              shots=[(42.9, "floor"), (46, "s46")])
+
+for _p, _n in enumerate(LEVEL_COUNTS):
+    for _d in sorted({0, _n - 1}):
+        SCENARIOS[f"p{_p:02d}d{_d}"] = puzzle_start(_p, _d)
 
 
 def run_folder():
@@ -84,6 +111,8 @@ def play_orig(name, s):
         skip += ["--puzzle", str(s["puzzle"])]
     if "difficulty" in s:
         skip += ["--difficulty", str(s["difficulty"])]
+    if s.get("floor"):
+        skip.append("--floor")
     subprocess.run(skip, check=True, stdout=subprocess.DEVNULL)
     lines = [f"wait {START}"]
     timeline = [(e[0], e) for e in s["events"]] + [(t, ("shot", n)) for t, n in s["shots"]]
@@ -132,6 +161,8 @@ def play_port(name, s):
             args += ["--type", ms, e[2]]
     end = max([t for t, _ in s["shots"]] + [e[0] for e in s["events"]]) + LEAD + 2
     env = dict(os.environ, EDISON_SKIP="1")
+    if s.get("floor"):
+        env["EDISON_FLOOR"] = "1"
     if "puzzle" in s:
         env["EDISON_SQUARE"] = f"{s['puzzle']},{s['difficulty']}" if "difficulty" in s else str(s["puzzle"])
     with open(d / "run.log", "w") as log:

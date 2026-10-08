@@ -179,12 +179,10 @@ bool Mystery::whatComesNext(int level) {
     auto drawShape = [&](int shape, int colour, int x, int y) {  // g26_01e2
         std::vector<std::pair<int, int>> pts = shapes[shape];
         for (auto& p : pts) p.first += x, p.second += y;
-        fillPolygon(pts, static_cast<uint8_t>(colour));
-        for (size_t k = 0; k < pts.size(); ++k) {
-            const auto& a = pts[k];
-            const auto& b = pts[(k + 1) % pts.size()];
-            line(a.first, a.second, b.first, b.second, 0xFF);
-        }
+        // draw_poly's lists (f32_2e46): the shape, then its outline as
+        // two-point polygons of colour FF.
+        fillPolygonSolid(pts, static_cast<uint8_t>(colour));
+        for (size_t k = 0; k < pts.size(); ++k) fillPolygonSolid({pts[k], pts[(k + 1) % pts.size()]}, 0xFF);
     };
     auto drawRow = [&](int i) {  // g26_06ca
         const Row& r = rows[i];

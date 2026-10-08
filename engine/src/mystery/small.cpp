@@ -476,10 +476,11 @@ bool Mystery::concentration(int level) {
     // three) at a time to find ones that match. Each match is worth 100
     // points and tells a fact about the thing found. Every door has two
     // switches that change its colour and a button that opens it.
-    level = std::clamp(level, 0, 7);
-    // DS:2920: the layout, how many make a match, the seconds.
-    static const int kLevel[8][3] = {{8, 2, 120}, {7, 3, 120}, {9, 2, 120},  {5, 2, 180},
-                                     {10, 2, 180}, {4, 2, 180}, {3, 3, 240}, {1, 3, 240}};
+    level = std::clamp(level, 0, 8);  // nine levels (DS:197C)
+    // DS:2920 (13 bytes a level): the layout, how many make a match, the
+    // seconds (the other fields are 0 at every level).
+    static const int kLevel[9][3] = {{8, 2, 120},  {7, 3, 120}, {9, 2, 120}, {5, 2, 180}, {10, 2, 180},
+                                     {4, 2, 180}, {3, 3, 240}, {1, 3, 240}, {0, 3, 300}};
     // DS:2884: groups to find (for matches of 2 and 3) and the rows' doors
     // (6 bits, the left door is bit 5).
     static const int kLayout[12][7] = {

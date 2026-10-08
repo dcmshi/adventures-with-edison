@@ -96,6 +96,9 @@ void Mystery::run() {
         // title, straight to "Please pick a level" as the player SKIP.
         player_.name = "SKIP";
         skipToLevelPick_ = true;
+        // EDISON_FLOOR too (mall_skip.py --floor): the first visit to the
+        // office goes straight into the Museum.
+        skipToFloor_ = std::getenv("EDISON_FLOOR") != nullptr;
     }
     if (options_.startLevel >= 0) {
         player_.name = "Test";

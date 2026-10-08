@@ -140,13 +140,16 @@ bool Mystery::ballSculpture(int level) {
         for (int r = 0; r < kShotH; ++r)
             for (int c = 0; c < kShotW; ++c)
                 shot[static_cast<size_t>(r) * kShotW + c] = s2.pixels[static_cast<size_t>(kShotY + r) * Screen::kWidth + kShotX + c];
-        const int w = kShotW * 0x80 / 256, h = kShotH * 0x7E / 256;
+        // The library's scaler (f41_0024).
+        constexpr int kScaleX = 0x80, kScaleY = 0x7E;
+        const int w = kShotW * kScaleX / 256, h = kShotH * kScaleY / 256;
+        const uint32_t stepX = scaleStep(kScaleX), stepY = scaleStep(kScaleY);
         const int cx = kBoxesX + kBox[slot][0] + kBox[slot][2] / 2, cy = kBoxesY + kBox[slot][1] + kBox[slot][3] / 2;
         Screen& dst = ctx_.screens[2];
         for (int r = 0; r < h; ++r)
             for (int c = 0; c < w; ++c)
                 dst.pixels[static_cast<size_t>(cy - h / 2 + r) * Screen::kWidth + cx - w / 2 + c] =
-                    shot[static_cast<size_t>(r * kShotH / h) * kShotW + c * kShotW / w];
+                    shot[static_cast<size_t>(r * stepY >> 16) * kShotW + (c * stepX >> 16)];
         copyArea(2, 1, cx - kShotW / 2, cy - kShotH / 2, kShotW, kShotH);
     };
 
@@ -164,10 +167,6 @@ bool Mystery::ballSculpture(int level) {
     drawOpaque(0x15E, 0x162, 0x2251);
     text(0x132, 0x168, "5", 0x9D);
     intBox(0x90, 0x3E, 0x2C, 0x14, points);
-    show(2);
-    computeUiColours();
-    select(1);
-    duplicateArea(2, 2, kViewX, kViewY, kViewW, kViewH, 0, 0);
     auto showTime = [&] {
         if (timeLeft == timeShown) return;
         digitalTime(0x1AA, 0x42, 0x28, 0x14, timeLeft);
@@ -256,6 +255,14 @@ bool Mystery::ballSculpture(int level) {
              at = static_cast<uint16_t>(at + 2))
             shape.push_back(word(at));
         right = random(4);
+        select(1);
+        if (left == 5) {  // f04_005c(2, 4) after the shape's and answer's draws (its stir too)
+            show(2);
+            computeUiColours();
+            select(1);
+            // The empty view is kept at the top left of screen 2 (once shown).
+            duplicateArea(2, 2, kViewX, kViewY, kViewW, kViewH, 0, 0);
+        }
         turnA = 0x1000, turnC = 0x1A00;
         auto colour = build(0);
         render(false, colour, false);

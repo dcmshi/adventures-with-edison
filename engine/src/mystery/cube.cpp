@@ -95,8 +95,11 @@ bool Mystery::foldedCube(int level) {
             for (int o : order) {
                 std::vector<std::pair<int, int>> p;
                 for (int k = 0; k < 3; ++k) p.push_back(flat[static_cast<size_t>(tri[o][k])]);
-                fillPolygon(p, static_cast<uint8_t>(colour[o]));
-                for (int k = 0; k < 3; ++k) line(p[k].first, p[k].second, p[(k + 1) % 3].first, p[(k + 1) % 3].second, 2);
+                // draw_poly's list (f32_2e46): the triangle, then its
+                // edges as two-point polygons of colour 0 (each record's
+                // header word is colour << 8 | count: 0x0002).
+                fillPolygonSolid(p, static_cast<uint8_t>(colour[o]));
+                for (int k = 0; k < 3; ++k) fillPolygonSolid({p[k], p[(k + 1) % 3]}, 0);
             }
         }
         copyArea(2, 1, kCubeX, kCubeY, kCubeW, kCubeH);
@@ -118,7 +121,9 @@ bool Mystery::foldedCube(int level) {
         for (int t : kFace[face]) c.x[t] = x, c.y[t] = y, c.turned[t] = turned;
     };
     auto newCube = [&] {  // g29_0518
-        for (int& c : colour) c = random(6) * 2 + 0x21;
+        // Drawn face by face (DS:B728, B726, B738, ...: kFace's order).
+        static constexpr int kDrawn[12] = {3, 2, 11, 10, 7, 6, 4, 5, 0, 1, 8, 9};
+        for (int t : kDrawn) colour[t] = random(6) * 2 + 0x21;
         for (Choice& c : choices) c = Choice{};
         const int right = random(4);
         choices[right].right = true;
@@ -191,10 +196,6 @@ bool Mystery::foldedCube(int level) {
     drawOpaque(0x15E, 0x162, 0x2251);
     text(0x132, 0x168, "5", 0x9D);
     showScore();
-    show(2);
-    computeUiColours();
-    select(1);
-    showTime();
 
     bool quit = false, redraw = false, gadget = false;
     int pressedNet = -1;
@@ -266,12 +267,19 @@ bool Mystery::foldedCube(int level) {
     ctx_.timer.setPeriodic(kSecondSlot, 1, [&] {  // g30_0026
         if (timeLeft > 0) --timeLeft;
     });
-    // The empty preview is kept at the top left of screen 2.
-    duplicateArea(2, 2, kCubeX, kCubeY, kCubeW, kCubeH, 0, 0);
 
     while (cubesLeft > 0 && !quit) {
         turnA = static_cast<uint16_t>(random(0x10000));
         turnC = static_cast<uint16_t>(random(0x10000));
+        if (cubesLeft == 5) {  // f04_005c(2, 4) after the turn's draws (its stir too)
+            show(2);
+            computeUiColours();
+            select(1);
+            showTime();
+            // The empty preview is kept at the top left of screen 2 (once
+            // shown: 29:127B).
+            duplicateArea(2, 2, kCubeX, kCubeY, kCubeW, kCubeH, 0, 0);
+        }
         roundDone = false;
         newCube();
         drawCube();

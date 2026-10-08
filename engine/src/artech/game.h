@@ -63,6 +63,17 @@ protected:
     void setPolygonClip(int x, int y, int w, int h) { clip_ = {x, y, x + w - 1, y + h - 1}; }
     void clearPolygonClip() { clip_ = {0, 0, Screen::kWidth - 1, Screen::kHeight - 1}; }
     void line(int x0, int y0, int x1, int y1, uint8_t colour);
+    // MALL's line (f06_1af8): the ends kept on the screen; on the display it
+    // goes on screen 3, and only a vertical or horizontal one is copied over,
+    // |dy| rows (or |dx| columns) from (x0, y0), at least one: the far end
+    // stays off the display, and a slanted line never reaches it.
+    void displayLine(int x0, int y0, int x1, int y1, uint8_t colour);
+    // The library's scalers (MALL f41_0024, f41_0330; WMAIN f73_0324: 32-bit
+    // code) take each pixel from the source at a 16.16 step of 256 / scale.
+    static uint32_t scaleStep(int scale) {
+        const uint32_t s = static_cast<uint32_t>(scale);
+        return (0x100 / s) << 16 | ((0x100 % s) << 16) / s;
+    }
     void frame(int x, int y, int w, int h, uint8_t colour);     // a rectangle's outline
     void text(int x, int y, const std::string& s, int colour);  // in font_
     void copyArea(int src, int dst, int x, int y, int w, int h) { ctx_.screens.copyArea(src, dst, x, y, w, h); }

@@ -54,7 +54,12 @@ int random(int n) {
     const uint16_t r = rand16();
     int v = r;
     if (n < 0x10000) v = n > 0 ? r % n : 0;  // (div leaves dx 0 for n = 0)
-    if (rngLog) std::fprintf(rngLog, "%d %d\n", n, v), std::fflush(rngLog);
+    if (rngLog) {  // n, the value, and the six words after
+        std::fprintf(rngLog, "%d %d", n, v);
+        for (uint16_t w : state) std::fprintf(rngLog, " %04x", w);
+        std::fprintf(rngLog, "\n");
+        std::fflush(rngLog);
+    }
     return v;
 }
 

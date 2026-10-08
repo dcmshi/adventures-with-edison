@@ -62,6 +62,7 @@ bool Mystery::droppingSquares(int level) {
         used[picture][usedCount[picture]++] = at;
         squares[i] = {picture, at, false};
     };
+    auto deal = [&] {
     switch (level) {
     case 0: {
         speed = 10, limit = 300;
@@ -102,6 +103,7 @@ bool Mystery::droppingSquares(int level) {
         break;
     }
     timeLeft = limit;
+    };
 
     // The squares of cloth are kept at the bottom left of screen 2 (8 x 7,
     // by their number), the pictures left with holes.
@@ -142,27 +144,31 @@ bool Mystery::droppingSquares(int level) {
         return c;
     };
     auto nextPiece = [&] {  // g18_0fd2
-        std::vector<int> open;
-        for (int c = 0; c < kCols; ++c)
-            if (well[0][c].empty()) open.push_back(c);
-        if (open.empty()) {  // the well is full
+        bool full = true;  // g18_0c7a
+        for (int c = 0; c < kCols; ++c) full &= !well[0][c].empty();
+        if (full) {
             outcome = 1;
             return;
         }
-        pieceCol = open[random(static_cast<int>(open.size()))];
+        // A column at random, drawn again till its top is empty.
+        do pieceCol = random(kCols);
+        while (!well[0][pieceCol].empty());
         const int r = random(10);
         for (Cell& c : piece) c = Cell{};
         if (r < 9) {
             if (r == 6) {
                 for (Cell& c : piece) c = cloth();
             } else {
+                // Each square of cloth is picked before its place.
+                Cell first = cloth();
                 const int a = random(3);
-                piece[a] = cloth();
+                piece[a] = first;
                 if (r > 1) {
+                    Cell second = cloth();
                     int b;
                     do b = random(3);
                     while (b == a);
-                    piece[b] = cloth();
+                    piece[b] = second;
                 }
             }
             for (Cell& c : piece)
@@ -295,6 +301,7 @@ bool Mystery::droppingSquares(int level) {
     select(2);
     drawLogo(8, 0xA3, 0x20FB);
     show(2);
+    deal();  // after f04_005c's stir (g18_22de)
     computeUiColours();
     fill(kWellX, 0, kWellW, kWellH, 0);
     copyArea(2, 1, 0, 0, Screen::kWidth, Screen::kHeight);

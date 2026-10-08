@@ -10,7 +10,9 @@ of a game, high scores, saved games, custom levels and the idle animations).
 What's left is checking it against the original:
 
 - [x] The original's random numbers (segment 46, never seeded) and line drawing ported, so both deal the same boards and puzzles; `tools/testing/mmcompare.py` compares them (`MALLSKIP.EXE` against `EDISON_SKIP`). The level pick to the office's map match pixel for pixel (`docs/MYSTERY.md`).
-- [ ] Compare each puzzle with the original at an easy and a hard level (layout, timing, scoring), with `mmcompare.py` scenarios (`--puzzle`/`EDISON_SQUARE`). The way in is the map on the office's table (`mmcompare.py floor`: to the Museum's map of buildings, pixel for pixel; the countdown's second fixed on the way, `docs/MYSTERY.md`'s `[739E]`). Next: on from the buildings into a square.
+- [x] The way into the Museum is the map on the office's table (`mmcompare.py floor`, pixel for pixel; the countdown's second fixed on the way, `docs/MYSTERY.md`'s `[739E]`). `mall_skip.py --floor` / `EDISON_FLOOR` go straight in from the level pick (about 7 s).
+- [x] Each puzzle's opening at its easiest and hardest level (`mmcompare.py pPPdD`, 30 scenarios: the first 20 s): pixel for pixel but Dropping Squares' second piece (17 pixels) and Color Transformation's frame corners (5-7 pixels). Fixed: when each screen is shown among the draws, `draw_poly`'s records, the library's scalers, MALL's display line, Concentration's ninth level, Dropping Squares' next piece and the Folded Cube's colours (`docs/MYSTERY.md`).
+- [ ] Play each puzzle against the original (moves, timing, scoring, winning and losing), with timelines of clicks in `mmcompare.py`; and the two leftovers above.
 - [ ] Compare the end of a game (dance, quiz, bonus maze, endings, high scores), especially the bonus maze's speed, which the original doesn't pace (the port uses 40 ms a step).
 - [ ] Compare the setup prompts, saved games and the custom level editor.
 

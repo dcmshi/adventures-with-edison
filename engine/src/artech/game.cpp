@@ -52,8 +52,9 @@ bool ArtechGame::librarySpans(const std::vector<std::pair<int, int>>& pts, int& 
                                size_t maxPoints) const {
     // WMAIN.EXE's library polygon (f81_0280 / f63_20e4): cut to the clip,
     // an edge of it at a time (f83_0065); then each row's leftmost and
-    // rightmost x along the edges (f81_0000).
-    if (pts.size() < 3) return false;
+    // rightmost x along the edges (f81_0000). Two points are a line (its
+    // one edge both ways: MALL's Folded Cube draws its edges so).
+    if (pts.size() < 2) return false;
     std::vector<std::pair<int, int>> poly(pts);
     auto cut = [&](auto in, auto at) {
         std::vector<std::pair<int, int>> out;
@@ -78,7 +79,7 @@ bool ArtechGame::librarySpans(const std::vector<std::pair<int, int>>& pts, int& 
     if (!poly.empty()) cut([&](auto p) { return p.first <= clip_.x1; }, atX(clip_.x1));
     if (!poly.empty()) cut([&](auto p) { return p.second >= clip_.y0; }, atY(clip_.y0));
     if (!poly.empty()) cut([&](auto p) { return p.second <= clip_.y1; }, atY(clip_.y1));
-    if (poly.size() < 3) return false;
+    if (poly.size() < 2) return false;
     if (maxPoints && poly.size() > maxPoints) return false;
     if (needArea) {
         bool wide = false, tall = false;
@@ -193,6 +194,22 @@ void ArtechGame::scanPolygon(const std::vector<std::pair<int, int>>& pts, Plot p
         for (size_t k = 0; k + 1 < xs.size(); k += 2)
             for (int x = std::max(xs[k], clip_.x0); x <= std::min(xs[k + 1], clip_.x1); ++x) plot(x, y);
     }
+}
+
+void ArtechGame::displayLine(int x0, int y0, int x1, int y1, uint8_t colour) {
+    x1 = std::min(x1, Screen::kWidth - 1);
+    x0 = std::max(x0, 0);
+    y1 = std::min(y1, Screen::kHeight - 1);
+    y0 = std::max(y0, 0);
+    if (current_ != 1) {
+        line(x0, y0, x1, y1, colour);
+        return;
+    }
+    current_ = 3;
+    line(x0, y0, x1, y1, colour);
+    current_ = 1;
+    if (x0 == x1) copyArea(3, 1, x0, y0, 1, std::max(std::abs(y1 - y0), 1));
+    else if (y0 == y1) copyArea(3, 1, x0, y0, std::max(std::abs(x1 - x0), 1), 1);
 }
 
 void ArtechGame::frame(int x, int y, int w, int h, uint8_t colour) {
@@ -396,15 +413,21 @@ void ArtechGame::drawCentred(int x, int y, uint16_t id) {
 }
 
 void ArtechGame::drawScaledCentred(int x, int y, int scaleX, int scaleY, uint16_t id) {
-    // f06_189a: a sprite scaled (256 = 1:1) about its centre, colour 0 clear.
+    // f06_189a: a sprite scaled (256 = 1:1) about its centre, colour 0 clear:
+    // f40_03d2 → f41_0330 (32-bit code, WMAIN's f73_0324 again): (w *
+    // scale) / 256 wide, each pixel the source's at a 16.16 step of 256 /
+    // scale on each axis.
     const Bitmap& bmp = ctx_.bitmap(id);
-    const int w = std::max(1, bmp.width * scaleX / 256), h = std::max(1, bmp.height * scaleY / 256);
-    const int left = x - w / 2, top = y - h / 2;
+    if (scaleX <= 0 || scaleY <= 0) return;
+    const int w = bmp.width * scaleX / 256, h = bmp.height * scaleY / 256;
+    if (w <= 0 || h <= 0) return;
+    const uint32_t stepX = scaleStep(scaleX), stepY = scaleStep(scaleY);
+    const int left = x - (w >> 1), top = y - (h >> 1);
     drawVia3(left, top, w, h, [&](int s) {
         Screen& scr = ctx_.screens[s];
         for (int r = 0; r < h; ++r)
             for (int c = 0; c < w; ++c) {
-                const uint8_t p = bmp.at(c * bmp.width / w, r * bmp.height / h);
+                const uint8_t p = bmp.at(static_cast<int>(c * stepX >> 16), static_cast<int>(r * stepY >> 16));
                 const int px = left + c, py = top + r;
                 if (p && px >= 0 && py >= 0 && px < Screen::kWidth && py < Screen::kHeight)
                     scr.pixels[static_cast<size_t>(py) * Screen::kWidth + px] = p;

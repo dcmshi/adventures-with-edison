@@ -276,7 +276,10 @@ void Mystery::entrance(bool first, int found) {
     select(2);
     music(0x23);
     spinCountdown(4);  // its waits take no messages
-    for (int i = 0; i < static_cast<int>(std::size(kSteps)); ++i) {
+    // EDISON_FLOOR: the first time, none of the steps (Edison, Smitty and
+    // the Director's letter don't come on).
+    const int steps = first && skipToFloor_ ? 0 : static_cast<int>(std::size(kSteps));
+    for (int i = 0; i < steps; ++i) {
         const Step& s = kSteps[i];
         if (i == 1) music(0x28);
         // The area the sprite covers: Edison's poses after step 6 share
@@ -701,7 +704,7 @@ int Mystery::play() {
                 sound(0x4013);
                 mapTalk(1, 5);
             }
-        } else {
+        } else if (!skipToFloor_) {
             copyArea(2, 1, kGridX, kGridY, 0xD8, 0xB4);
             drawObjects(0);
             // A second, cut short only by the button held as the game last
@@ -714,8 +717,13 @@ int Mystery::play() {
             sound(0x4012);
             mapTalk(1, 5);
         }
-        waitOrClick(2);
-        if (bubble) restoreArea(bubble);
+        // EDISON_FLOOR (mall_skip.py --floor): the first visit's objects
+        // and speech skipped, and the table's map pressed.
+        const bool straightIn = first && skipToFloor_;
+        if (!straightIn) {
+            waitOrClick(2);
+            if (bubble) restoreArea(bubble);
+        }
         helpPanel(0x88, 0x76, 0x54, 0x40);
         if (first) {
             idleMap();
@@ -729,6 +737,7 @@ int Mystery::play() {
         });
         modal_ = false;
         clearInput();
+        if (straightIn) go_ = true;
 
         // Until Edison goes into the Museum, the game ends or the player
         // leaves.
