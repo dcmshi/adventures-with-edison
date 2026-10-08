@@ -109,6 +109,15 @@ int RockBach::pollWidgets() {
     if (index < 0 && ctx_.platform.takeClick(&x, &y)) {
         index = find([&](const Widget& w) { return x >= w.x0 && x <= w.x1 && y >= w.y0 && y <= w.y1; });
         if (index < 0) lastClick_ = {true, x, y};
+    } else if (index < 0) {
+        // A button still held counts as a press where it went down ([3BA6]
+        // and [3BA8]): a click that ended something else (a video playing)
+        // and is held into the next screen presses what it's on there.
+        int mx, my;
+        bool down = false;
+        ctx_.platform.mouse(&mx, &my, &down);
+        if (down && ctx_.platform.lastPress(&x, &y))
+            index = find([&](const Widget& w) { return x >= w.x0 && x <= w.x1 && y >= w.y0 && y <= w.y1; });
     }
     if (index < 0) return -1;
     Widget& w = list[index];

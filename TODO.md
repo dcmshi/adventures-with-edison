@@ -30,13 +30,7 @@ winevdm (`tools/reference/otvdm.ps1`, `screendiff.py`).
 - [x] The Studio's player (`f18_22a4`, with the credits `f04_08cc`).
 - [x] The Studio's video makers (`f26_1edc`, `f16_217c`, `f17_20f2`, through `f35_005a`) and their previews.
 - [x] Checked against the original (pixel for pixel, but for random choices and the original's stale window pixels, see `docs/ROCKBACH.md`): the hallway's look machine, a returning player and the credits; the Studio's front room, band maker, song maker, video makers, playback (scene for scene, to the end) and file dialogs; Sound FX's LOAD, list and effects; the jukebox's and Harmony Hall's screens.
-- [ ] Still to compare with the original:
-  - the Music Library's end-of-piece check waits for the driver to start the sounds (a port adjustment for a timing race); winevdm has no AdLib, so there the original thinks every piece is over at once;
-  - Sound FX's scroll bar arrows repeat every 0.1 s (the original repeats every poll);
-  - the video makers' "playing" light flips every 0.5 s (the original flips it every 13000 polls);
-  - the Drum Clinic: the kit buttons' colour 255 shows as the backdrop's grey (D7) in the original under winevdm, white in the port (`f19_0082` sets 255 to white but never sends 0 or 255 to the display; how winevdm's WinG ends up with the grey is unknown); the rest of its screen matches;
-  - the Instrument Room's waveform: the original reads the instruments' WAVs from the CD, which it can't find under winevdm (its waveform comes out flat at the bottom); the rest of its screen matches;
-  - the activities' other actions (only their first screens were compared).
+- [x] The rest compared (`tools/testing/rbcompare.py`, the CD image mounted; `docs/ROCKBACH.md`'s "Checked against the original"): the jukebox, the Drum Clinic, the Music Library, Harmony Hall, the Instrument Room (its waveforms with the CD's WAVs), Sound FX's list and the Studio's EDIT after a video, action by action. Found and fixed: a button still held counts as a press where it went down (`f34_0fb6`), so the click that stops a video opens EDIT's question at once. Explained and left: colour 255 (the Drum Clinic's grey is winevdm's true-colour display, the port draws the 256-colour white), the Music Library's end-of-piece race (lost under winevdm), and the unpaced list arrows and playing light (measured under winevdm: a row every 19 ms, a flip every 0.3 s; the port keeps 0.1 s and 0.5 s).
 - [ ] Decode its real tempo (`fmplay` uses 128 for now).
 
 ## Wild Science Arcade

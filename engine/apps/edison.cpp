@@ -124,7 +124,7 @@ public:
             }
         for (auto& c : automation.clicks)
             if (c.at && now >= c.at) {
-                clicked_ = true;
+                clicked_ = pressed_ = true;
                 clickX_ = c.x;
                 clickY_ = c.y;
                 c.at = 0;
@@ -142,7 +142,7 @@ public:
             if (d.done || now < d.at) continue;
             if (!d.started) {
                 d.started = true;
-                clicked_ = true;
+                clicked_ = pressed_ = true;
                 clickX_ = d.x0;
                 clickY_ = d.y0;
             }
@@ -187,7 +187,7 @@ public:
             if (e.type == SDL_EVENT_MOUSE_MOTION) autoMouse_ = false;
             if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN && e.button.button == SDL_BUTTON_LEFT) {
                 SDL_ConvertEventToRenderCoordinates(renderer_, &e);
-                clicked_ = true;
+                clicked_ = pressed_ = true;
                 clickX_ = static_cast<int>(e.button.x);
                 clickY_ = static_cast<int>(e.button.y);
             }
@@ -231,6 +231,14 @@ public:
     bool takeClick(int* x, int* y) override {
         if (!clicked_) return false;
         clicked_ = false;
+        *x = clickX_;
+        *y = clickY_;
+        return true;
+    }
+
+    bool lastPress(int* x, int* y) override {
+        // (clickX_, clickY_ stay after the click is taken.)
+        if (!pressed_) return false;
         *x = clickX_;
         *y = clickY_;
         return true;
@@ -407,6 +415,7 @@ private:
     uint64_t virtualNow_ = 0, wavEnd_ = 0;  // --virtual-clock
     uint64_t nextCapture_ = 0;
     bool clicked_ = false;
+    bool pressed_ = false;  // a left press has happened (lastPress)
     bool rightClicked_ = false;
     int rightX_ = 0, rightY_ = 0;
     int clickX_ = 0, clickY_ = 0;

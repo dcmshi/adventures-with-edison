@@ -67,6 +67,17 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
   `WSCIENCE.HS` and `wscience.edi`. Without `--orig` it uses the
   original's shots of the last run (none: it only reports), so it runs in
   `check.py`.
+- `rbcompare.py [NAME...] [--port-only | --compare-only] [--list]`: Rock
+  and Bach's scenarios (the jukebox, the Drum Clinic, the Music Library,
+  Harmony Hall, the Instrument Room, Sound FX's list, the Studio's EDIT
+  after a video), each a timeline of clicks and holds in an activity,
+  played in the port (`--level N`; in real time when the music's events
+  matter) and in the original (`WINMSKIP.EXE`, written for each by
+  `tools/reference/winmain_skip.py`); each of the original's shots
+  against the port's closest frame within 1.5 s, the diffs to
+  `build/scratch/rbcompare/`. Needs the CD image mounted (the
+  instruments' and effects' WAVs). Not in `check.py`: it only reports
+  (`docs/ROCKBACH.md` lists what always differs).
 - `aimsearch.py SPEC [--jobs N] [--limit S] -- ARGS...`: `SCI_AIMSEARCH`
   split by rows over N processes (default half the cores), dialogs
   skipped; progress per process to stderr, the aims found to stdout; a

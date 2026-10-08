@@ -31,6 +31,9 @@ public:
     virtual bool takeRightClick(int* x, int* y) { (void)x, (void)y; return false; }
     // Mouse position (game coordinates) and whether the left button is down.
     virtual void mouse(int* x, int* y, bool* down) = 0;
+    // Where the left button last went down, taken or not (Rock and Bach's
+    // [3BA8]); false before the first press.
+    virtual bool lastPress(int* x, int* y) { (void)x, (void)y; return false; }
     virtual bool escapeHeld() = 0;
     // Next key typed, as Windows would give it: printable ASCII, or
     // kBackspace, kTab, kEnter, kEscape; 0 when there's none.
