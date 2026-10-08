@@ -93,6 +93,89 @@ for _p, _n in enumerate(LEVEL_COUNTS):
         SCENARIOS[f"p{_p:02d}d{_d}"] = puzzle_start(_p, _d)
 
 
+# Playing the puzzles through: each starts as puzzle_start's (square 0's
+# building at 9 s), then the moves.
+def puzzle_play(p, d, moves, shots):
+    return dict(floor=True, puzzle=p, difficulty=d, events=[click(0, *LEVELS[0]), click(9, *BUILDING)] + moves,
+                shots=shots)
+
+
+# Binary Lights (g17_1256): switch K's button (DS:32BC's panel at 94h,
+# 20h, each 1Eh x 71h).
+BINARY = [(0x94 + x + 15, 0x20 + y + 0x38) for y in (5, 0x85) for x in (0xB, 0x5C, 0xAB, 0xFB)]
+
+
+def switches(t, ks, gap=0.5):
+    return [click(t + gap * i, *BINARY[k]) for i, k in enumerate(ks)]
+
+
+SCENARIOS["play03d0"] = puzzle_play(3, 0, switches(13, [0, 1, 3]) + switches(20, [0, 1, 2, 3, 5]) + switches(29, [0, 3])
+                                    + switches(36, [0, 4]) + switches(42, [1, 1, 0, 2, 3]),
+                                    [(12, "r1"), (13.6, "r1b"), (14.6, "solved1"), (16, "flash"), (19, "r2"),
+                                     (22.2, "solved2"), (28, "r3"), (35, "r4"), (41, "r5"), (42.3, "wrong"),
+                                     (44.3, "solved5"), (45.5, "won"), (47, "won2"), (50, "won3"), (55, "won4")])
+BINARY_HELP = (0x20 + 0x22, 0x9E + 9)  # f06_2436's lesson button
+BINARY_EXIT = (0x1EE + 0x22, 0x16 + 0xE)  # f06_23d8's
+SCENARIOS["play03d3"] = puzzle_play(3, 3, switches(13, [4, 0, 2, 3]) + [click(20, *BINARY_HELP), click(23, 320, 200),
+                                                                        click(25, *BINARY_EXIT)],
+                                    [(13.2, "invalid"), (14.6, "solved1"), (19, "r2"), (21, "help"), (24, "helped"),
+                                     (25.5, "exit"), (27, "exit2"), (30, "exit3"), (34, "exit4")])
+
+
+# Concentration (g15_1142): door R, C's picture (DS:2ED6's panel at 20h,
+# 0Ch: buttons 3Ch x 2Ah every 54h x 34h).
+def door(r, c):
+    return (0x20 + 6 + 0x54 * c + 0x1E, 0xC + 4 + 0x34 * r + 0x15)
+
+
+SCENARIOS["play07d0"] = puzzle_play(7, 0, [click(13, *door(1, 2)), click(14, *door(2, 2)),
+                                          click(17, *door(2, 2)), click(18, *door(2, 3)), click(21, 320, 200),
+                                          click(23, *door(1, 2)), click(24, *door(1, 3)), click(27, 320, 200)],
+                                    [(13.3, "one"), (14.3, "miss"), (15.6, "closed"), (18.3, "pair"), (19.5, "fact"),
+                                     (21.5, "found"), (24.3, "pair2"), (25.5, "fact2"), (27.5, "won"), (29, "won2"),
+                                     (32, "won3"), (36, "won4")])
+
+
+def door_switch(r, c, k):
+    """Door R, C's colour switch K (0 the top, 1 the one under it)."""
+    return (0x20 + 0x54 * c + 0x45 + 6, 0xC + 0x34 * r + 3 + 0x11 * k + 5)
+
+
+CONC_EXIT = (0x216 + 0x42 + 0x14, 0x23 + 0x26)  # DS:2A0C's lever
+CONC_GADGET = (0x216 + 8 + 0x18, 0x23 + 0x41 + 0x12)
+CONC_HELP = (0x220 + 0x18, 0xCC + 0x1C)
+SCENARIOS["play07d8"] = puzzle_play(7, 8, [click(13, *door(0, 0)), click(14, *door(0, 1)), click(15, *door(0, 2)),
+                                          click(18, *CONC_GADGET), click(22, *CONC_HELP), click(24, 320, 200),
+                                          click(26, *door_switch(4, 5, 1)), click(27, *door_switch(4, 5, 0)),
+                                          click(29, *CONC_EXIT)],
+                                    [(13.3, "one"), (15.3, "three"), (16.5, "closed"), (18.4, "gadget"),
+                                     (19.3, "gadget2"), (23, "help"), (24.5, "helped"), (26.4, "switch1"),
+                                     (27.4, "switch0"), (29.4, "lever"), (31, "left"), (34, "left2"), (38, "left3")])
+
+
+# Codes (g20_1474): the message's symbol I (DS:3AA8's panel) and the
+# chart's letter K (DS:3AC2's, decoding only).
+def code_slot(i):
+    return (0x48 + 0x26 * (i % 13) + 0x13, 0x24 + (0 if i < 13 else (i // 13) * 0x2C + 0x10) + 0x16)
+
+
+def code_letter(ch):
+    k = ord(ch) - 65
+    return (0x48 + 0x26 * (k % 13) + 0x13, 0xDA + (0 if k < 13 else 0x3C) + 0x16)
+
+
+def decode(t, word, gap=1.6):
+    return [e for i, ch in enumerate(word) for e in (click(t + gap * i, *code_slot(i)),
+                                                      click(t + gap * i + 0.4, *code_letter(ch)))]
+
+
+SCENARIOS["play06d0"] = puzzle_play(6, 0, [click(13, *code_slot(0)), click(13.4, *code_letter("B"))]
+                                    + decode(15, "WASHINGTON"),
+                                    [(13.2, "picked"), (13.8, "wrong"), (14.6, "after"), (15.8, "right"),
+                                     (17, "one"), (22, "mid"), (29.6, "last"), (30.2, "right10"), (31.5, "won"),
+                                     (33, "won2"), (36, "won3"), (40, "won4")])
+
+
 def run_folder():
     if not os.environ.get("EDISON_RUN"):
         sys.exit("set EDISON_RUN to the folder with the game files")
@@ -139,6 +222,12 @@ def play_orig(name, s):
         for f, data in kept.items():
             (run / f).write_bytes(data)
         (run / "SKIP.INF").unlink(missing_ok=True)
+    shots = {(d / f"{n}.png").read_bytes() for _, n in s["shots"] if (d / f"{n}.png").exists()}
+    if len(s["shots"]) > 1 and len(shots) == 1:
+        # One picture throughout: the display asleep (nothing drawn) or
+        # something over the game. Not kept: it may show the desktop.
+        shutil.rmtree(d)
+        sys.exit(f"{name}: every shot of the original is the same picture (the display asleep?); deleted")
 
 
 def play_port(name, s):

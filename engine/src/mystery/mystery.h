@@ -138,7 +138,7 @@ private:
     // f05_0266; with a text colour it also draws the button ("HELP").
     void helpPanel(int x, int y, int w, int h, int textColour = -1, int fillColour = 0);
     void help(uint16_t text);                                   // f05_0320
-    void messageBox(const std::vector<std::string>& lines);    // f06_0f34 / f06_09ee (style 0)
+    void messageBox(const std::vector<std::string>& lines, int x = 0, int y = 0);  // f06_0f34 / f06_09ee (style 0); 0 centres
     int floor();                                                // f10_0708
     void floorRegions();                                        // f10_008e
     void floorRooms(bool masks);                                // f10_0328

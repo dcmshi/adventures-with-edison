@@ -584,7 +584,11 @@ bool Mystery::concentration(int level) {
             drawOpaque(sideX(c), sideY(r, 2), 0x2034);
             drawOpaque(doorX(c), doorY(r), used ? static_cast<uint16_t>(0x2035 + colour[r * 6 + c]) : 0x2037);
         }
-    auto clock = [&] {  // g15_0388
+    auto clock = [&] {  // g15_0388: not once the lever is pulled
+        if (state == 0x10) {
+            shownTime = -1;
+            return;
+        }
         if (timeLeft != shownTime) digitalTime(0x224, 0x2C, 0x28, 0x14, timeLeft);
         shownTime = timeLeft;
     };
@@ -723,7 +727,7 @@ bool Mystery::concentration(int level) {
                 if (matched) {
                     const int v = card[picks[0].row][picks[0].col] & 0x7F;
                     fill(0x42, 0x116, 500, 0x1A, 0);
-                    messageBox(message(v + 9));
+                    messageBox(message(v + 9), 0, Screen::kHeight - 0x78);  // g15_0168
                     if (theme != 0 && v >= 1 && v <= 10) learned_[theme][v - 1] = true;  // g19_0064
                 }
             }
@@ -815,7 +819,7 @@ bool Mystery::binaryLights(int level) {
             if (b <= a && b > 0 && a % b == 0) answer = a / b, valid = true;
             drawLogo(0x1D9, 0x75, 0x2104);
         }
-        box(2, valid ? std::to_string(answer) : "");
+        box(2, valid ? std::to_string(answer) : "?");  // 17:07f5
         box(3, std::to_string(target));
         return answer == target;
     };
@@ -968,6 +972,7 @@ bool Mystery::binaryLights(int level) {
                     const int fh = font_->height(), x = (Screen::kWidth - font_->width(msg)) / 2;
                     const int saved = saveArea(x, fh, font_->width(msg), fh);
                     text(x, fh, msg, 0);
+                    // The last sum's message goes again at once (17:10be).
                     if (rounds != 0) {
                         for (int t = 0; t < 3; ++t) {
                             music(4);
@@ -979,8 +984,8 @@ bool Mystery::binaryLights(int level) {
                             }
                             waitCountdown(1);
                         }
+                        waitCountdown(10);
                     }
-                    waitCountdown(10);
                     restoreArea(saved);
                     solved = true;
                 }

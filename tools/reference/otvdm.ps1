@@ -64,6 +64,7 @@ public static class W {
   [DllImport("user32.dll")] public static extern uint MapVirtualKey(uint c, uint t);
   [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int c);
   [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr h, IntPtr after, int x, int y, int cx, int cy, uint f);
+  [DllImport("kernel32.dll")] public static extern uint SetThreadExecutionState(uint f);
   public static List<IntPtr> All() { var l = new List<IntPtr>(); EnumWindows((h, p) => { l.Add(h); return true; }, IntPtr.Zero); return l; }
   public static string Cls(IntPtr h) { var s = new StringBuilder(256); GetClassName(h, s, 256); return s.ToString(); }
   public static string Text(IntPtr h) { var s = new StringBuilder(256); GetWindowText(h, s, 256); return s.ToString(); }
@@ -255,6 +256,15 @@ function StartGame($exe) {
 
 function RunScript($script, $dir) {
     if (-not $dir) { $dir = "." }
+    # The display kept on while the script runs: asleep, nothing is drawn
+    # and every shot is the same stale picture (the script's clicks are
+    # posted messages, not input, and don't keep it awake).
+    # ES_CONTINUOUS | ES_DISPLAY_REQUIRED | ES_SYSTEM_REQUIRED, for this
+    # process's life.
+    [W]::SetThreadExecutionState(0x80000003u) | Out-Null
+    # Waits add up from the script's start, so the time the steps take
+    # (a shot, a click) doesn't push everything after them later.
+    $clock = [Diagnostics.Stopwatch]::StartNew(); $due = 0.0
     foreach ($line in Get-Content $script) {
         $w = ($line -replace '#.*$', '').Trim() -split '\s+', 2
         if (-not $w[0]) { continue }
@@ -262,7 +272,7 @@ function RunScript($script, $dir) {
         # The volume, once the game's audio session is there.
         if (-not $script:volumeSet -and (SetVolume $volume) -gt 0) { $script:volumeSet = $true; Write-Output "volume $volume%" }
         switch ($w[0]) {
-            "wait" { Start-Sleep -Milliseconds ([double]$a * 1000) }
+            "wait" { $due += [double]$a * 1000; $ms = $due - $clock.Elapsed.TotalMilliseconds; if ($ms -gt 0) { Start-Sleep -Milliseconds $ms } }
             "click" { $p = $a -split '\s+'; Click $p[0] $p[1] $false }
             "rclick" { $p = $a -split '\s+'; Click $p[0] $p[1] $true }
             "move" { $p = $a -split '\s+'; $h = MainWindow; if ($h) { Post $h 0x200 0 (([int]$p[1] -shl 16) -bor ([int]$p[0] -band 0xFFFF)) } }

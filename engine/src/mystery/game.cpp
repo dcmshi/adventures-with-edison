@@ -487,10 +487,11 @@ void Mystery::help(uint16_t id) {
     helpPressed_ = false;
 }
 
-void Mystery::messageBox(const std::vector<std::string>& text) {
+void Mystery::messageBox(const std::vector<std::string>& text, int x, int y) {
     // f06_0f34 with f06_09ee's style 0: a bevelled box in the middle of
     // the screen, the lines centred and "< Press mouse/any key >" last;
-    // it waits for a click or key.
+    // it waits for a click or key. X, Y the top left corner; 0 centres
+    // that way (06:0b75).
     computeUiColours();
     const int previous = current();
     select(1);
@@ -500,7 +501,8 @@ void Mystery::messageBox(const std::vector<std::string>& text) {
     for (const auto& l : lines) widest = std::max(widest, font_->width(l));
     const int w = std::min(widest + 0x20, Screen::kWidth - 1);
     const int h = std::min(static_cast<int>(lines.size() + 1) * 0x10, Screen::kHeight - 1);
-    const int x = (Screen::kWidth - w) >> 1, y = (Screen::kHeight - h) >> 1;
+    if (!x) x = (Screen::kWidth - w) >> 1;
+    if (!y) y = (Screen::kHeight - h) >> 1;
     const int saved = saveArea(x, y, w, h);
     select(3);
     copyArea(1, 3, x, y, w, h);
