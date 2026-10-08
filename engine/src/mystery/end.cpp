@@ -4,6 +4,7 @@
 // scores (segment 24, MYSTERY.HS).
 
 #include <algorithm>
+#include "formats/paths.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -254,7 +255,7 @@ void Mystery::loadHighScores() {
     // entries: a 9-byte name and a 32-bit score. A missing file is made.
     for (auto& table : highScores_)
         for (auto& entry : table) entry = {};
-    std::ifstream in(highScorePath(), std::ios::binary);
+    std::ifstream in(findPath(highScorePath()), std::ios::binary);
     uint8_t raw[9 * 10 * 13];
     if (!in.read(reinterpret_cast<char*>(raw), sizeof raw)) {
         saveHighScores();

@@ -1,4 +1,5 @@
 #include "formats/archive.h"
+#include "formats/paths.h"
 
 #include <cstdio>
 #include <fstream>
@@ -15,7 +16,7 @@ uint32_t u32(const uint8_t* p) { return u16(p) | static_cast<uint32_t>(u16(p + 2
 }  // namespace
 
 bool Archive::open(const std::string& path, std::string* error) {
-    std::ifstream in(path, std::ios::binary);
+    std::ifstream in(findPath(path), std::ios::binary);
     if (!in) {
         if (error) *error = "cannot open " + path;
         return false;

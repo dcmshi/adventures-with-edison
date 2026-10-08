@@ -4,6 +4,7 @@
 // sign or the credits.
 
 #include <algorithm>
+#include "formats/paths.h"
 #include <cctype>
 #include <cstring>
 #include <fstream>
@@ -303,7 +304,7 @@ void RockBach::findPlayer(bool* found) {
     slot_ = -1;
     playerFlag_ = 0;
     const std::string path = options_.saveDir + "/user.yyy";
-    std::ifstream in(path, std::ios::binary);
+    std::ifstream in(findPath(path), std::ios::binary);
     if (!in) {
         std::vector<char> blank(static_cast<size_t>(kRecords) * kRecordSize, 0);
         for (int i = 0; i < kRecords; ++i) std::fill_n(blank.begin() + i * kRecordSize, kNameSize, '*');
@@ -356,7 +357,7 @@ void RockBach::savePlayer(bool keep) {
 
 void RockBach::loadLook() {
     // f24_0e94: Edison's look from ed.yyy (the last player's).
-    std::ifstream in(options_.saveDir + "/ed.yyy", std::ios::binary);
+    std::ifstream in(findPath(options_.saveDir + "/ed.yyy"), std::ios::binary);
     if (in) in.read(reinterpret_cast<char*>(look_.data()), 4);
 }
 

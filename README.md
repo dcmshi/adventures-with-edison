@@ -2,7 +2,7 @@
 
 A clean-room, native reimplementation of the engine behind *Corel's Adventures with Edison* (1995, developed by Artech Studios), so the original games can run on modern systems without Windows 3.1 emulation.
 
-**This repository contains no original game data.** You need your own copy of the CD. Place the ISO in `original/` (ignored by git).
+**This repository contains no original game data.** You need your own copy of the CD: put the ISO in `original/` and its files in `original/cd/` (both ignored by git; see [Getting the game's files](#getting-the-games-files)).
 
 ## Screenshots
 
@@ -42,23 +42,66 @@ Captured from the port (`edison --capture`); the artwork is the original games'.
 - `engine/`: the native reimplementation
 - `docs/`: file-format and engine notes
 
-## Building
+## Getting the game's files
 
-Requires CMake 3.20+, a C++17 compiler (GCC, Clang or MSVC) and git; SDL3 and
-Nuked-OPL3 are downloaded and built automatically at configure time.
+Copy the whole CD into `original/cd/`, so that `original/cd/DSK3/EDISON.EXE`
+exists next to `original/cd/MYSTERY/`, `original/cd/RB/` and
+`original/cd/SCIENCE/` (the speech and sounds). From an ISO:
+
+- **Windows:** double-click the ISO to mount it, then copy the drive's contents into `original\cd\`; or `7z x your.iso -ooriginal/cd` with [7-Zip](https://www.7-zip.org/).
+- **macOS:** `hdiutil attach your.iso`, then `cp -R /Volumes/<name>/ original/cd/` and `hdiutil detach /Volumes/<name>`.
+- **Linux:** `7z x your.iso -ooriginal/cd` (package `p7zip-full` or `7zip`), or `sudo mount -o loop,ro your.iso /mnt` and `cp -r /mnt/. original/cd/`.
+
+The port matches file names without regard to case, so lower-case copies of the files work too.
+
+## Building the port
+
+Requires CMake 3.20+, a C++17 compiler (GCC, Clang or MSVC), Ninja and git;
+SDL3 and Nuked-OPL3 are downloaded and built automatically at configure time.
 
 ```sh
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ```
 
-### Launcher
+- **Windows:** either Visual Studio 2022 (or its Build Tools) with the "Desktop development with C++" workload, run from a *Developer PowerShell*; or [MinGW-w64](https://winlibs.com/) GCC with Ninja on the PATH. The executables are `build\engine\*.exe`. This is the platform the port is developed and tested on.
+- **Linux** (untested so far): install a compiler and the headers SDL3 builds against, e.g. on Debian or Ubuntu:
+  ```sh
+  sudo apt install build-essential cmake ninja-build git pkg-config \
+      libasound2-dev libpulse-dev libx11-dev libxext-dev libxrandr-dev libxcursor-dev \
+      libxi-dev libxss-dev libxkbcommon-dev libwayland-dev libegl1-mesa-dev libgl1-mesa-dev
+  ```
+- **macOS** (untested so far): `xcode-select --install` for the compiler, then `brew install cmake ninja` with [Homebrew](https://brew.sh/).
 
-`edison` is the native version of EDISON.EXE: the opening, the main menu and Mystery at the Museums (the whole game), with FM music and sound effects. Rock and Bach is ported; Wild Science Arcade is well along (`--game science`: its title, story, laboratory, lessons and the arcade's tables and rooms, checked against the original; `--room N` starts in a room). Open items are tracked in [TODO.md](TODO.md).
+## Running the port
+
+`edison` is the native version of EDISON.EXE: the opening, the main menu and Mystery at the Museums (the whole game), with FM music and sound effects. Rock and Bach is ported; Wild Science Arcade is well along (its title, story, laboratory, lessons and the arcade's tables and rooms, checked against the original; it has no FM music yet). Open items are tracked in [TODO.md](TODO.md).
+
+Run it from the repository's folder (the CD folder defaults to `original/cd/DSK3`, and saved games and high scores go to `save/`), or pass the CD's `DSK3` folder:
 
 ```sh
-build/engine/edison original/cd/DSK3        # -O skips the opening, -A turns FM music off
+build/engine/edison                        # Windows: build\engine\edison.exe
+build/engine/edison /path/to/cd/DSK3       # the CD's files somewhere else
+build/engine/edison -O                     # skip the opening (-A: no FM music)
+build/engine/edison --game mystery         # straight into a game: mystery, rockbach, science
+build/engine/edison --game science --room 1    # the Wild Science Arcade's menu table
 ```
+
+`edison --help` isn't there yet: the options are listed at the top of [engine/apps/edison.cpp](engine/apps/edison.cpp) (testing ones too: `--capture`, `--click`, `--type`, `--virtual-clock`, `--hidden`).
+
+## Running the original
+
+The original is a 16-bit Windows 3.1 program, which 64-bit Windows can't run by itself. Make a run folder:
+
+1. Copy everything in the CD's `DSK3` into it, and the WinG files (`WING.DLL`, `WING32.DLL`, `WINGDE.DLL`) from `DSK2`.
+2. For Wild Science, copy the CD's `SCIENCE\*.WAV` into a `data\` folder in it (winevdm has no CD drive for it to read them from).
+3. Start `EDISON.EXE` (the menu), or a game directly: `MALL.EXE` (Mystery), `WINMAIN.EXE` (Rock and Bach), `WMAIN.EXE` (Wild Science; `-A` turns the FM music off).
+
+- **Windows:** with [winevdm](https://github.com/otya128/winevdm) (otvdm): `otvdmw.exe EDISON.EXE` from the run folder. This is how the port is compared with the original; `tools/reference/otvdm.ps1` (below) wraps it.
+- **Linux** (untested): [Wine](https://www.winehq.org/) runs 16-bit Windows programs: `wine EDISON.EXE` from the run folder.
+- **macOS** (untested): Wine on macOS can't run 16-bit code; use [DOSBox-X](https://dosbox-x.com/) with your own copy of Windows 3.1 installed in it, and the run folder on its C: drive.
+
+## Other tools
 
 ### Music player
 
@@ -119,16 +162,16 @@ pwsh tools/reference/otvdm.ps1 unlock               # if the game already died
 
 - [x] Unpack PKWARE DCL archives (`*.D01`, `GRAFX.DAT`)
 - [x] Identify fonts, palettes, text resources
-- [ ] Document animation / layout formats (groups 03, 50, 60, .VID, .SRF)
+- [x] Document animation / layout formats (groups 03, 50, 60, .VID, .SRF; docs/FORMATS.md)
 - [x] Decode FM music sequencer command set (docs/SEQUENCER.md)
 - [x] Reference OPL log harness (run original driver under emulation)
 - [x] Native C++ sequencer: all 898 sounds match the original driver write-for-write
 - [x] Software OPL + audio output: `fmplay` (Nuked-OPL3, SDL3)
 - [x] Readable refactor of the sequencer; differential tests cover all 57 opcodes (1,685 cases match)
 - [ ] Decode the game's real Rock and Bach tempo (fmplay uses 128 for now)
-- [ ] Document `.SRF` / `.HS` formats
+- [x] Document `.SRF` / `.HS` formats
 - [ ] Decompile game logic (Ghidra, 16-bit NE)
-- [ ] Engine skeleton (SDL) + software OPL for FM music
+- [x] Engine skeleton (SDL) + software OPL for FM music
 
 ## Licences
 

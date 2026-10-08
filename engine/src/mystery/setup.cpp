@@ -1,6 +1,7 @@
 // MALL.EXE segment 8: setting up a game (player, Edison's looks, level).
 
 #include <algorithm>
+#include "formats/paths.h"
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
@@ -543,7 +544,7 @@ std::string Mystery::playerPath() const {
 bool Mystery::loadPlayer() {
     // g08_01ee / g08_00d8: the record DS:B465-B595 (0x131 bytes). A new
     // player gets no custom level and no saved game.
-    std::ifstream in(playerPath(), std::ios::binary);
+    std::ifstream in(findPath(playerPath()), std::ios::binary);
     uint8_t r[0x131];
     if (!in || !in.read(reinterpret_cast<char*>(r), sizeof r)) {
         for (int s = 0; s < 29; ++s) {
@@ -612,7 +613,7 @@ void Mystery::savePlayer() const {
 
 void Mystery::loadLook() {
     // f08_11ea: MEDISON.COL, Edison's last look (4 bytes); made if missing.
-    std::ifstream in(options_.saveDir + "/" + dataString(0x926), std::ios::binary);
+    std::ifstream in(findPath(options_.saveDir + "/" + dataString(0x926)), std::ios::binary);
     uint8_t c[4];
     if (!in || !in.read(reinterpret_cast<char*>(c), 4)) {
         saveLook();

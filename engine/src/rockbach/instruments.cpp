@@ -4,6 +4,7 @@
 // place on the gauge.
 
 #include <algorithm>
+#include "formats/paths.h"
 #include <fstream>
 
 #include "rockbach/rockbach.h"
@@ -18,7 +19,7 @@ constexpr int kMarkerSlot = 7, kAnimSlot = 8;  // g08_088c (15/s), g08_0016
 
 std::vector<std::string> readText(const std::string& path) {
     std::vector<std::string> lines;
-    std::ifstream in(path, std::ios::binary);
+    std::ifstream in(findPath(path), std::ios::binary);
     for (std::string line; std::getline(in, line);) {
         if (!line.empty() && line.back() == '\r') line.pop_back();
         lines.push_back(line.substr(0, 0x4F));

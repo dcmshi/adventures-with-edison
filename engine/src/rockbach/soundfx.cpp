@@ -3,6 +3,7 @@
 // and over, save it) and segment 13 (the effects).
 
 #include <algorithm>
+#include "formats/paths.h"
 #include <cstring>
 #include <filesystem>
 #include <initializer_list>
@@ -121,7 +122,7 @@ bool RockBach::sfxLoad(const std::string& path) {
     // format tag is even) kept; the samples made signed.
     SoundFxState& s = sfx_;
     ctx_.platform.stopWav();
-    std::ifstream in(path, std::ios::binary);
+    std::ifstream in(findPath(path), std::ios::binary);
     if (!in) return false;
     std::vector<uint8_t> file((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
     if (file.size() > static_cast<size_t>(kBuffer)) file.resize(kBuffer - 1);

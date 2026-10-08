@@ -1,4 +1,5 @@
 #include "formats/ne_file.h"
+#include "formats/paths.h"
 
 #include <fstream>
 #include <iterator>
@@ -23,7 +24,7 @@ bool fail(std::string* error, const std::string& message) {
 }  // namespace
 
 bool NeFile::load(const std::string& path, std::string* error) {
-    std::ifstream in(path, std::ios::binary);
+    std::ifstream in(findPath(path), std::ios::binary);
     if (!in) return fail(error, "cannot open " + path);
     data_.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
     segments_.clear();

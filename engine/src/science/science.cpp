@@ -1,6 +1,7 @@
 // WMAIN.EXE: start-up (segments 32 and 62) and the story (segment 38).
 
 #include "science/science.h"
+#include "formats/paths.h"
 
 #include <algorithm>
 #include <cstdlib>
@@ -217,8 +218,8 @@ void Science::narration(int n, bool story) {
     const size_t at = story ? 0x519u + 9u * static_cast<size_t>(n) : (static_cast<unsigned>(n) * 9u + 0x9700u) & 0xFFFFu;
     std::string name;
     for (size_t i = at; i < strings_.size() && strings_[i] && name.size() < 9; ++i) name += static_cast<char>(strings_[i]);
-    std::ifstream in(cdRoot_ + "/SCIENCE/" + name + ".WAV", std::ios::binary);
-    if (!in) in.open(options_.saveDir + "/data/" + name + ".wav", std::ios::binary);
+    std::ifstream in(findPath(cdRoot_ + "/SCIENCE/" + name + ".WAV"), std::ios::binary);
+    if (!in) in.open(findPath(options_.saveDir + "/data/" + name + ".wav"), std::ios::binary);
     if (!in) {
         warnOnce("Wild Science Arcade: no sound " + name);
         return;

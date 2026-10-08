@@ -4,6 +4,7 @@
 // and segment 10 (its drum machine, in ADLIB1.DLL).
 
 #include <algorithm>
+#include "formats/paths.h"
 #include <array>
 #include <cctype>
 #include <fstream>
@@ -47,7 +48,7 @@ void RockBach::drumsReset() {
     drums_.variant.fill(2);
     if (!options_.music) return;
     auto load = [](const std::string& path, uint8_t* to, size_t count) {
-        std::ifstream in(path, std::ios::binary);
+        std::ifstream in(findPath(path), std::ios::binary);
         if (in) in.read(reinterpret_cast<char*>(to), static_cast<std::streamsize>(count));
         return static_cast<bool>(in);
     };

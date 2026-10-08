@@ -4,6 +4,7 @@
 // is in a .vid file.
 
 #include <algorithm>
+#include "formats/paths.h"
 #include <cctype>
 #include <cstdlib>
 #include <filesystem>
@@ -129,7 +130,7 @@ bool RockBach::videoLoad() {
     // one in the Studio, named after its file.
     std::string path;
     if (!loadDialog(0x73, 0x2B, ".vid", &path, 0, dataString(0x70C))) return false;
-    std::ifstream in(path, std::ios::binary);
+    std::ifstream in(findPath(path), std::ios::binary);
     if (!in) return false;
     in.read(reinterpret_cast<char*>(video_.data()), static_cast<std::streamsize>(video_.size()));
     videoOpen_ = true;

@@ -4,6 +4,7 @@
 // notes in docs/SCIENCE.md.
 
 #include <algorithm>
+#include "formats/paths.h"
 #include <cctype>
 #include <cstdlib>
 #include <cstring>
@@ -107,7 +108,7 @@ bool Science::loadTable(int room) {
     // parent and made by the room's method 1 (f27_12b6 → f25_057b), which
     // puts the parent's corner and height back: so the file's numbers are
     // the world's. The root's own numbers are read and left (it's the room).
-    std::ifstream in(options_.cdDir + "/S" + std::to_string(room) + ".SRF", std::ios::binary);
+    std::ifstream in(findPath(options_.cdDir + "/S" + std::to_string(room) + ".SRF"), std::ios::binary);
     if (!in) return false;
     ShapeReader r(std::vector<char>(std::istreambuf_iterator<char>(in), {}));
     std::function<void(Box*)> read = [&](Box* parent) {

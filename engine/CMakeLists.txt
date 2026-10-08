@@ -7,6 +7,7 @@ add_library(edison_core
     src/formats/dcl.cpp
     src/formats/archive.cpp
     src/formats/bitmap.cpp
+    src/formats/paths.cpp
     src/artech/screens.cpp
     src/artech/timer.cpp
     src/artech/font.cpp

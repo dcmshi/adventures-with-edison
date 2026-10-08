@@ -1,6 +1,7 @@
 // WINMAIN.EXE's top level (segment 33) and the intro (segments 5 and 25).
 
 #include "rockbach/rockbach.h"
+#include "formats/paths.h"
 
 #include <algorithm>
 #include <array>
@@ -105,8 +106,8 @@ std::vector<uint8_t> RockBach::soundData(uint16_t id) {
     const int index = id - 0x6000;
     if (index < 0 || 0x278C + 4 * index + 1 >= static_cast<int>(data_.size())) return {};
     const std::string name = dataString(dataWord(static_cast<uint16_t>(0x278C + 4 * index)));
-    std::ifstream in(cdRoot_ + "/RB/" + name + ".wav", std::ios::binary);
-    if (!in) in.open(options_.saveDir + "/" + name + ".wav", std::ios::binary);
+    std::ifstream in(findPath(cdRoot_ + "/RB/" + name + ".wav"), std::ios::binary);
+    if (!in) in.open(findPath(options_.saveDir + "/" + name + ".wav"), std::ios::binary);
     if (!in) {
         warnOnce("missing sound " + name + ".wav");
         return {};

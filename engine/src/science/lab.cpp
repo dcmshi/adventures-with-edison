@@ -2,6 +2,7 @@
 // Edison walks in, asks the player's name, and the Character Enhancer.
 
 #include "science/science.h"
+#include "formats/paths.h"
 #include "science/sorter.h"
 
 #include <algorithm>
@@ -252,8 +253,8 @@ void Science::loadPlayers() {
     // score 0 (written back by the original as a broken line: here kept in
     // the order, not saved); the list sorted once more.
     players_.clear();
-    std::ifstream in(options_.saveDir + "/wscience.hs");
-    if (!in) in.open(options_.cdDir + "/WSCIENCE.HS");
+    std::ifstream in(findPath(options_.saveDir + "/wscience.hs"));
+    if (!in) in.open(findPath(options_.cdDir + "/WSCIENCE.HS"));
     std::string tag;
     if (!(in >> tag) || tag != "HSFILE") return;
     std::vector<std::string> words;
@@ -289,7 +290,7 @@ void Science::savePlayers() const {
 
 void Science::loadLook() {
     // wscience.edi: the last look, four numbers (each kept to 0-7).
-    std::ifstream in(options_.saveDir + "/wscience.edi");
+    std::ifstream in(findPath(options_.saveDir + "/wscience.edi"));
     int v[4] = {};
     if (in >> v[0] >> v[1] >> v[2] >> v[3])
         for (int t = 0; t < 4; ++t) look_[t] = static_cast<uint8_t>(v[t] < 0 || v[t] > 7 ? 0 : v[t]);

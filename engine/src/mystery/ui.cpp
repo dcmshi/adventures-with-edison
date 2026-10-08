@@ -1,6 +1,7 @@
 // MALL.EXE segment 6: the game's drawing and UI helpers.
 
 #include <algorithm>
+#include "formats/paths.h"
 #include <cstdio>
 #include <fstream>
 #include <iterator>
@@ -71,7 +72,7 @@ void Mystery::sound(uint16_t id) {
     const int index = id - 0x4010;
     if (index < 0 || 0x566 + 4 * index + 1 >= static_cast<int>(data_.size())) return;
     const std::string name = dataString(dataWord(static_cast<uint16_t>(0x566 + 4 * index)));
-    std::ifstream in(cdRoot_ + "/MYSTERY/" + name + ".wav", std::ios::binary);
+    std::ifstream in(findPath(cdRoot_ + "/MYSTERY/" + name + ".wav"), std::ios::binary);
     if (!in) {
         warnOnce("missing sound " + name + ".wav");
         return;

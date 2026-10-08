@@ -4,6 +4,7 @@
 // poll their own widget lists.
 
 #include <algorithm>
+#include "formats/paths.h"
 #include <cctype>
 #include <filesystem>
 
@@ -70,7 +71,7 @@ std::vector<std::string> RockBach::listFiles(const std::string& dir, const std::
     // *ext files, sorted.
     std::vector<std::string> names;
     std::error_code ec;
-    for (const auto& e : std::filesystem::directory_iterator(dir, ec)) {
+    for (const auto& e : std::filesystem::directory_iterator(findPath(dir), ec)) {
         if (!e.is_regular_file()) continue;
         const std::string file = e.path().filename().string();
         const auto dot = file.find('.');
