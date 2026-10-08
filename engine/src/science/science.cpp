@@ -254,15 +254,30 @@ void Science::waitNarration() {
     while (ctx_.platform.wavPlaying()) ctx_.pump();
 }
 
-bool Science::waitTicks(int ticks, bool interruptible) {
+bool Science::waitTicks(int ticks, bool interruptible, int* key) {
     // [9558] (a key) and [6EC5] (a button) end it.
     const uint64_t end = ctx_.platform.milliseconds() + static_cast<uint64_t>(ticks) * 20;
     int x, y;
     while (ctx_.platform.milliseconds() < end) {
         ctx_.pump();
-        if (interruptible && (ctx_.platform.takeClick(&x, &y) || ctx_.platform.takeKey() != 0)) return true;
+        if (!interruptible) continue;
+        if (ctx_.platform.takeClick(&x, &y)) return true;
+        if (const int k = ctx_.platform.takeKey(); k != 0) {
+            if (key) *key = k;
+            return true;
+        }
     }
     return false;
+}
+
+void Science::soundsOver() {
+    // f36_004e: the sounds over ([27F6]); off, the WAV stopped (f75_0000)
+    // and the music off (SENDSND(0), with [5FF6]). On again, no music.
+    soundsOn_ = !soundsOn_;
+    if (!soundsOn_) {
+        ctx_.platform.stopWav();
+        fmSound(0);
+    }
 }
 
 bool Science::escapePressed() {
@@ -290,7 +305,11 @@ void Science::title() {
 
 void Science::story() {
     // f38_0718: three pictures with captions (colour 10, the picture's own
-    // green) and the narration; Escape after a sound skips the rest.
+    // green) and the narration. After each step (a page on the display, a
+    // sound played out, a wait) the keys pressed meanwhile: Escape (scan
+    // code 1, [9560] bit 1) skips the rest, else S (1Fh, [9563] bit 7) turns
+    // the sounds over (f36_004e: off, the title's music stops and the
+    // narration's sounds aren't played, f36_00ad).
     struct Page {
         uint16_t picture;
         std::vector<uint16_t> lines;
@@ -308,6 +327,16 @@ void Science::story() {
     narration(8, true);  // SILENT
     waitNarration();
     bool skip = false;
+    int taken = 0;  // a key that ended a wait
+    const auto keys = [&] {
+        if (escapePressed()) return skip = true;
+        bool s = taken == 's' || taken == 'S';
+        taken = 0;
+        while (const int k = ctx_.platform.takeKey())
+            if (k == 's' || k == 'S') s = true;
+        if (s) soundsOver();
+        return false;
+    };
     for (const Page& page : kPages) {
         if (skip) break;
         select(2);
@@ -320,18 +349,17 @@ void Science::story() {
             y += font_->height() + 4;
         }
         toDisplay(2);
+        ctx_.pump();  // (f36_0000: one message)
+        if (keys()) break;
         for (int sound : page.sounds) {
             narration(sound, true);
             waitNarration();
-            if (escapePressed()) {
-                skip = true;
-                break;
-            }
+            if (keys()) break;
         }
         if (skip) break;
         for (int i = 0; i < page.waits; ++i)
-            if (waitTicks(page.wait)) break;
-        if (escapePressed()) skip = true;
+            if (waitTicks(page.wait, true, &taken)) break;
+        keys();
     }
     ctx_.platform.stopWav();
     select(1);

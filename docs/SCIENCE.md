@@ -50,8 +50,13 @@ Started by the launcher as `wmain.exe -A`; on leaving it runs
 ## The story (`f38_0718`, ported: `science.cpp`)
 
 `f36_00ad(n, 1)` plays narration WAV n (names 9 bytes apart at
-`seg97:0519`), and the story waits while `[92BC]` (a WAV playing) is set.
-Bit 1 of the held-keys bitmap (`DS:9560`, Escape) skips the rest.
+`seg97:0519`), and the story waits while `[92BC]` (a WAV playing) is set;
+only with the sounds on (`[27F6]`). After each step (a page on the display,
+a sound played out, a wait) it looks at the keys pressed meanwhile (the
+bitmap at `DS:9560`, a bit for each scan code, cleared as read): Escape
+(bit 1) skips the rest, else S (scan code 1Fh, `[9563]` bit 7) turns the
+sounds over (`f36_004e`): off, the title's music stops and the narration
+that's left isn't played, so the pages only wait.
 
 1. WAV 8; picture `2007` on screen 2 (`f14_092c`, Edison's look in its
    palette: the 6-bit tables copied as they are, so it comes out dark);
@@ -202,9 +207,9 @@ WMAIN uses only `INIT_ADLIB`, `REMOVE_ADLIB`, `SENDSND` and `UPDATE_ADLIB`
   (after 120 ticks, with the sounds on, the WAV stopped and 0; after OK, 25);
   `s` (off: the WAV stopped and 0; on: 25); the game object's end
   (`f32_059c`, 0).
-- `f36_004e` is the story's `s` (`[9562]` bit 15, read by `f36_0000`): the
+- `f36_004e` is the story's S (`[9563]` bit 7, scan code 1Fh): the
   sounds over, and when off the WAV stopped and `SENDSND(0)` itself (with
-  `[5FF6]`). Not ported: the port's story has no `s` key.
+  `[5FF6]`); on again, no music.
 
 ## The segments
 

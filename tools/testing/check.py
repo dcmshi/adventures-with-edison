@@ -1,10 +1,12 @@
 """All the checks, one after another, each timed and limited: the unit
 tests (ctest), room 1 against the original's shots (regress.py), the shots
-traced in the original (retrace.py), and smoke tests of the testing
-switches (the aim search, the dialogs skipped, the heartbeat). PASS or
-FAIL for each; exits 1 if any failed. About 10 s.
+traced in the original (retrace.py), the scenarios against the original's
+shots of their last --orig run (scenario.py: room 1's holes, the lessons,
+the game over and won), and smoke tests of the testing switches (the aim
+search, the dialogs skipped, the heartbeat). PASS or FAIL for each; exits 1
+if any failed. About 40 s.
 
-Usage: check.py [unit] [regress] [retrace] [smoke] (default: all)"""
+Usage: check.py [unit] [regress] [retrace] [scenario] [smoke] (default: all)"""
 import subprocess
 import sys
 import time
@@ -58,6 +60,7 @@ STEPS = {
     "unit": lambda: command(["ctest", "--output-on-failure"], 120, cwd=ROOT / "build"),
     "regress": lambda: command([sys.executable, str(HERE / "regress.py")], 60),
     "retrace": lambda: command([sys.executable, str(HERE / "retrace.py")], 120),
+    "scenario": lambda: command([sys.executable, str(HERE / "scenario.py")], 180),
     "smoke": smoke,
 }
 

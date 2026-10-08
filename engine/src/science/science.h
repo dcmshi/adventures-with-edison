@@ -45,7 +45,8 @@ private:
     void waitNarration();                           // while [92BC]
     // A wait of `ticks` 50ths of a second (f32_07aa, the 50 Hz counter
     // [12F8:0002] that f32_0777(50) starts); a click or key ends it.
-    bool waitTicks(int ticks, bool interruptible = true);
+    bool waitTicks(int ticks, bool interruptible = true, int* key = nullptr);  // key: the one that ended it
+    void soundsOver();                              // f36_004e: the story's S
     bool escapePressed();                           // bit 1 of the keys held (DS:9560)
 
     // --- the opening (segments 32 and 38) ---

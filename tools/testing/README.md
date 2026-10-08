@@ -55,6 +55,18 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
   with `otvdm.ps1 run`; not in the repository): every frame exact, the
   two whole screens no worse than their known counts. `E=path` tests
   another build (also for `retrace.py`).
+- `scenario.py [NAME...] [--orig] [--accept] [--list]`: the scenarios of
+  `scenarios.py` (room 1's holes to the lab, the play room and Level 1;
+  lessons 6-10 from room 61; the game over in room 32 and won from room
+  65), each a timeline of presses, drags, moves and typing from a table
+  room, played in the port and (with `--orig`, one at a time, its save
+  files put back after) in the original; each of the original's shots
+  against the port's nearest frame within 1.5 s, the columns masked, no
+  worse than its known count (`build/scratch/scenario/known.json`,
+  `--accept` writes it). Both sides start from the original's
+  `WSCIENCE.HS` and `wscience.edi`. Without `--orig` it uses the
+  original's shots of the last run (none: it only reports), so it runs in
+  `check.py`.
 - `aimsearch.py SPEC [--jobs N] [--limit S] -- ARGS...`: `SCI_AIMSEARCH`
   split by rows over N processes (default half the cores), dialogs
   skipped; progress per process to stderr, the aims found to stdout; a
