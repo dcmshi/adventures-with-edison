@@ -33,6 +33,10 @@ constexpr SliderKind kPower{0x1A8, 299, 0, 16, 0x119A, 0x117E};
 
 bool Science::panelSprite(int x, int y, uint16_t id) {
     // f14_1179: a sprite only if it lies wholly on the screen.
+    if (recording_) {
+        recording_->insert(recording_->end(), {current(), x, y, id, 1});
+        return true;
+    }
     const Bitmap& bmp = ctx_.bitmap(id);
     if (x < 0 || y < 0 || x + bmp.width > Screen::kWidth || y + bmp.height > Screen::kHeight) return false;
     ctx_.screens.drawSprite(current(), bmp, x, y);

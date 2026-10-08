@@ -594,9 +594,11 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   a pit, its front (5, `+44`) from the area's left and bottom edges and
   its right (3, `+42`) and all right of it to the area's edge. (A face
   with a look, `f12_00de`, draws the look instead, `f14_12e9` or
-  `f14_07a0`.) The port cuts the standing boxes only: a pit's cut needs
-  the redraw of changed rectangles (`f29_0380`, below), where the port
-  redraws the whole view.
+  `f14_07a0`.) A pit's cut reaches the area's edges, so what was drawn
+  beside it before it is wiped there: the areas are kept small by the
+  redraw of changed rectangles (`f29_0380`, below). Checked: room 3 at
+  rest, its second N block (in a pit) and a hole on its left wall cut
+  away as in the original.
 - Sprites are clipped to `[1706]`, the whole screen: only the view's part
   is copied to the display, so one past the view's edge shows cut off.
 - Checked against the original: a shot's frames, the ball at the
@@ -975,8 +977,8 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   down and up, `[FFE]` read from the original, pixel for pixel), room 25
   (an Iron ball caught, Glass and Rubber ones broken, traced state for
   state). The original redraws only an object's rectangle (`f08_07a7`), so
-  the burst's pieces outside it (and the frame's post) differ from the
-  port's, which redraws the view.
+  the burst's pieces outside it can stay on the display (ported, below:
+  the redraw of changed rectangles; not compared yet).
 - **Type 13, the fan** (`f02_05f2`; `a` its way, 0-3): its motion part at
   `+0` (sphere `+2`: a 26 cube's centre a unit lower, radius 13), its power
   part at `+0C` (table `1C4`: `+0C` the plain `f04_008e`, `+10` says 2), its
@@ -1175,6 +1177,25 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   most) are redrawn every `+180` ticks: each room's builder sets 2, but the
   room's tick sets it from `[27E6]` (1, nothing changes it) whenever that's
   not 0, so every tick.
+  - `f27_16ae` (from `f08_07a7`, the core's `+10`, and hiding,
+    `f08_0469`): the rectangle now (`f25_0a51` from the core's box, empty
+    when hidden) against the one kept at the core's `+0`: meeting
+    (`f11_0a26`), their union (`f11_08b7`) queued, else the new then the
+    old; the new kept. Classes whose `+48` is 6 (types 4 and 5) or 8 (type
+    2) and that are shown, with the same rectangle, queue nothing. A core
+    gone (`f27_160c`) queues its rectangle; so do the glass's marks
+    (`f27_0772`, `f27_2434`) and the rooms' pictures on screen 3 (rooms
+    12, 34, 54).
+  - `f29_0313` queues (a full queue is redrawn first); `f29_0380` takes
+    the last off, merges it into the nearest earlier one it meets, else
+    redraws it (`f29_0494` → the room's method 3); till none are left.
+  - In the method 3 (`f35_04ca`), an object is drawn only if shown and its
+    rectangle meets the area, and a box only once an object has been
+    (`[2982]`) and if its rectangle meets the area; the target's front
+    (`[1508]`) only if its back was.
+  - Ported (`noteChanges`, `queueArea`, `redrawAreas`): at each tick's end,
+    each drawable whose rectangle or look (the sprites it would draw)
+    changed is queued as `f27_16ae` would; one gone, its rectangle.
 - **Each room's own methods** (its `+5E` table against the base room's:
   every room has its pictures `+10`, its word on its holes `+20` and `+2C`;
   `+14` its tick, in rooms 2, 9, 12, 18, 34, 54 (all ported); `+24` a body onto a face,

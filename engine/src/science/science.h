@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <string>
 #include <utility>
@@ -9,6 +10,8 @@
 #include "artech/game.h"
 
 namespace edison {
+
+struct Drawable;  // table.cpp
 
 // The Wild Science Arcade (WMAIN.EXE): see docs/SCIENCE.md. So far the
 // title and the story; the lab and the arcade's rooms come next.
@@ -237,6 +240,8 @@ private:
         int sin = 0, cos = 0;           // +4C, +4E: of the angle (+46), in 32767ths
     };
     static Rect intersect(const Rect& a, const Rect& b);  // f11_0c12
+    static bool meets(const Rect& a, const Rect& b);      // f11_0a26
+    static Rect unite(const Rect& a, const Rect& b);      // f11_08b7
     static bool inside(const Rect& r, int x, int y);
     bool loadTable(int room);                       // f27_0ad8: S<n>.SRF's shape
     std::pair<int, int> project(int x, int y, int h) const;  // f25_0813
@@ -249,6 +254,7 @@ private:
     Rect objectRect(int x, int y, int z, int w, int d, int h) const;               // f27_16ae
     void objectSprite(int cx, int cy, uint16_t id);  // f14_0d69 at 1:1
     void drawObjects(const Rect& area);             // the drawables at rest
+    void listDrawables(std::vector<Drawable>& list, const Rect& area);  // the room's list (+1AD)
     // The room's "drawn after" table (+5FD) kept between draws: the
     // drawables it was made for, each one's box and rectangle then, the
     // pairs' f35_0744 results (f27_1af3, f27_1bd9).
@@ -262,6 +268,22 @@ private:
     int tableSerial_ = 0;                           // one more each loadTable
     void roomPictures(int room);                    // the room's method 4 (room 1: f41_0126)
     void redrawTable(const Rect& area);             // f27_1e36, the room's method 3
+    // The view's areas to redraw (the room's +60: +14, 32 at most, the
+    // count at +114), queued (f29_0313) and redrawn at the room's tick's end
+    // (f29_0380), overlapping ones merged; what was last seen of each
+    // drawable (its core's rectangle, +0, and its look), to queue what
+    // changed as f27_16ae does.
+    std::vector<Rect> areas_;
+    struct Seen {
+        Rect rect;
+        std::vector<int> look;
+    };
+    std::map<std::pair<const void*, int>, Seen> seen_;
+    int seenTable_ = -1, seenScore_ = 0, seenShots_ = 0, seenCracks_[5] = {};
+    std::vector<int>* recording_ = nullptr;         // the sprites a drawable would draw
+    void queueArea(const Rect& area);               // f29_0313
+    void redrawAreas();                             // f29_0380
+    void noteChanges();                             // f27_16ae for what changed
     void enterRoom(int room);                       // f31_0783 for rooms 1-100
 
     // --- the controls (segment 30; panel.cpp) ---
@@ -514,7 +536,7 @@ private:
     void setSlider(Control c, int value);           // f30_3339 and the kind's +28
     void setBallType(int type);                     // f30_29cc → f30_2574
     void tickRoom();                                // the player's tick (f31_1c79)
-    void flushRoom();                               // the areas marked changed, redrawn
+    void flushRoom(bool view = true);               // the areas marked changed, redrawn
     void markButton(Control c);                     // a button's sprite (and the name box)
     void drawBox(const Box& box);                   // f12_2a09
     void cutBox(const Box& box, const Rect& area);  // f12_220d: a box over what's behind it

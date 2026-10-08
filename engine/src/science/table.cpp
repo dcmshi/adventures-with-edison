@@ -30,6 +30,23 @@ Science::Rect Science::intersect(const Rect& a, const Rect& b) {
     return {x0, y0, std::max(0, x1 - x0), std::max(0, y1 - y0)};
 }
 
+bool Science::meets(const Rect& a, const Rect& b) {
+    // f11_0a26: their spans overlap on both axes (empty ones too: an empty
+    // rectangle at a point meets one around it).
+    const long ax = a.x, ay = a.y, bx = b.x, by = b.y;
+    if (bx + b.w - 1 < ax || ax + a.w - 1 < bx) return false;
+    return ay <= by + b.h - 1 && by <= ay + a.h - 1;
+}
+
+Science::Rect Science::unite(const Rect& a, const Rect& b) {
+    // f11_08b7: the bounds of both; an empty one adds nothing.
+    if (b.w == 0 || b.h == 0) return a;
+    if (a.w == 0 || a.h == 0) return b;
+    const int x0 = std::min(a.x, b.x), y0 = std::min(a.y, b.y);
+    const int x1 = std::max(a.x + a.w - 1, b.x + b.w - 1), y1 = std::max(a.y + a.h - 1, b.y + b.h - 1);
+    return {x0, y0, x1 - x0 + 1, y1 - y0 + 1};
+}
+
 bool Science::inside(const Rect& r, int x, int y) {
     return x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
 }
@@ -215,6 +232,10 @@ void Science::objectSprite(int cx, int cy, uint16_t id) {
     // wholly inside the clip ([1706]: the whole screen, as for the lines;
     // only the view's part reaches the display, so a ball in a pit at the
     // view's foot shows cut off by its edge).
+    if (recording_) {
+        recording_->insert(recording_->end(), {current(), cx, cy, id});
+        return;
+    }
     const Bitmap& bmp = ctx_.bitmap(id);
     const int x = cx - (bmp.width >> 1), y = cy - (bmp.height >> 1);
     const Rect v{0, 0, Screen::kWidth, Screen::kHeight};
@@ -225,6 +246,8 @@ void Science::objectSprite(int cx, int cy, uint16_t id) {
 namespace {
 
 constexpr int kHoleTicks = 22;  // [212C]
+
+}  // namespace
 
 // A drawable of the room's list (+1AD, 0x17 bytes each): its box (x, y, z,
 // w, d, h; at its object's +6E), its rectangle on the screen, its kind (the
@@ -249,7 +272,13 @@ struct Drawable {
     const void* id = nullptr;
     int part = 0;
     bool marks = true;
+    // Not hidden (its core's +60: else not drawn, its rectangle empty,
+    // f08_0469); and of a class that isn't redrawn when its rectangle
+    // stays (f27_16ae: +48 6, types 4 and 5; 8, type 2).
+    bool shown = true, steady = false;
 };
+
+namespace {
 
 bool spans(int a, int aw, int c, int cw) {
     // f25_0000 / 00a9 / 0157: the ranges [a, a + aw - 1] and [c, ...] meet.
@@ -328,18 +357,11 @@ Science::Rect Science::objectRect(int x, int y, int z, int w, int d, int h) cons
     return {a.first, b.second, b.first - a.first + 2, a.second - b.second + 2};
 }
 
-void Science::drawObjects(const Rect& redraw) {
-    // f27_1e36: the room's drawables (+1AD) in the painter's order: each
-    // pair compared (f27_1af3 → f27_19d9 → f35_0744) into "drawn after"
-    // (+5FD, 48 x 48); then, in the list's order, each with nothing in
-    // front of it is drawn after (f27_1d2f) all those behind it, then any
-    // left. The table's boxes first (the room's method 1, f27_12b6 →
-    // f27_1864, as the shape's read: 24 at most, not the root), each
-    // drawn (f35_04ca) by cutting what's behind it (f12_220d), so the table
-    // shows over it. (Only once an object has been drawn, [2982]: before,
-    // there's nothing to cut.)
+void Science::listDrawables(std::vector<Drawable>& list, const Rect& redraw) {
+    // The room's drawables (+1AD): the table's boxes first (the room's
+    // method 1, f27_12b6 → f27_1864, as the shape's read: 24 at most, not
+    // the root), then the objects'.
     auto area = [](const Rect& r) { return Drawable::Area{r.x, r.y, r.w, r.h}; };
-    std::vector<Drawable> list;
     std::function<void(const Box&, std::vector<const void*>)> boxes = [&](const Box& box, std::vector<const void*> lineage) {
         for (const auto& child : box.children) {
             if (list.size() >= 24) return;
@@ -445,6 +467,7 @@ void Science::drawObjects(const Rect& redraw) {
             // is still its kind's, f03_002c's.)
             const int bx = o.x - grow, by = o.y - grow, bz = g - grow, side = (o.type == 11 ? 34 : 2 * o.size) + 2 * grow;
             Drawable dr{{bx, by, bz, side, side, side}, area(objectRect(bx, by, bz, side, side, side)), 0, 0, {}};
+            dr.shown = o.shown;
             dr.draw = [this, &o, bx, by, bz, side] {
                 if (!o.shown) return;
                 const auto [cx, cy] = objectCentre(bx, by, bz, side, side, side);
@@ -475,7 +498,7 @@ void Science::drawObjects(const Rect& redraw) {
             Drawable dr{{b.cx - b.r, b.cy - b.r, b.cz - b.r, s, s, s}, area(objectRect(b.cx - b.r, b.cy - b.r, b.cz - b.r, s, s, s)), 1, 0, {}};
             // (Type 2's Iron: 1378.)
             dr.draw = [this, &o] { ballSprite(o.body, o.type == 2 ? 0x1378 : 0x1300); };
-            dr.id = &o;
+            dr.id = &o, dr.steady = o.type == 2;
             list.push_back(dr);
         } else if (int b[6]; !o.hiddenSwitch && thingBox(o, b)) {
             // The others (things.cpp): their sprite at their box's centre
@@ -485,6 +508,7 @@ void Science::drawObjects(const Rect& redraw) {
                 thingDraw(o, objectRect(b0, b1, b2, b3, b4, b5));
             };
             dr.id = &o, dr.marks = !(o.type == 5 || o.type == 6 || o.type == 12 || o.type == 15);
+            dr.steady = o.type == 4 || o.type == 5;
             list.push_back(dr);
         } else if ((o.type == 1 || o.type == 3) && hasBall_) {
             // The ball (f06_0043, radius 10; kind 1), then its shadow
@@ -505,7 +529,7 @@ void Science::drawObjects(const Rect& redraw) {
                 static const uint16_t kFrames[6] = {0x1348, 0x1330, 0x1300, 0x1378, 0x1318, 0x1360};
                 ballSprite(b, kFrames[std::clamp(panel_.ballType, 0, 5)]);
             };
-            ball.id = &ball_;
+            ball.id = &ball_, ball.shown = !b.hidden;
             list.push_back(ball);
             // The shadow object (f07_12d6; drawn by f13_04ab): 1040 at its
             // box's centre projected, (x, y, ground + 1).
@@ -516,7 +540,7 @@ void Science::drawObjects(const Rect& redraw) {
                 const auto [x, y] = project(shadowX_, shadowY_, shadowZ_);
                 objectSprite(x, y, 0x1040);
             };
-            shadow.id = &ball_, shadow.part = 1;
+            shadow.id = &ball_, shadow.part = 1, shadow.shown = shadowShown_;
             list.push_back(shadow);
             // The target (f06_0877, kept at +F79), hidden while the ball
             // moves (f06_0aa8): the ring's back 1042 here, its front 1043
@@ -530,10 +554,24 @@ void Science::drawObjects(const Rect& redraw) {
                 const auto [tx, ty] = objectCentre(targetX_ - 10, targetY_ - 10, tz, 20, 20, 10);
                 objectSprite(tx + 1, ty, 0x1042);
             };
-            target.id = &ball_, target.part = 2;
+            target.id = &ball_, target.part = 2, target.shown = !ballMoving_;
             list.push_back(target);
         }
     }
+}
+
+void Science::drawObjects(const Rect& redraw) {
+    // f27_1e36: the room's drawables (+1AD) in the painter's order: each
+    // pair compared (f27_1af3 → f27_19d9 → f35_0744) into "drawn after"
+    // (+5FD, 48 x 48); then, in the list's order, each with nothing in
+    // front of it is drawn after (f27_1d2f) all those behind it, then any
+    // left. Each drawn (f35_04ca) only where it meets the area: an object
+    // not hidden whose rectangle overlaps it (f11_0a26); a box of the
+    // table, cutting what's behind it (f12_220d) so the table shows over
+    // it, once an object has been drawn ([2982]) and its rectangle meets
+    // the area.
+    std::vector<Drawable> list;
+    listDrawables(list, redraw);
     const size_t n = list.size();
     // The table is made again (f27_1af3) when the drawables aren't the ones
     // it was made for (+F1D: a core made or gone, f27_1518, f27_160c; a new
@@ -565,17 +603,28 @@ void Science::drawObjects(const Rect& redraw) {
             if (o == 0) after[i * n + j] = 1, after[j * n + i] = 0, free[j] = false;
             else if (o == 2) after[j * n + i] = 1, after[i * n + j] = 0, free[i] = false;
         }
+    bool objectDrawn = false, ringFront = false;  // [2982], [1508]
     std::function<void(size_t)> draw = [&](size_t i) {
         drawn[i] = true;
         for (size_t j = 0; j < n; ++j)
             if (j != i && after[i * n + j] && !drawn[j]) draw(j);
-        list[i].draw();
+        const Drawable& d = list[i];
+        const Rect r{d.rect.x, d.rect.y, d.rect.w, d.rect.h};
+        if (d.table) {
+            const Rect m = intersect(r, redraw);
+            if (objectDrawn && m.w != 0 && m.h != 0) d.draw();
+        } else if (d.shown && meets(r, redraw)) {
+            d.draw();
+            objectDrawn = true;
+            // (The target's back drawn: its front over everything, below.)
+            if (d.id == &ball_ && d.part == 2) ringFront = true;
+        }
     };
     for (size_t i = 0; i < n; ++i)
         if (free[i]) draw(i);
     for (size_t i = 0; i < n; ++i)
         if (!drawn[i]) draw(i);
-    if (hasBall_ && !ballMoving_) {
+    if (ringFront) {
         const int tz = heightUnder(targetX_, targetY_) + (targetMoved_ ? 1 : 0);
         const auto [tx, ty] = objectCentre(targetX_ - 10, targetY_ - 10, tz, 20, 20, 10);
         objectSprite(tx + 1, ty, 0x1043);
@@ -847,12 +896,10 @@ void Science::cutBox(const Box& box, const Rect& area) {
     // standing up, its back, its left and its bottom (together all it
     // covers); a pit, its front with all below it and its right with all
     // right of it, out to the area's edges. (A face with a look, f12_00de,
-    // draws the look instead: not read yet.) Only the standing boxes here:
-    // their cut stays within their rectangle, the same whatever the area;
-    // a pit's reaches the area's edges, which the original keeps small
-    // (f29_0380 redraws each changed object's old and new rectangles, not
-    // the whole view as the port does: there it would wipe whatever moves
-    // beside a pit for good).
+    // draws the look instead.) A standing box's cut stays within its
+    // rectangle; a pit's reaches the area's edges, which are kept small
+    // (f29_0380 redraws only what changed: an object's old and new
+    // rectangles), so what's drawn beside a pit before it is wiped there.
     const Rect& T = box.top;
     const Rect& B = box.bottom;
     const int H = box.height, P = box.parentHeight();
@@ -867,7 +914,6 @@ void Science::cutBox(const Box& box, const Rect& area) {
     else if (box.hideLeft) cut({project(T.x, ty, H), project(T.x, T.y, H), project(B.x, B.y, P), project(B.x, by, P)});  // 2
     if (box.looks[1].id) lookSprite(box.looks[1], &area);
     if (P <= H && box.hideLeft) cut({project(B.x, B.y, P), project(B.x, by, P), project(bx, by, P), project(bx, B.y, P)});  // 6
-    if (H < P) return clearPolygonClip();  // (a pit: not yet, above)
     if (box.looks[5].id) {
         lookSprite(box.looks[5], &area);
     } else if (box.hideFront) {
@@ -1075,6 +1121,8 @@ void Science::redrawTable(const Rect& area) {
     // colour 0, the room's objects painted back to front (not yet), the
     // score and shots boxes, then screen 3 where screen 2 is still colour 0
     // (f14_0c88 → f65_0294), and the area to the display.
+    // (A new table's first: what each drawable is seen as from here.)
+    if (seenTable_ != tableSerial_) noteChanges();
     const Rect a = intersect(area, table_.view);
     if (a.w == 0 || a.h == 0) return;
     Screen& two = ctx_.screens[2];
@@ -1105,6 +1153,75 @@ void Science::redrawTable(const Rect& area) {
             if (two.pixels[at] == 0) two.pixels[at] = three.pixels[at];
         }
     copyArea(2, 1, a.x, a.y, a.w, a.h);
+}
+
+void Science::queueArea(const Rect& area) {
+    // f29_0313: 32 at most; a full queue redrawn first (f29_0380).
+    if (areas_.size() >= 32) redrawAreas();
+    areas_.push_back(area);
+}
+
+void Science::redrawAreas() {
+    // f29_0380 (every +120 ticks: every tick, [27E6]): the last area taken
+    // off; merged into the nearest before it that it meets, else redrawn
+    // (f29_0494 → the room's method 3); till none are left.
+    while (!areas_.empty()) {
+        const Rect top = areas_.back();
+        areas_.pop_back();
+        bool merged = false;
+        for (size_t k = areas_.size(); k-- > 0;)
+            if (meets(top, areas_[k])) {
+                areas_[k] = unite(areas_[k], top);
+                merged = true;
+                break;
+            }
+        if (!merged) redrawTable(top);
+    }
+}
+
+void Science::noteChanges() {
+    // f27_16ae, each object's redraw (its core's +10, f08_07a7) or hiding
+    // (f08_0469: its rectangle empty): its rectangle now (f25_0a51) against
+    // the one kept (+0), both queued, as one when they meet (f11_0a26,
+    // f11_08b7), and kept. Here for each drawable whose rectangle or look
+    // (the sprites it would draw) changed since the last time; one gone
+    // (f27_160c) has its rectangle queued. Classes 6 and 8 (types 4, 5 and
+    // 2) shown with their rectangle the same queue nothing. And the score
+    // and shots boxes and the glass's marks, changed, theirs.
+    std::vector<Drawable> list;
+    listDrawables(list, table_.view);
+    const bool fresh = seenTable_ != tableSerial_;
+    std::map<std::pair<const void*, int>, Seen> now;
+    for (const Drawable& d : list) {
+        if (d.table) continue;
+        Seen& s = now[{d.id, d.part}];
+        if (d.shown) {
+            s.rect = {d.rect.x, d.rect.y, d.rect.w, d.rect.h};
+            recording_ = &s.look;
+            d.draw();
+            recording_ = nullptr;
+        }
+        if (fresh) continue;
+        const auto was = seen_.find({d.id, d.part});
+        const Seen old = was != seen_.end() ? was->second : Seen{};
+        const bool same = old.rect.x == s.rect.x && old.rect.y == s.rect.y && old.rect.w == s.rect.w && old.rect.h == s.rect.h;
+        if (same && ((d.shown && d.steady) || old.look == s.look)) continue;
+        if (meets(old.rect, s.rect)) queueArea(unite(s.rect, old.rect));
+        else queueArea(s.rect), queueArea(old.rect);
+    }
+    if (!fresh) {
+        for (const auto& [key, old] : seen_)
+            if (!now.count(key) && old.rect.w != 0) queueArea(old.rect);
+        const Bitmap& box = ctx_.bitmap(0x1425);
+        if (score_ != seenScore_) queueArea({480, 8, box.width, box.height});
+        if (shots_ != seenShots_) queueArea({58, 8, box.width, box.height});
+        for (int i = 0; i < 5; ++i)
+            if (crackStage_[i] != seenCracks_[i]) queueArea(crackRect_[i]);
+    }
+    if (fresh) areas_.clear();
+    seen_ = std::move(now), seenTable_ = tableSerial_;
+    seenScore_ = score_, seenShots_ = shots_;
+    std::copy(std::begin(crackStage_), std::end(crackStage_), seenCracks_);
 }
 
 void Science::enterRoom(int room) {

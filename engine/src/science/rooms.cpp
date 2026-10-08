@@ -1074,7 +1074,7 @@ void Science::roomTick() {
         if (phase == 0 || phase == 0x1F) {
             select(3);
             drawLogo(392, 20, static_cast<uint16_t>(0x1092 + (phase & 1)));
-            viewDirty_ = true;
+            queueArea({392, 20, 56, 70});
         }
         return;
     }
@@ -1165,6 +1165,7 @@ void Science::roomTick() {
         }
         select(3);
         drawLogo(422, 38, static_cast<uint16_t>(0x10B3 + count % 2));
+        queueArea({422, 38, 10, 74});
         putBodyAt(s, 506, 400, 80 - 2 * count);
         if (std::getenv("SCI_DEBUG") && !sw.state) logLine("room 54's magnets stop at " + std::to_string(count) + " at t" + std::to_string(timerTicks_));
         return;
@@ -1190,7 +1191,7 @@ void Science::roomTick() {
         auto lights = [&](uint16_t id) {
             select(3);
             drawLogo(371, 108, id), drawLogo(470, 108, id);
-            viewDirty_ = true;
+            queueArea({371, 108, 28, 28}), queueArea({470, 108, 28, 28});
             if (std::getenv("SCI_DEBUG")) logLine(std::string("room 12's magnet ") + (m.powered ? "on" : "off") + " at t" + std::to_string(timerTicks_));
         };
         if (!roomVar_[kFC0]) {

@@ -79,7 +79,7 @@ int Science::playRoom(int room) {
             flushRoom();
             if (const char* dir = std::getenv("SCI_TICKSHOTS")) saveTickShot(dir);
         }
-        flushRoom();
+        flushRoom(false);
     }
 }
 
@@ -831,8 +831,13 @@ void Science::targetTick() {
     ballMoving_ = !still;
 }
 
-void Science::flushRoom() {
-    if (viewDirty_) redrawTable(table_.view), viewDirty_ = false;
+void Science::flushRoom(bool view) {
+    // The view at the room's tick's end (f27_2434 → f29_0380): what changed
+    // queued, the areas redrawn.
+    if (view) {
+        if (viewDirty_) noteChanges(), viewDirty_ = false;
+        redrawAreas();
+    }
     if (panelDirty_) drawPanel(&panelDirtyRect_), panelDirty_ = false;
     for (int c = 0; c < 2; ++c)
         if (columnDirty_[c]) drawColumn(c == 1), columnDirty_[c] = false;
