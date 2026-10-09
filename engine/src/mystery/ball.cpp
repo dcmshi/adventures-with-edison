@@ -216,7 +216,7 @@ bool Mystery::ballSculpture(int level) {
     Panels::Panel boxes;  // DS:674A
     boxes.x = kBoxesX, boxes.y = kBoxesY, boxes.w = 0xC6, boxes.h = 0x9C;
     for (const auto& b : kBox) boxes.buttons.push_back({b[0], b[1], b[2], b[3]});
-    boxes.onPress = [&](int k) {  // g30_0988
+    boxes.onPress = [&](int k) {  // g30_0988 (g30_08ae: the tick or the cross)
         if (k < 0 || answered[k]) return;
         pressed = k;
         drawCentred(kBoxesX + kBox[k][0] + kBox[k][2] / 2, kBoxesY + kBox[k][1] + kBox[k][3] / 2, k == right ? 0x2081 : 0x2082);

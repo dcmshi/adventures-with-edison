@@ -246,7 +246,7 @@ std::string Mystery::highScorePath() const {
 }
 
 void Mystery::loadHighScores() {
-    // f24_005a: nine tables (levels 0-7, then custom levels) of ten
+    // f24_005a (f03_0000, f03_00b4, f03_006e: _lopen, _hread, _lclose): nine tables (levels 0-7, then custom levels) of ten
     // entries: a 9-byte name and a 32-bit score. A missing file is made.
     for (auto& table : highScores_)
         for (auto& entry : table) entry = {};
@@ -266,7 +266,7 @@ void Mystery::loadHighScores() {
 }
 
 void Mystery::saveHighScores() const {
-    // f24_0000.
+    // f24_0000 (f03_0038, f03_008a, f03_006e: _lcreat, _hwrite, _lclose).
     uint8_t raw[9 * 10 * 13] = {};
     for (int t = 0; t < 9; ++t)
         for (int i = 0; i < 10; ++i) {
@@ -533,7 +533,9 @@ void Mystery::bonusMaze(int level) {
         }
     bool quit = false;  // [91A2]
     panels_.clear();
-    Panels::Panel arrows;  // DS:4B04: left, right, up, down
+    // DS:4B04: left, right, up, down; a press (g22_0000) draws the arrow
+    // again, over itself.
+    Panels::Panel arrows;
     arrows.x = 0, arrows.y = 0x177, arrows.w = 0x1CC, arrows.h = 0x18;
     for (int k = 0; k < 4; ++k) arrows.buttons.push_back({0x64 + k * 0x18, 0, 0x18, 0x18});
     arrows.whileHeld = [this](int b) {  // g22_006c

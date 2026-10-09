@@ -520,7 +520,7 @@ void Mystery::messageBox(const std::vector<std::string>& text, int x, int y) {
     clearInput();
     while (!anyInput()) ctx_.pump();
     clearInput();
-    restoreArea(saved);
+    restoreArea(saved);  // f06_0e3e
     select(previous);
 }
 
@@ -582,6 +582,7 @@ int Mystery::play() {
     bool first = true;  // [81CC] = -1 until the first game is played
     outcome_ = 0;
     greeted_ = false;
+    for (auto& row : learned_) std::fill(std::begin(row), std::end(row), false);  // f19_0000 (09:248a), saved games too
     if (!savedGame_) newBoard();
     int found = 0;
     constexpr int kSecondSlot = 5;
@@ -623,10 +624,15 @@ int Mystery::play() {
             sound(static_cast<uint16_t>(0x401F + m));
             mapTalk(1, 2);
         };
-        grid.onRelease = [this](int b) {  // f09_0540
+        grid.onRelease = [this](int b) {  // f09_0540 (f06_2924, f06_2ccc)
             if (b < 0 || objects_[b].museum == 0xFF) return;
             restoreArea(bubble_);
             clearInput();
+        };
+        // g09_051e: held on an object, the button is dropped ([739E]), so
+        // the next poll takes the name away though the button is still down.
+        grid.whileHeld = [this](int b) {
+            if (b >= 0) panels_.dropHold();
         };
         panels_.add(grid);
         Panels::Panel door;  // DS:0E76: go to the Museum

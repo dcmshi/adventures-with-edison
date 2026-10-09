@@ -43,7 +43,8 @@ uint16_t Mystery::dataWord(uint16_t offset) const {
 }
 
 void Mystery::run() {
-    // f02_00ba's loop: setup, then games until the player leaves.
+    // f02_00ba's loop: setup, then games until the player leaves (after
+    // f02_0024: the 640 x 400 screens, font 100h, the high scores' clip).
     ctx_.startTimer();
     panels_.onPause = [this] { pauseGame(); };
     loadHighScores();  // f24_005a, at the end of setup's first pass

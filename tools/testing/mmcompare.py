@@ -78,6 +78,7 @@ def office(level=0):
 
 
 DOOR = (268, 309)
+OBJECT0 = (0xDC + 4 + 0x18, 0x5C + 6 + 0x12)  # the map's first object (DS:0CF8)
 MAZE_EXIT = (180, 13)  # the bonus maze's exit (level 6's maze): a click gives up  # the office's door to the Museum (DS:0E76: 210-326, 284-334)
 
 SCENARIOS = {
@@ -98,6 +99,10 @@ SCENARIOS = {
                   shots=[(33 + 0.5 * i, f"p{i:02d}") for i in range(16)]),
     "floor": dict(events=office(0) + [click(34, *DOOR)], shots=[(33.9, "map"), (35, "door"), (37, "floor1"),
                                                                (40, "floor2"), (44, "floor3")]),
+    # An object on the office's map held 6 s (g09_051e drops the button, so
+    # its name goes once Edison has said it, though it's still held).
+    "gridhold": dict(events=office(0) + [hold(34, *OBJECT0, 6.0)],
+                     shots=[(33.9, "map")] + [(34.5 + 0.5 * i, f"g{i:02d}") for i in range(16)]),
 }
 
 
@@ -568,6 +573,12 @@ SCENARIOS["play11d8"] = puzzle_play(11, 8, [click(t, *colour_choice(i, k)) for t
                                            (16.5, 1, 1), (17.5, 2, 2), (18.5, 3, 0), (19.3, 4, 0)]],
                                     [(12.5, "rows"), (13.3, "wrong"), (13.9, "right1"), (16, "wrong3"),
                                      (16.8, "right2"), (19.5, "won"), (21, "won2"), (24, "won3"), (29, "won4")])
+# The gadget held 5 s: its flag stays till the release (g27_005c), so it
+# goes round again, three times. (Not past 20 s: the release comes during the
+# third, and the original takes it after the move that otvdm.ps1 posts first,
+# a poll later, so it starts a fourth; the port sees the button up.)
+SCENARIOS["play11d0g"] = puzzle_play(11, 0, [hold(13.5, *STACK_MACHINE, 5.0)],
+                                     [(12.5, "rows")] + [(13.8 + 0.5 * i, f"g{i:02d}") for i in range(13)])
 
 
 # What Comes Next (g26_19d8): row I's answer K (DS:9006's panel at 14Fh,

@@ -274,7 +274,7 @@ std::vector<std::string> Mystery::dataLines(uint16_t table) const {
 }
 
 int Mystery::yesNo(int x, int y, int w, int h) {
-    // f06_2976: two animated buttons, Yes (208A-208C) on the left and
+    // f06_2976 (its panel's g06_294a gives the answer): two animated buttons, Yes (208A-208C) on the left and
     // No (208D-208F) on the right. Y or Enter answer yes, N no.
     static const int kCycle[6] = {0, 1, 2, 2, 1, 0};
     const int previous = current();

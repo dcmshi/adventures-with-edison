@@ -69,7 +69,8 @@ bool Mystery::questionPeriod(int level, bool asPuzzle) {
             right.push_back(at < raw.size() ? raw[at++] - 1 : 0);
         }
     };
-    // f19_0d60: the facts learned in Concentration come first; if there
+    // f19_0d60: the facts learned in Concentration come first (f06_0eec: one
+    // not drawn yet); if there
     // are too few, questions 0, 1, 2... make up the rest.
     auto shuffle = [&] {
         std::vector<int> known;
@@ -227,7 +228,7 @@ bool Mystery::questionPeriod(int level, bool asPuzzle) {
         if (gadget) runGadget();
     };
 
-    // f19_1080: the panels.
+    // f19_1080: the panels (f19_0324: EXIT and the lesson).
     panels_.clear();
     Panels::Panel exit;  // f06_23d8
     exit.x = 0x228, exit.y = 0x16B, exit.w = 0x50, exit.h = 0x16;

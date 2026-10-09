@@ -99,7 +99,7 @@ bool Mystery::planetarium(int level) {
                 ctx_.screens[current()].pixels[static_cast<size_t>(y) * Screen::kWidth + x] = 0xFF;
         }
     };
-    auto drawBoxes = [&] {  // g28_084a
+    auto drawBoxes = [&] {  // g28_084a (f06_0eec: a number not drawn yet)
         select(2);
         std::vector<int> taken = {shown};
         auto another = [&] {  // one not shown yet (the Big Dipper and Ursa Minor go together)
@@ -184,7 +184,7 @@ bool Mystery::planetarium(int level) {
         return false;
     };
 
-    // The panels.
+    // The panels (f28_013e: EXIT, the lesson and DS:909C's four boxes).
     bool quit = false, helpWanted = false, gadget = false, redraw = false;
     int picked = -1;  // [90B6]
     panels_.clear();

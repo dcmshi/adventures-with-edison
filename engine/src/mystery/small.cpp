@@ -311,7 +311,7 @@ bool Mystery::codes(int level) {
         if (k >= 0) helpWanted = true;
     };
     panels_.add(helpButton);
-    Panels::Panel words;  // DS:3AA8
+    Panels::Panel words;  // DS:3AA8 (the rectangles DS:B596, f20_0296)
     words.x = 0x48, words.y = 0x24, words.w = 0x1EE, words.h = 0xA8;
     for (int i = 0; i < 39; ++i) words.buttons.push_back({slotX(i) - 0x48, slotY(i) - 0x24, 0x26, 0x2C});
     words.onPress = [&](int i) {  // g20_0976
@@ -319,7 +319,7 @@ bool Mystery::codes(int level) {
     };
     panels_.add(words);
     if (decode) {
-        Panels::Panel letters;  // DS:3AC2
+        Panels::Panel letters;  // DS:3AC2 (the rectangles DS:C13A, f20_0296)
         letters.x = 0x48, letters.y = 0xDA, letters.w = 0x1EE, letters.h = 0x1EE;
         for (int k = 0; k < 26; ++k) letters.buttons.push_back({(k % 13) * 0x26, k < 13 ? 0 : 0x3C, 0x26, 0x2C});
         letters.onPress = [&](int k) {  // g20_09bc
@@ -385,7 +385,7 @@ bool Mystery::codes(int level) {
                     drawMessage();
                 }
                 lastPicked = picked;
-                if (message == phrase) solved = true;
+                if (message == phrase) solved = true;  // f20_0b98
                 picked = -1;
             }
         } else {
@@ -397,6 +397,7 @@ bool Mystery::codes(int level) {
             }
             if (chartPick >= 0 && messagePicked) {
                 chart();
+                // f20_0834: the chart's symbol, picked.
                 drawShifted(0x48 + (chartPick % 13) * 0x26, chartPick < 13 ? 0xDA : 0x116,
                         static_cast<uint16_t>(alphabet + chartPick), 3);
                 if (chartPick == lastPicked) {
@@ -429,10 +430,10 @@ bool Mystery::codes(int level) {
             timeChanged = false;
             clock();
         }
-        if (helpWanted || helpPressed_) {
-            helpWanted = helpPressed_ = false;
+        if (helpWanted) {  // [B75A] (Codes has no Smitty panel and doesn't read [96])
+            helpWanted = false;
             drawShifted(0x28, 0x156, 0x2176, 0x14);
-            messageBox(dataLines(decode ? 0x3C40 : 0x3D42));
+            messageBox(dataLines(decode ? 0x3C40 : 0x3D42));  // f20_0a1e
             drawLogo(0x28, 0x156, 0x2176);
         }
         if (quit) drawShifted(0x208, 0x156, 0x2175, 0x14);
@@ -519,7 +520,7 @@ bool Mystery::concentration(int level) {
     bool gizmo = false;          // [2A0A]
     int gizmoTurn = 0;           // [B76A]
 
-    // The texts (resource 3100 + theme): messages of lines, each message
+    // The texts (resource 3100 + theme, f15_0058; split by f15_0000): messages of lines, each message
     // ending with an empty line. 0-9 name the pictures, 10- tell about them.
     std::vector<std::vector<std::string>> texts;
     {
@@ -650,6 +651,8 @@ bool Mystery::concentration(int level) {
         show(r, c, face(card[r][c]));
         fill(0x42, 0x116, 500, 0x1A, 0);
         const int v = card[r][c];
+        // g15_008a: up to two lines (g12_0000 shows the number, and it
+        // stops, when it's past the last).
         const auto lines = message(v < 0x100 ? v - 1 : v < 0x200 ? v - 0xF7 : v - 0x1ED);
         for (size_t k = 0; k < lines.size() && k < 2; ++k) text(0x44, 0x11A + 0xC * static_cast<int>(k), lines[k], 0xC0);
         if (picked >= match) {
@@ -799,7 +802,7 @@ bool Mystery::binaryLights(int level) {
         fill(r[0], r[1], r[2], r[3], 0);
         text(r[0] + r[2] / 2 - font_->width(s) / 2, r[1] + 6, s, 0xFF);
     };
-    auto machine = [&] {  // g17_05a6 (and g17_0b6e's test)
+    auto machine = [&] {  // g17_05a6 (and g17_0b6e's test; f17_04c4: 8, 4, 2, 1)
         select(1);
         a = (on[0] ? 8 : 0) + (on[1] ? 4 : 0) + (on[2] ? 2 : 0) + (on[3] ? 1 : 0);
         b = (on[4] ? 8 : 0) + (on[5] ? 4 : 0) + (on[6] ? 2 : 0) + (on[7] ? 1 : 0);
@@ -885,7 +888,7 @@ bool Mystery::binaryLights(int level) {
     computeUiColours();
     duplicateArea(1, 2, 0x94, 0x26, 0x11E, 0x2C, 0x94, 0x28);
     duplicateArea(1, 2, 0x94, 0xA4, 0x11E, 0x2C, 0x94, 0xA4);
-    // g17_0d60: the buttons.
+    // g17_0d60: the buttons (f17_002e: EXIT and the lesson).
     panels_.clear();
     Panels::Panel exit;  // f06_23d8
     exit.x = 0x1EE, exit.y = 0x16, exit.w = 0x44, exit.h = 0x1D;
@@ -995,8 +998,8 @@ bool Mystery::binaryLights(int level) {
                     solved = true;
                 }
             }
-            if (helpWanted || helpPressed_) {  // g17_01b6: the lesson on binary numbers
-                helpWanted = helpPressed_ = false;
+            if (helpWanted) {  // g17_01b6: the lesson on binary numbers (no [96] here)
+                helpWanted = false;
                 messageBox(dataLines(0x3480));
             }
             if (gizmo) {  // g17_0062: the Director's screen
@@ -1021,7 +1024,7 @@ bool Mystery::binaryLights(int level) {
             }
         }
     }
-    ctx_.timer.setPeriodic(kSecondSlot, 0, nullptr);
+    ctx_.timer.setPeriodic(kSecondSlot, 0, nullptr);  // f17_1232
     clearInput();
     panels_.clear();
     if (quit && rounds >= 0) won = puzzleResult(false, 0, 0, 0);

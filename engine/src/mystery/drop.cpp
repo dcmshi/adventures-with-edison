@@ -18,7 +18,8 @@ constexpr int kCellW = 0x19, kCellH = 0x14;   // [8572], [8574]
 constexpr int kWellX = 0xE5, kWellW = 200, kWellH = 300;  // [8576], [8578]
 constexpr int kPicW = 7, kPicH = 8;           // [823C], [823E]: 56 squares of cloth
 constexpr int kSquares = kPicW * kPicH;
-// DS:84BA: where the four fabric pictures are (8 x 7 squares each).
+// DS:84BA: where the four fabric pictures are (8 x 7 squares each); set
+// by f18_1a56, which also empties the well and the squares.
 constexpr int kPicture[4][2] = {{8, 6}, {8, 0xF9}, {0x1B7, 6}, {0x1B7, 0xF9}};
 
 }  // namespace
@@ -56,7 +57,7 @@ bool Mystery::droppingSquares(int level) {
 
     // g18_1cf0: which pictures the squares come from, and the time.
     int used[4][kSquares] = {}, usedCount[4] = {};
-    auto take = [&](int picture, int i) {  // g18_1c72: a square of it not yet taken
+    auto take = [&](int picture, int i) {  // g18_1c72: a square of it not yet taken (f18_04f8)
         int at;
         do at = random(kSquares);
         while (std::find(used[picture], used[picture] + usedCount[picture], at) != used[picture] + usedCount[picture]);
@@ -144,7 +145,7 @@ bool Mystery::droppingSquares(int level) {
         c.colour = level == 0 ? 0x10 : 0x10 + squares[c.square].picture;
         return c;
     };
-    auto nextPiece = [&] {  // g18_0fd2
+    auto nextPiece = [&] {  // g18_0fd2 (its f18_0f7c counts the empty cells but always returns 1)
         bool full = true;  // g18_0c7a
         for (int c = 0; c < kCols; ++c) full &= !well[0][c].empty();
         if (full) {
@@ -155,7 +156,7 @@ bool Mystery::droppingSquares(int level) {
         do pieceCol = random(kCols);
         while (!well[0][pieceCol].empty());
         const int r = random(10);
-        for (Cell& c : piece) c = Cell{};
+        for (Cell& c : piece) c = Cell{};  // f18_0566 (f18_0540 each)
         if (r < 9) {
             if (r == 6) {
                 for (Cell& c : piece) c = cloth();
@@ -248,7 +249,7 @@ bool Mystery::droppingSquares(int level) {
                     Cell& cell = well[r][c];
                     if (!cell.mark) continue;
                     music(3);
-                    drawCell(c * kCellW + kWellX, r * kCellH, Cell{});
+                    drawCell(c * kCellW + kWellX, r * kCellH, Cell{});  // f18_070a
                     if (cell.mark == 1) {
                         squares[cell.square].placed = true;
                         flyHome(c, r, cell.square);
@@ -299,7 +300,7 @@ bool Mystery::droppingSquares(int level) {
             int x, y, sx, sy;
             home(squares[i], &x, &y);
             store(i, &sx, &sy);
-            duplicateArea(2, 1, sx, sy, kCellW, kCellH, x, y);
+            duplicateArea(2, 1, sx, sy, kCellW, kCellH, x, y);  // f18_12f4
         }
         return true;
     };
@@ -328,7 +329,7 @@ bool Mystery::droppingSquares(int level) {
     intBox(0x7E, 0xCD, 0x41, 0x19, points);
     nextPiece();
 
-    // The panels: exit, help and the four buttons under the well (DS:34EC).
+    // The panels: exit and help (f18_002c), the four buttons under the well (DS:34EC).
     int pressedButton = -1, pressedFor = 0;
     panels_.clear();
     Panels::Panel exit;  // f06_23d8
@@ -424,14 +425,14 @@ bool Mystery::droppingSquares(int level) {
         if (!outcome && won()) outcome = 2;
         // The well, drawn on screen 2 and shown.
         for (int r = 0; r < kRows; ++r)
-            for (int c = 0; c < kCols; ++c) drawAt(c, r, well[r][c]);
-        for (int k = 0; k < 3; ++k) drawAt(pieceCol, pieceRow + k, piece[k]);
+            for (int c = 0; c < kCols; ++c) drawAt(c, r, well[r][c]);  // f18_07ba
+        for (int k = 0; k < 3; ++k) drawAt(pieceCol, pieceRow + k, piece[k]);  // f18_0818
         if (pressedButton >= 0 && --pressedFor <= 0) {
             copyArea(2, 1, 0xE1, kWellH, kWellW + 4, 0x5E);
             pressedButton = -1;
         }
         copyArea(2, 1, kWellX, 0, kWellW, kWellH);
-        fill(kWellX, 0, kWellW, kWellH, 0);
+        fill(kWellX, 0, kWellW, kWellH, 0);  // f18_1c4a
     }
     ctx_.timer.setPeriodic(kSecondSlot, 0, nullptr);  // g18_26a8
     panels_.clear();

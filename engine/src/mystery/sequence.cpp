@@ -64,7 +64,7 @@ bool Mystery::whatComesNext(int level) {
     int picked = -1;                               // [9020] when [9022]
 
     // The eight shapes (DS:4DDA...): big ones 0-3, small ones 4-7, points
-    // around the centre.
+    // around the centre (f26_00f0).
     static constexpr uint16_t kShapes[8] = {0x4DDA, 0x4DEE, 0x4E12, 0x4E22, 0x4E36, 0x4E4A, 0x4E6E, 0x4E7E};
     std::vector<std::pair<int, int>> shapes[8];
     for (int s = 0; s < 8; ++s)
@@ -184,7 +184,7 @@ bool Mystery::whatComesNext(int level) {
         fillPolygonSolid(pts, static_cast<uint8_t>(colour));
         for (size_t k = 0; k < pts.size(); ++k) fillPolygonSolid({pts[k], pts[(k + 1) % pts.size()]}, 0xFF);
     };
-    auto drawRow = [&](int i) {  // g26_06ca
+    auto drawRow = [&](int i) {  // g26_06ca (the shapes as f26_081e / f26_0178 place them; f26_0576 the rows)
         const Row& r = rows[i];
         const int y = i * kRowStep + kRowY;
         for (int k = 0; k < r.parts * 4; ++k) {
@@ -235,7 +235,7 @@ bool Mystery::whatComesNext(int level) {
     Panels::Panel answers;  // DS:9006
     answers.x = kPanelX, answers.y = kPanelY, answers.w = 0xF0, answers.h = 0x113;
     for (int i = 0; i < 5; ++i)
-        for (int k = 0; k < 4; ++k) answers.buttons.push_back({k * kItemStep, i * kRowStep, 0x3C, 0x32});
+        for (int k = 0; k < 4; ++k) answers.buttons.push_back({k * kItemStep, i * kRowStep, 0x3C, 0x32});  // f26_0438
     answers.onPress = [&](int k) {  // g26_0406
         if (k >= 0) picked = k;
     };
@@ -308,7 +308,7 @@ bool Mystery::whatComesNext(int level) {
             monitorGadget();
         }
         if (picked >= 0) {
-            const int row = picked / 4, a = picked % 4;
+            const int row = picked / 4, a = picked % 4;  // f26_0548
             picked = -1;
             if (!rows[row].solved) answer(row, a);
             if (allSolved()) done = true;
@@ -335,7 +335,7 @@ bool Mystery::whatComesNext(int level) {
             puzzleResult(true, points, mode, used);
         }
     }
-    ctx_.timer.setPeriodic(kSecondSlot, 0, nullptr);
+    ctx_.timer.setPeriodic(kSecondSlot, 0, nullptr);  // f26_19a8
     panels_.clear();
     if (!done) puzzleResult(false, 0, 0, 0);
     return done;

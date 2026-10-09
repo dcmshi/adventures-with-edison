@@ -209,6 +209,7 @@ bool Mystery::colourTransformation(int level) {
 
     // Panel DS:5034: the exit, help, the gadget and the twenty choices.
     bool quit = false, helpWanted = false, gadget = false;
+    bool gadgetHeld = false;  // its flag ([4F6A]) till the release (g27_005c)
     int picked = -1;
     panels_.clear();
     Panels::Panel panel;
@@ -220,8 +221,11 @@ bool Mystery::colourTransformation(int level) {
     panel.onPress = [&](int k) {  // g27_0036
         if (k == 0) quit = true;
         else if (k == 1) helpWanted = true;
-        else if (k == 2) gadget = true;
+        else if (k == 2) gadget = gadgetHeld = true;
         else if (k > 2) picked = k - 3;
+    };
+    panel.onRelease = [&](int k) {  // g27_005c: the button's flag cleared
+        if (k == 2) gadgetHeld = false;
     };
     panels_.add(panel);
     ctx_.timer.setPeriodic(kSecondSlot, 1, [&] {  // g27_0000
@@ -243,7 +247,7 @@ bool Mystery::colourTransformation(int level) {
             help(0x3F08);
             drawLogo(0x26, 0x15F, 0x20A5);
         }
-        if (gadget) {
+        if (gadget || gadgetHeld) {  // again each pass while it's held (27:16ce)
             gadget = false;
             music(0x19);
             monitorGadget();

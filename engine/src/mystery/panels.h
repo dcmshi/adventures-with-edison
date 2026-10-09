@@ -32,14 +32,18 @@ public:
     bool poll(Platform& platform, int* x = nullptr, int* y = nullptr);
     // P at a poll pauses the game (f06_219c: the key held, after each message).
     std::function<void()> onPause;
+    // The button counts as up till the next press, so the next poll releases
+    // (g09_051e clears [739E], which only WM_LBUTTONDOWN sets again).
+    void dropHold() { dropped_ = true; }
 
 private:
-    int hitPanel(int x, int y) const;
-    int hitButton(int panel, int x, int y) const;
+    int hitPanel(int x, int y) const;                // f07_0000
+    int hitButton(int panel, int x, int y) const;    // f07_0098
 
     std::vector<Panel> panels_;
     int active_ = -1;       // panel pressed ([81CA])
     int activeButton_ = -1;
+    bool dropped_ = false;
 };
 
 }  // namespace edison

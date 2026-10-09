@@ -51,7 +51,7 @@ bool Mystery::stackup(int level) {
         uint16_t at = static_cast<uint16_t>(0x4BFE + s * 0x14);
         for (; static_cast<int16_t>(dataWord(at)) < 0x500; at = static_cast<uint16_t>(at + 4))
             bars[s].emplace_back(static_cast<int16_t>(dataWord(at)), static_cast<int16_t>(dataWord(at + 2)));
-        barColour[s] = static_cast<uint8_t>(dataWord(static_cast<uint16_t>(at + 2)));
+        barColour[s] = static_cast<uint8_t>(dataWord(static_cast<uint16_t>(at + 2)));  // f25_0108
     }
     auto drawBar = [&](int x, int y, int bar, int colour) {  // g25_0190
         std::vector<std::pair<int, int>> pts = bars[bar];
@@ -93,7 +93,8 @@ bool Mystery::stackup(int level) {
         int orders[24][4];
         for (int o = 0; o < 24; ++o)
             for (int k = 0; k < 4; ++k) orders[o][k] = r.bars[kOrders[o][k]];
-        // g25_0adc: two wrong orders (1-23) and the right one (0), placed at random.
+        // g25_0adc: two wrong orders (1-23) and the right one (0), placed at
+        // random (f06_0eec: an order not drawn yet).
         int which[3] = {-1, -1, -1};
         int wrong[3], n = 0;
         while (n < 3) {
@@ -195,7 +196,7 @@ bool Mystery::stackup(int level) {
     Panels::Panel stacks;  // DS:8CDE
     stacks.x = kPanelX, stacks.y = kPanelY, stacks.w = 0xD2, stacks.h = 0x113;
     for (int i = 0; i < 5; ++i)
-        for (int c = 0; c < 3; ++c) stacks.buttons.push_back({c * kChoiceStep, i * kRowStep, 0x46, 0x32});
+        for (int c = 0; c < 3; ++c) stacks.buttons.push_back({c * kChoiceStep, i * kRowStep, 0x46, 0x32});  // f25_154a
     stacks.onPress = [&](int k) {  // g25_1518
         if (k >= 0) picked = k;
     };
@@ -334,7 +335,7 @@ bool Mystery::stackup(int level) {
             puzzleResult(true, points, misses, used);
         }
     }
-    ctx_.timer.setPeriodic(kSecondSlot, 0, nullptr);
+    ctx_.timer.setPeriodic(kSecondSlot, 0, nullptr);  // f25_1f40
     panels_.clear();
     if (!done) puzzleResult(false, 0, 0, 0);
     return done;

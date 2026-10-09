@@ -107,7 +107,7 @@ private:
     // leave, 2 to pick a new level.
     int play();
     void newBoard();                                            // the new-game part of f09_1dd8
-    void show(int screen);                                      // f04_005c: palette and pixels to the display
+    void show(int screen);                                      // f04_005c: palette (f04_0080) and pixels to the display
     void backdrop(uint16_t id);                                 // f04_0000(1) + f32_0d48(id, 2)
     void clock(bool force);                                     // f09_0ab2
     void clockHand(int cx, int cy, uint16_t hand, int value, uint8_t colour);  // f05_00a0

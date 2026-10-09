@@ -37,6 +37,7 @@ bool Panels::poll(Platform& platform, int* outX, int* outY) {
     int x, y;
     bool missed = false;
     if (platform.takeClick(&x, &y)) {
+        dropped_ = false;
         if (active_ >= 0 && panels_[active_].onRelease) panels_[active_].onRelease(activeButton_);
         active_ = hitPanel(x, y);
         activeButton_ = hitButton(active_, x, y);
@@ -49,6 +50,7 @@ bool Panels::poll(Platform& platform, int* outX, int* outY) {
     }
     bool down;
     platform.mouse(&x, &y, &down);
+    down = down && !dropped_;
     if (active_ < 0 || active_ >= static_cast<int>(panels_.size())) return missed;
     if (!down) {
         if (panels_[active_].onRelease) panels_[active_].onRelease(activeButton_);

@@ -226,7 +226,7 @@ bool Mystery::foldedCube(int level) {
     Panels::Panel nets;  // DS:674A
     nets.x = kNetsX, nets.y = kNetsY, nets.w = 0xC6, nets.h = 0x9C;
     for (const auto& n : kNet) nets.buttons.push_back({n[0], n[1], n[2], n[3]});
-    nets.onPress = [&](int k) {  // g30_0988: a tick or a cross
+    nets.onPress = [&](int k) {  // g30_0988: a tick or a cross (g30_08ae; [B396] counts the crosses)
         if (k < 0 || choices[k].answered) return;
         pressedNet = k;
         drawCentred(kNetsX + kNet[k][0] + kNet[k][2] / 2, kNetsY + kNet[k][1] + kNet[k][3] / 2,

@@ -9,7 +9,7 @@
 
 namespace edison {
 
-void ArtechGame::drawLogo(int x, int y, uint16_t id) {
+void ArtechGame::drawLogo(int x, int y, uint16_t id) {  // MALL f06_120c
     const Bitmap& bmp = ctx_.bitmap(id);
     x = std::max(0, std::min(x, Screen::kWidth - bmp.width));
     y = std::max(0, std::min(y, Screen::kHeight - bmp.height));
@@ -222,7 +222,7 @@ void ArtechGame::frame(int x, int y, int w, int h, uint8_t colour) {
     displayLine(x, y + h, x + w, y + h, colour);
 }
 
-void ArtechGame::fill(int x, int y, int w, int h, uint8_t colour) {
+void ArtechGame::fill(int x, int y, int w, int h, uint8_t colour) {  // MALL f06_17c8
     if (x + w >= Screen::kWidth) w = Screen::kWidth - x - 1;
     if (y + h >= Screen::kHeight) h = Screen::kHeight - y - 1;
     x = std::max(x, 0);
@@ -234,7 +234,7 @@ void ArtechGame::fill(int x, int y, int w, int h, uint8_t colour) {
     });
 }
 
-void ArtechGame::text(int x, int y, const std::string& s, int colour) {
+void ArtechGame::text(int x, int y, const std::string& s, int colour) {  // MALL f06_15b8
     colour = std::clamp(colour, 0, 255);
     x = std::max(x, 0);
     y = std::max(y, 0);
@@ -291,7 +291,7 @@ void ArtechGame::restoreArea(int handle, bool onlyCurrent) {
     saved_.erase(it);
 }
 
-void ArtechGame::recolour(int x, int y, int w, int h, uint8_t from, uint8_t to) {
+void ArtechGame::recolour(int x, int y, int w, int h, uint8_t from, uint8_t to) {  // MALL f06_16d8
     if (x + w >= Screen::kWidth) w = Screen::kWidth - x - 1;
     if (y + h >= Screen::kHeight) h = Screen::kHeight - y - 1;
     x = std::max(x, 0);
@@ -328,7 +328,7 @@ void ArtechGame::spinCountdown(int tenths) {
     while (ctx_.countdown[0] != 0) ctx_.spin();
 }
 
-void ArtechGame::drawOpaque(int x, int y, uint16_t id) {
+void ArtechGame::drawOpaque(int x, int y, uint16_t id) {  // MALL f06_1326
     const Bitmap& bmp = ctx_.bitmap(id);
     if (x + bmp.width > Screen::kWidth) x = Screen::kWidth - bmp.width - 1;
     if (y + bmp.height > Screen::kHeight) y = Screen::kHeight - bmp.height - 1;
