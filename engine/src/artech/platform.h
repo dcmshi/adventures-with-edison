@@ -36,12 +36,14 @@ public:
     virtual bool lastPress(int* x, int* y) { (void)x, (void)y; return false; }
     virtual bool escapeHeld() = 0;
     // Next key typed, as Windows would give it: printable ASCII, or
-    // kBackspace, kTab, kEnter, kEscape; 0 when there's none.
+    // kBackspace, kTab, kEnter, kEscape, an arrow (the keypad's too) or
+    // kCentre (the keypad's 5, scan code 4Ch); 0 when there's none.
     virtual int takeKey() = 0;
     // Takes the first queued KEY (others stay), if there is one.
     virtual bool takeKeyIf(int key) { (void)key; return false; }
-    enum Key { kBackspace = 8, kTab = 9, kEnter = 13, kEscape = 27, kLeft = 0x100, kRight, kUp, kDown };
-    // Whether an arrow key (kLeft-kDown) is held down now.
+    enum Key { kBackspace = 8, kTab = 9, kEnter = 13, kEscape = 27, kLeft = 0x100, kRight, kUp, kDown, kCentre };
+    // Whether an arrow key (kLeft-kDown, the keypad's too) or kEscape is
+    // held down now.
     virtual bool keyHeld(int key) { (void)key; return false; }
 
     // Sound: a RIFF WAV image (replaces the one playing); the FM driver DLL

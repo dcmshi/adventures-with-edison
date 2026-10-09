@@ -60,6 +60,15 @@ def key(t, text):
     return (t, "type", text)
 
 
+# Keys held by name: the original's virtual-key codes (with their scan codes:
+# VK_CLEAR is the keypad's 5, 4Ch), the port's --key names.
+VKEYS = {"esc": 27, "kp5": 12, "left": 37, "up": 38, "right": 39, "down": 40}
+
+
+def keyhold(t, name, seconds=0.08):
+    return (t, "keyhold", name, seconds)
+
+
 def office(level=0):
     """The level picked at 0, then the Director's letter read (six presses
     of its arrow, held 80 ms as a click: the last is still held, as the
@@ -586,8 +595,7 @@ SCENARIOS["play14d5"] = puzzle_play(14, 5, [click(t, *next_answer(i, k)) for t, 
 # (DS:3DD2's panel; g21_0a74's centres), help, the solution (held), the
 # gadget. A player of level 6 or below plays the penguins: each tile must
 # go back to its own place. A click picks a tile up and the next puts it
-# down (g21_0be8). (The solution button isn't played: held by the script,
-# the original shows it pressed but not the solution; not explained yet.)
+# down (g21_0be8). The solution shows while its button is held (play15d0s).
 
 
 def dig_move(t, frm, to):
@@ -609,10 +617,37 @@ SCENARIOS["play15d0"] = puzzle_play(15, 0, dig_move(13.3, dig_slot(1), dig_wall(
                                     + dig_move(25, dig_slot(0), dig_wall(4, 3)) + dig_move(27, dig_slot(1), dig_wall(0, 1)),
                                     [(12.5, "wall"), (13.6, "held"), (14.9, "back"), (16, "help"), (21, "gadget"), (24.5, "gadget2"), (26.5, "placed"),
                                      (28.6, "won"), (30, "won2"), (33, "won3"), (38, "won4")])
-SCENARIOS["play15d1"] = puzzle_play(15, 1, [e for i, (a, b) in enumerate([(4, 3), (0, 1), (2, 3), (3, 2)])
+SCENARIOS["play15d0s"] = puzzle_play(15, 0, [hold(13.3, *DIG_SOLUTION, 1.0)],
+                                     [(12.5, "wall"), (13.6, "solution"), (14.0, "solution2"), (14.8, "back")])
+SCENARIOS["play15d1"] =puzzle_play(15, 1, [e for i, (a, b) in enumerate([(4, 3), (0, 1), (2, 3), (3, 2)])
                                             for e in dig_move(13.3 + 2 * i, dig_slot(i), dig_wall(a, b))],
                                     [(12.5, "wall"), (14.8, "placed1"), (16.8, "placed2"), (19.1, "placed3"),
                                      (20.9, "won"), (22, "won2"), (25, "won3"), (30, "won4")])
+
+# The keys the puzzles read (the latched table [B774], or [929C] held): H
+# shows the help in Binary Lights (f17_0b9c), Dropping Squares (g18_0bc4),
+# Stackup (f25_189c) and What Comes Next (f26_0c82); Dropping Squares turns
+# its piece with the keypad's 5 too; Stackup's 0 makes the time 2000 s and
+# 1-3 start it again at that level; Esc held ends the Slide Puzzle (14:0552)
+# and Esc the Planetarium, unscored (28:1489); F on the floor counts the
+# next square's game as won unplayed (10:080e).
+SCENARIOS["keys03"] = puzzle_play(3, 0, [key(13, "h"), click(15, 320, 200)],
+                                  [(12.5, "r1"), (14, "help"), (15.8, "helped")])
+SCENARIOS["keys05"] = puzzle_play(5, 0, [keyhold(13, "kp5"), key(14, "h"), click(16, 320, 200)],
+                                  [(12.5, "c1"), (13.5, "turned"), (15, "help"), (17.4, "helped")])
+SCENARIOS["keys09"] = puzzle_play(9, 0, [key(13.5, "h"), click(15, 320, 200), key(16.5, "0"), key(19, "3")],
+                                  [(12.5, "rows"), (14.2, "help"), (15.8, "helped"), (17.8, "time"), (19.6, "restart"),
+                                   (21, "restart2"), (23, "restart3")])
+SCENARIOS["keys14"] = puzzle_play(14, 0, [key(13.5, "h"), click(15, 320, 200)],
+                                  [(12.5, "rows"), (14.2, "help"), (15.8, "helped")])
+SCENARIOS["keys10"] = puzzle_play(10, 0, [keyhold(13, "esc", 0.3)],
+                                  [(12.5, "board"), (13.6, "esc"), (15, "esc2"), (18, "esc3"), (22, "esc4")])
+SCENARIOS["keys01"] = puzzle_play(1, 0, [keyhold(13, "esc")],
+                                  [(12.5, "r1"), (13.6, "esc"), (15, "esc2"), (18, "esc3")])
+SCENARIOS["keysF"] = dict(floor=True, puzzle=3, difficulty=0,
+                          events=[click(0, *LEVELS[0]), key(8.2, "f"), click(9, *BUILDING)],
+                          shots=[(8.9, "floor"), (9.6, "won"), (11, "won2"), (14, "won3"), (18, "won4")])
+
 
 def run_folder():
     if not os.environ.get("EDISON_RUN"):
@@ -671,7 +706,17 @@ def play_orig(name, s, watch=None, peek=None):
         exe = "MALLSKIP.EXE"
         subprocess.run(skip, check=True, stdout=subprocess.DEVNULL)
     lines = [f"wait {s.get('start', START)}"]
-    timeline = [(e[0], e) for e in s["events"]] + [(t, ("shot", n)) for t, n in s["shots"]]
+    # A hold is its press and its release, so shots can come between them.
+    timeline = []
+    for e in s["events"]:
+        if e[1] == "hold":
+            timeline += [(e[0], (e[0], "down", e[2], e[3])), (e[0] + e[4], (e[0] + e[4], "up", e[2], e[3]))]
+        elif e[1] == "keyhold":
+            vk = VKEYS[e[2]]
+            timeline += [(e[0], (e[0], "keydown", vk)), (e[0] + e[3], (e[0] + e[3], "keyup", vk))]
+        else:
+            timeline.append((e[0], e))
+    timeline += [(t, ("shot", n)) for t, n in s["shots"]]
     now = 0.0
     for at, e in sorted(timeline, key=lambda p: p[0]):
         if at > now:
@@ -679,11 +724,10 @@ def play_orig(name, s, watch=None, peek=None):
             now = at
         if e[0] == "shot":
             lines.append(f"shot {e[1]}.png")
-        elif e[1] == "click":
-            lines.append(f"click {e[2]} {e[3]}")
-        elif e[1] == "hold":
-            lines += [f"down {e[2]} {e[3]}", f"wait {e[4]}", f"up {e[2]} {e[3]}"]
-            now += e[4]
+        elif e[1] in ("click", "down", "up"):
+            lines.append(f"{e[1]} {e[2]} {e[3]}")
+        elif e[1] in ("keydown", "keyup"):
+            lines.append(f"{e[1]} {e[2]}")
         elif e[1] == "type":
             lines.append(f"type {e[2]}")
     (d / "script.txt").write_text("\n".join(lines) + "\n")
@@ -737,6 +781,8 @@ def play_port(name, s):
             args += ["--drag", ms, str(e[2]), str(e[3]), str(e[2]), str(e[3]), str(int(e[4] * 1000))]
         elif e[1] == "type":
             args += ["--type", ms, e[2]]
+        elif e[1] == "keyhold":
+            args += ["--key", ms, e[2], str(int(e[3] * 1000))]
 
     end = max([t for t, _ in s["shots"]] + [e[0] for e in s["events"]]) + lead + 2
     env = dict(os.environ)

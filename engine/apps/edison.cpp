@@ -18,6 +18,8 @@
 //     --move T X Y        move the mouse to X, Y at T milliseconds (its button up)
 //     --drag T X0 Y0 X1 Y1 MS   press at X0, Y0 at T, move to X1, Y1 over MS, release
 //     --type T TEXT       type TEXT at T milliseconds ('|' is Enter; repeatable)
+//     --key T NAME MS     press key NAME (esc, kp5, left, right, up, down) at T and
+//                         hold it MS milliseconds
 //     --quit-after MS     close after MS milliseconds
 //     --hidden            no window shown, nothing drawn but the captures, the sound
 //                         muted (test runs in the background)
@@ -64,6 +66,8 @@ struct Automation {
     std::vector<Drag> drags;
     struct Typed { uint64_t at; std::string text; };  // '|' types Enter
     std::vector<Typed> typed;
+    struct Key { uint64_t at; int key; uint64_t ms; bool down = false, done = false; };
+    std::vector<Key> keys;
     uint64_t quitAfter = 0;
     bool hidden = false;  // --hidden: no window shown, sound muted (for test runs in the background)
     int volume = -1;      // --volume N: 0-100 (default 100; 0 with --hidden)
@@ -122,6 +126,13 @@ public:
                 for (char c : t.text) keys_.push_back(c == '|' ? static_cast<int>(kEnter) : c);
                 t.at = 0;
             }
+        for (auto& k : automation.keys) {
+            if (!k.down && !k.done && now >= k.at) {
+                keys_.push_back(k.key);
+                k.down = true;
+            }
+            if (k.down && now >= k.at + k.ms) k.down = false, k.done = true;
+        }
         for (auto& c : automation.clicks)
             if (c.at && now >= c.at) {
                 clicked_ = pressed_ = true;
@@ -172,7 +183,20 @@ public:
                     if (*c >= 32 && *c < 127) keys_.push_back(*c);
             }
             if (e.type == SDL_EVENT_KEY_DOWN) {
-                switch (e.key.key) {
+                // The keypad by its keys (the games read scan codes: its 4,
+                // 8, 6 and 2 are the arrows' and its 5 is 4Ch, NumLock or not).
+                switch (e.key.scancode) {
+                case SDL_SCANCODE_KP_4: keys_.push_back(kLeft); break;
+                case SDL_SCANCODE_KP_6: keys_.push_back(kRight); break;
+                case SDL_SCANCODE_KP_8: keys_.push_back(kUp); break;
+                case SDL_SCANCODE_KP_2: keys_.push_back(kDown); break;
+                case SDL_SCANCODE_KP_5: keys_.push_back(kCentre); break;
+                default: break;
+                }
+                const bool keypad = e.key.scancode == SDL_SCANCODE_KP_4 || e.key.scancode == SDL_SCANCODE_KP_6 ||
+                                    e.key.scancode == SDL_SCANCODE_KP_8 || e.key.scancode == SDL_SCANCODE_KP_2 ||
+                                    e.key.scancode == SDL_SCANCODE_KP_5;
+                if (!keypad) switch (e.key.key) {
                 case SDLK_BACKSPACE: keys_.push_back(kBackspace); break;
                 case SDLK_TAB: keys_.push_back(kTab); break;
                 case SDLK_RETURN: case SDLK_KP_ENTER: keys_.push_back(kEnter); break;
@@ -282,15 +306,18 @@ public:
         return true;
     }
 
-    bool escapeHeld() override { return SDL_GetKeyboardState(nullptr)[SDL_SCANCODE_ESCAPE]; }
+    bool escapeHeld() override { return keyHeld(kEscape); }
 
     bool keyHeld(int key) override {
+        for (const auto& k : automation.keys)
+            if (k.down && k.key == key) return true;
         const bool* state = SDL_GetKeyboardState(nullptr);
         switch (key) {
-        case kLeft: return state[SDL_SCANCODE_LEFT];
-        case kRight: return state[SDL_SCANCODE_RIGHT];
-        case kUp: return state[SDL_SCANCODE_UP];
-        case kDown: return state[SDL_SCANCODE_DOWN];
+        case kEscape: return state[SDL_SCANCODE_ESCAPE];
+        case kLeft: return state[SDL_SCANCODE_LEFT] || state[SDL_SCANCODE_KP_4];
+        case kRight: return state[SDL_SCANCODE_RIGHT] || state[SDL_SCANCODE_KP_6];
+        case kUp: return state[SDL_SCANCODE_UP] || state[SDL_SCANCODE_KP_8];
+        case kDown: return state[SDL_SCANCODE_DOWN] || state[SDL_SCANCODE_KP_2];
         default: return false;
         }
     }
@@ -468,6 +495,14 @@ int main(int argc, char** argv) {
             d.y1 = std::atoi(argv[++i]);
             d.ms = std::strtoull(argv[++i], nullptr, 10);
             automation.drags.push_back(d);
+        } else if (a == "--key" && i + 3 < argc) {
+            const uint64_t at = std::strtoull(argv[++i], nullptr, 10);
+            const std::string name = argv[++i];
+            const int key = name == "esc" ? SdlPlatform::kEscape : name == "kp5" ? SdlPlatform::kCentre
+                            : name == "left" ? SdlPlatform::kLeft : name == "right" ? SdlPlatform::kRight
+                            : name == "up" ? SdlPlatform::kUp : name == "down" ? SdlPlatform::kDown : 0;
+            const uint64_t ms = std::strtoull(argv[++i], nullptr, 10);
+            if (key) automation.keys.push_back({at, key, ms});
         } else if (a == "--type" && i + 2 < argc) {
             const uint64_t at = std::strtoull(argv[++i], nullptr, 10);
             automation.typed.push_back({at, argv[++i]});

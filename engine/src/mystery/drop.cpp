@@ -387,10 +387,11 @@ bool Mystery::droppingSquares(int level) {
     while (!quit && !outcome) {
         panels_.poll(ctx_.platform);
         ctx_.pump();
-        for (int key; (key = ctx_.platform.takeKey()) != 0;) {  // g18_0bc4: the arrow keys and space
-            if (key == Platform::kLeft) moveBy(-1);
+        for (int key; (key = ctx_.platform.takeKey()) != 0;) {  // g18_0bc4: H, the arrow keys and space
+            if (key == 'h' || key == 'H') helpWanted = true;  // [B75A], as the help button
+            else if (key == Platform::kLeft) moveBy(-1);
             else if (key == Platform::kRight) moveBy(1);
-            else if (key == Platform::kUp) rotate();
+            else if (key == Platform::kUp || key == Platform::kCentre) rotate();  // or the keypad's 5 (scan 4Ch)
             else if (key == ' ' || key == Platform::kDown) {
                 fast = true;
                 music(1);

@@ -20,7 +20,9 @@
 #   otvdm.ps1 move X Y           move the mouse there (button up)
 #   otvdm.ps1 type TEXT          type TEXT ('|' is Enter; capitals with Shift held,
 #                                its scan code too: the arcade's S key, a room)
-#   otvdm.ps1 volume N           the game's volume in the Windows mixer (0-100;
+#   otvdm.ps1 run's keydown VK / keyup VK  press / release a key by its
+#                                virtual-key code (with its scan code: 27 Esc)
+#   otvdm.ps1 volume N          the game's volume in the Windows mixer (0-100;
 #                                scripts set EDISON_VOLUME's, default 0: muted)
 #   otvdm.ps1 run SCRIPT [DIR]   run a script of the commands above, one a line,
 #                                plus `wait SECONDS`; shots go to DIR; # comments
@@ -213,6 +215,14 @@ function TypeText($text) {
     }
 }
 
+function Key($vk, $down) {
+    $h = MainWindow
+    if (-not $h) { Write-Output "no game window"; return }
+    $sc = [int][W]::MapVirtualKey([uint32]$vk, 0)
+    if ($down) { Post $h 0x100 $vk (1 -bor ($sc -shl 16)) }                  # WM_KEYDOWN
+    else { Post $h 0x101 $vk ([int64]0xC0000001 -bor ($sc -shl 16)) }        # WM_KEYUP
+}
+
 function Shot($out) {
     $h = MainWindow
     if (-not $h) { Write-Output "no game window"; return }
@@ -279,6 +289,8 @@ function RunScript($script, $dir) {
             "down" { $p = $a -split '\s+'; Button $p[0] $p[1] $true }
             "up" { $p = $a -split '\s+'; Button $p[0] $p[1] $false }
             "type" { TypeText $a }
+            "keydown" { Key ([int]$a) $true }
+            "keyup" { Key ([int]$a) $false }
             "shot" { Shot (Join-Path $dir $a) | Out-Null }
             default { Write-Output "unknown step: $line" }
         }

@@ -97,6 +97,9 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
   its own `start` and `lead`), `players` (player files put in both first),
   `keep` (the players' files the original writes, kept in `NAME/orig/`),
   `same` (colour pairs, the original's and the port's, taken as equal).
+  Events: `click`, `hold` (press and release, shots can come between),
+  `key` (typed text) and `keyhold` (a key held by name: `otvdm.ps1`'s
+  `keydown` / `keyup` with its virtual-key code, the port's `--key`).
 - `mmsolve.py rng | answers | board | next ...`: works out the moves for
   `mmcompare.py`'s `playPPdD` scenarios from the port's draws
   (`EDISON_RNGLOG`): each round's answer (a `random(N)` after a

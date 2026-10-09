@@ -33,13 +33,14 @@ void Mystery::monitorGadget() {
 
 bool Mystery::stackup(int level) {
     // g25_1f6a / g25_1aa0.
-    const int mode = std::clamp(level, 0, 2) + 1;  // [8C42]
+    int mode = std::clamp(level, 0, 2) + 1;        // [8C42]
     const int limit = 0x78;                        // [930E]
     int timeLeft = limit;                          // [8006]:2
     bool timeShown = false;                        // [8006]:4
     int points = 0;                                // [8ABC]
     int misses = 0;                                // [8C46]
     bool quit = false, helpWanted = false, gadget = false;
+    bool timeHeld = false;                         // the 0 key latched
     int picked = -1;                               // [8CF8] when [8CFA]
 
     // The ten bars (DS:4BFE, 0x14 apart): three upright, three across and
@@ -127,8 +128,19 @@ bool Mystery::stackup(int level) {
         const Row& r = rows[i];
         const int y = i * kRowStep + kRowY;
         for (int k = 0; k < 4; ++k) drawBar(k * kItemStep + kItemsX, y, r.bars[k], 0);
+        // Each stacked bar first takes a colour 70h-BFh unlike the last one
+        // (the twentieth try forgets the last), which goes unused: the bar
+        // keeps its own. Only the generator's draws are left of it.
+        int colour = -1, last = -1, tries = 0;
         for (int c = 0; c < 3; ++c)
-            for (int k = 0; k < 4; ++k) drawBar(c * kChoiceStep + kChoicesX, y, r.choice[c][k], r.colour[c][k]);
+            for (int k = 0; k < 4; ++k) {
+                while (colour == last) {
+                    colour = random(0x50) + 0x70;
+                    if (++tries >= 20) tries = 0, last = -1;
+                }
+                last = colour;
+                drawBar(c * kChoiceStep + kChoicesX, y, r.choice[c][k], r.colour[c][k]);
+            }
     };
     auto reveal = [&](int i) {  // g25_12de: the bars slide left onto the first, stacking up
         const Row& r = rows[i];
@@ -218,26 +230,62 @@ bool Mystery::stackup(int level) {
     computeUiColours();
     for (int i = 0; i < 5; ++i) generate(rows[i]);
     for (int i = 0; i < 5; ++i) drawRow(i);
-    // g25_17ca: the dividing lines and a box round each bar on the left.
-    line(0x159, 0x1E, 0x159, 0x1E + 0x11C, 0xFF);
-    line(0x161, 0x1E, 0x161, 0x1E + 0x11C, 0xFF);
-    for (int i = 0; i < 5; ++i)
-        for (int k = 0; k < 4; ++k) frame(k * kItemStep + kItemsX - 0x1E, i * kRowStep + kRowY - 0x19, 0x38, 0x33, 0xFF);
+    auto drawLines = [&] {  // g25_17ca: the dividing lines and a box round each bar on the left
+        line(0x159, 0x1E, 0x159, 0x1E + 0x11C, 0xFF);
+        line(0x161, 0x1E, 0x161, 0x1E + 0x11C, 0xFF);
+        for (int i = 0; i < 5; ++i)
+            for (int k = 0; k < 4; ++k) frame(k * kItemStep + kItemsX - 0x1E, i * kRowStep + kRowY - 0x19, 0x38, 0x33, 0xFF);
+    };
+    drawLines();
     copyArea(2, 1, 0, 0, Screen::kWidth, Screen::kHeight);
     intBox(0xCC, 0x14E, 0x60, 0x19, points);
     digitalTime(0x164, 0x14E, 0x60, 0x19, timeLeft);
     select(1);
-    ctx_.timer.setPeriodic(kSecondSlot, 1, [&] {  // g25_00ba
-        if (timeLeft > 0) --timeLeft;
-        timeShown = true;
-    });
+    auto startClock = [&] {
+        ctx_.timer.setPeriodic(kSecondSlot, 1, [&] {  // g25_00ba
+            if (timeLeft > 0) --timeLeft;
+            timeShown = true;
+        });
+    };
+    startClock();
     clearInput();
 
     bool done = false;
     while (!done && !quit) {
         panels_.poll(ctx_.platform);
         ctx_.pump();
+        // f25_189c, a pass's keys: H as the help button ([B75A]; it clears
+        // the keys); 1-3 start again at that level; 0, while it stays
+        // latched (till H or the help's message box clears the keys), makes
+        // the time 2000 s again each pass, so the clock stands at 33:20.
+        if (ctx_.platform.takeKeyIf('h') || ctx_.platform.takeKeyIf('H')) helpWanted = true, timeHeld = false;
+        int restart = 0;  // [8C44], the level in [8C42]
+        for (int k = 1; k <= 3; ++k)
+            if (ctx_.platform.takeKeyIf('0' + k)) restart = k;
+        if (ctx_.platform.takeKeyIf('0')) timeHeld = true;
+        if (timeHeld) timeLeft = 2000;
+        if (restart) {
+            // 25:1c12: the same game again at the level, its time and
+            // points from the start (its misses kept), every row new.
+            mode = restart;
+            timeLeft = 0x78;
+            points = 0;
+            for (Row& r : rows) r.solved = false;
+            select(2);
+            fill(0, 0, Screen::kWidth, Screen::kHeight, 0);
+            for (int i = 0; i < 5; ++i) {
+                generate(rows[i]);
+                drawRow(i);
+                drawLines();
+            }
+            copyArea(2, 1, 0x3C, 0x1E, 0x20E, 0x11C);
+            intBox(0xCC, 0x14E, 0x60, 0x19, points);
+            digitalTime(0x164, 0x14E, 0x60, 0x19, timeLeft);
+            select(1);
+            startClock();
+        }
         if (helpWanted) {
+            timeHeld = false;  // the message box's f06_2ccc clears the keys
             helpWanted = false;
             select(1);
             drawLogo(0x26, 0x15F, 0x20A6);

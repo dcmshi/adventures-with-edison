@@ -213,11 +213,13 @@ void ArtechGame::displayLine(int x0, int y0, int x1, int y1, uint8_t colour) {
 }
 
 void ArtechGame::frame(int x, int y, int w, int h, uint8_t colour) {
+    // MALL's f06_08c0: in its line (f06_1af8), so on the display the
+    // bottom right corner, both lines' far end, stays off.
     --w, --h;
-    line(x, y, x + w, y, colour);
-    line(x + w, y, x + w, y + h, colour);
-    line(x, y, x, y + h, colour);
-    line(x, y + h, x + w, y + h, colour);
+    displayLine(x, y, x + w, y, colour);
+    displayLine(x + w, y, x + w, y + h, colour);
+    displayLine(x, y, x, y + h, colour);
+    displayLine(x, y + h, x + w, y + h, colour);
 }
 
 void ArtechGame::fill(int x, int y, int w, int h, uint8_t colour) {

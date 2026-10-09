@@ -261,7 +261,10 @@ bool Mystery::planetarium(int level) {
     music(0x1E);
 
     bool won = false;
-    while (!quit) {
+    // Esc (latched, [B774]) ends both loops at their tops (28:1489, 28:15e7):
+    // no "Maybe next time!", the game just lost.
+    bool escaped = false;
+    while (!quit && !escaped) {
         intBox(0xE0, 0x168, 0x3C, 0x14, rounds);
         if (--rounds < 0) {
             won = true;
@@ -275,6 +278,10 @@ bool Mystery::planetarium(int level) {
         drawDome();
         bool solved = false;
         while (!solved && !quit) {
+            if (ctx_.platform.takeKeyIf(Platform::kEscape)) {
+                escaped = true;
+                break;
+            }
             panels_.poll(ctx_.platform);
             ctx_.pump();
             if (picked >= 0) {
@@ -315,7 +322,7 @@ bool Mystery::planetarium(int level) {
     panels_.clear();
     if (!won) {
         ctx_.timer.setPeriodic(kSecondSlot, 0, nullptr);  // g28_174c
-        puzzleResult(false, 0, 0, 0);
+        if (!escaped) puzzleResult(false, 0, 0, 0);
         return false;
     }
     // The clock runs on through the count (g28_174c stops it after).

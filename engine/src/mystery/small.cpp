@@ -968,6 +968,7 @@ bool Mystery::binaryLights(int level) {
         while (!solved && !quit) {
             panels_.poll(ctx_.platform);
             ctx_.pump();
+            if (ctx_.platform.takeKeyIf('h') || ctx_.platform.takeKeyIf('H')) helpWanted = true;  // f17_0b9c: H, as the help button ([B75A])
             if (changed) {
                 changed = false;
                 if (machine()) {

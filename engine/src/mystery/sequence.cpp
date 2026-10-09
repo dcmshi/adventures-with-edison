@@ -294,6 +294,7 @@ bool Mystery::whatComesNext(int level) {
     while (!done && !quit) {
         panels_.poll(ctx_.platform);
         ctx_.pump();
+        if (ctx_.platform.takeKeyIf('h') || ctx_.platform.takeKeyIf('H')) helpWanted = true;  // f26_0c82: H, as the help button ([B75A])
         if (helpWanted) {
             helpWanted = false;
             select(1);

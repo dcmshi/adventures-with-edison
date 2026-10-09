@@ -171,7 +171,9 @@ int Mystery::floor() {
     };
     int named = -1;
     int result = 0;
+    bool skipGame = false;  // [bp-0Ch]: F typed, the next square's game counts as won unplayed
     for (;;) {
+        if (ctx_.platform.takeKeyIf('f') || ctx_.platform.takeKeyIf('F')) skipGame = true;  // 10:080e
         if (floorBack_) {
             drawOpaque(0x3E, 0x13C, 0x21CD);
             result = -1;
@@ -215,7 +217,7 @@ int Mystery::floor() {
             if (std::sscanf(forced, "%d,%d", &p, &d) >= 1 && p >= 0) game = p;
             if (d >= 0) level = d;
         }
-        const bool won = game < 16 && puzzle(game, level);
+        const bool won = skipGame || (game < 16 && puzzle(game, level));  // 10:0993
         if (won) {
             if (sq.state != 0) sq.state = 2;
             if (sq.object != 0xFF && objects_[sq.object].museum != 0xFF) {

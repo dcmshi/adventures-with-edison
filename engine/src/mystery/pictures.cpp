@@ -506,6 +506,9 @@ bool Mystery::pictureLoop(uint16_t helpText) {
     // whole (and the bonus counted) or the player pulls the exit lever.
     clearInput();
     for (;;) {
+        // The slide puzzle's loop first: Esc held ([929C]) ends the game as
+        // it stands, without the lever (14:0552).
+        if (pic_.mode == 2 && ctx_.platform.escapeHeld()) break;
         panels_.poll(ctx_.platform);
         ctx_.pump();
         puzzleClock();
