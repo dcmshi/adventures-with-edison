@@ -13,6 +13,8 @@
 //     --save DIR       where the games keep high scores and players (default: save)
 //   For testing without a person at the keyboard:
 //     --capture DIR MS    save the display to DIR/NNNNN.bmp every MS milliseconds
+//     --capture-dense FROM TO MS   every MS milliseconds instead from FROM till TO
+//                         (repeatable: an animation frame by frame)
 //     --click T X Y       click at game coordinates X, Y at T milliseconds (repeatable)
 //     --rclick T X Y      the same with the right button
 //     --move T X Y        move the mouse to X, Y at T milliseconds (its button up)
@@ -59,6 +61,8 @@ constexpr int kSampleRate = 48000;
 struct Automation {
     std::string captureDir;
     uint64_t captureEvery = 0;
+    struct Dense { uint64_t from, to, every; };
+    std::vector<Dense> dense;
     struct Click { uint64_t at; int x, y; };
     std::vector<Click> clicks, rightClicks, moves;  // moves: the mouse there, its button up
     // Press at (x0, y0), move to (x1, y1) over `ms`, release.
@@ -398,8 +402,14 @@ public:
 
 private:
     void capture(const edison::Screen& screen, const edison::Palette& palette) {
-        if (automation.captureDir.empty() || milliseconds() < nextCapture_) return;
-        nextCapture_ = milliseconds() + automation.captureEvery;
+        if (automation.captureDir.empty()) return;
+        const uint64_t now = milliseconds();
+        uint64_t every = automation.captureEvery;
+        for (const auto& d : automation.dense)
+            if (now >= d.from && now < d.to) every = d.every;
+        if (captured_ && now < lastCapture_ + every) return;
+        captured_ = true;
+        lastCapture_ = now;
         SDL_Surface* s = SDL_CreateSurfaceFrom(edison::Screen::kWidth, edison::Screen::kHeight,
                                                SDL_PIXELFORMAT_INDEX8,
                                                const_cast<uint8_t*>(screen.pixels.data()),
@@ -447,7 +457,8 @@ private:
     std::vector<int> keys_;
     uint64_t start_ = 0;
     uint64_t virtualNow_ = 0, wavEnd_ = 0;  // --virtual-clock
-    uint64_t nextCapture_ = 0;
+    uint64_t lastCapture_ = 0;
+    bool captured_ = false;
     bool clicked_ = false;
     bool pressed_ = false;  // a left press has happened (lastPress)
     bool rightClicked_ = false;
@@ -474,6 +485,10 @@ int main(int argc, char** argv) {
         if (a == "--capture" && i + 2 < argc) {
             automation.captureDir = argv[++i];
             automation.captureEvery = std::strtoull(argv[++i], nullptr, 10);
+        } else if (a == "--capture-dense" && i + 3 < argc) {
+            const uint64_t from = std::strtoull(argv[++i], nullptr, 10);
+            const uint64_t to = std::strtoull(argv[++i], nullptr, 10);
+            automation.dense.push_back({from, to, std::strtoull(argv[++i], nullptr, 10)});
         } else if (a == "--rclick" && i + 3 < argc) {
             const uint64_t at = std::strtoull(argv[++i], nullptr, 10);
             const int x = std::atoi(argv[++i]);

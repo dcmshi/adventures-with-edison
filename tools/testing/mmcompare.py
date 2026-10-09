@@ -91,7 +91,9 @@ SCENARIOS = {
     # and the high scores.
     "timeout": dict(time=10, events=office(0), shots=[(28 + i, f"t{28 + i}") for i in range(48)]),
     # Every object found (mall_skip.py --found): the dance, the final quiz,
-    # the bonus maze, the happy ending and the high scores.
+    # the bonus maze, the happy ending and the high scores. (The maze's shots,
+    # f27-f35, differ: its loop is unpaced in the original; mmmaze.py
+    # compares its wanderers pass by pass.)
     "allfound": dict(found=True, events=office(0) + [click(36, *MAZE_EXIT)],
                      shots=[(26 + i, f"f{26 + i}") for i in range(70)]),
     # P in the office: "Game Paused!" (f06_229a) till a mouse button is held.
@@ -607,6 +609,9 @@ SCENARIOS["play14d5"] = puzzle_play(14, 5, [click(t, *next_answer(i, k)) for t, 
 # gadget. A player of level 6 or below plays the penguins: each tile must
 # go back to its own place. A click picks a tile up and the next puts it
 # down (g21_0be8). The solution shows while its button is held (play15d0s).
+# The penguins' walk at the end (g21_1684) is a step a busy-wait, about
+# 1 ms under winevdm: the port's frames every 1 ms through its walk, so a
+# shot of the original's finds the same step.
 
 
 def dig_move(t, frm, to):
@@ -628,12 +633,14 @@ SCENARIOS["play15d0"] = puzzle_play(15, 0, dig_move(13.3, dig_slot(1), dig_wall(
                                     + dig_move(25, dig_slot(0), dig_wall(4, 3)) + dig_move(27, dig_slot(1), dig_wall(0, 1)),
                                     [(12.5, "wall"), (13.6, "held"), (14.9, "back"), (16, "help"), (21, "gadget"), (24.5, "gadget2"), (26.5, "placed"),
                                      (28.6, "won"), (30, "won2"), (33, "won3"), (38, "won4")])
+SCENARIOS["play15d0"]["dense"] = [(28.4, 28.7, 1)]
 SCENARIOS["play15d0s"] = puzzle_play(15, 0, [hold(13.3, *DIG_SOLUTION, 1.0)],
                                      [(12.5, "wall"), (13.6, "solution"), (14.0, "solution2"), (14.8, "back")])
 SCENARIOS["play15d1"] =puzzle_play(15, 1, [e for i, (a, b) in enumerate([(4, 3), (0, 1), (2, 3), (3, 2)])
                                             for e in dig_move(13.3 + 2 * i, dig_slot(i), dig_wall(a, b))],
                                     [(12.5, "wall"), (14.8, "placed1"), (16.8, "placed2"), (19.1, "placed3"),
                                      (20.9, "won"), (22, "won2"), (25, "won3"), (30, "won4")])
+SCENARIOS["play15d1"]["dense"] = [(20.7, 21.0, 1)]
 
 # The keys the puzzles read (the latched table [B774], or [929C] held): H
 # shows the help in Binary Lights (f17_0b9c), Dropping Squares (g18_0bc4),
@@ -664,6 +671,18 @@ def run_folder():
     if not os.environ.get("EDISON_RUN"):
         sys.exit("set EDISON_RUN to the folder with the game files")
     return Path(os.environ["EDISON_RUN"])
+
+
+# Dropping Squares' clock (f18's digitalTime box): its second and the
+# column's step come from one timer (g18_0468), at a phase the original's
+# setup sets (the calls it takes before the column speeds up from every 10
+# to every 5), and that changes from run to run under winevdm: the step with
+# the second, as the port's, or up to 0.4 s before it. So its clock is
+# matched apart.
+DROP_CLOCK = (0x1C1, 0xCD, 0x1C1 + 0x41, 0xCD + 0x19)
+for _s in SCENARIOS.values():
+    if _s.get("puzzle") == 5:
+        _s["apart"] = [DROP_CLOCK]
 
 
 def memwatch(d, watch=None, peek=None, seconds=0.0):
@@ -794,6 +813,8 @@ def play_port(name, s):
             args += ["--type", ms, e[2]]
         elif e[1] == "keyhold":
             args += ["--key", ms, e[2], str(int(e[3] * 1000))]
+    for a, b, every in s.get("dense", []):  # the port's frames every EVERY ms from A till B
+        args += ["--capture-dense", str(int((a + lead) * 1000)), str(int((b + lead) * 1000)), str(every)]
 
     end = max([t for t, _ in s["shots"]] + [e[0] for e in s["events"]]) + lead + 2
     env = dict(os.environ)
@@ -835,13 +856,16 @@ def is_colour(im, rgb):
 
 def compare(name, s, window):
     """Each original shot against the port's frames within the window of
-    its time: the fewest pixels that differ."""
+    its time: the fewest pixels that differ. The scenario's "apart" areas
+    (x0, y0, x1, y1) are matched on their own, each in its best frame."""
     d = OUT / name
     lead = s.get("lead", LEAD)
     frames = sorted((int(p.stem), p) for p in (d / "port").glob("*.bmp"))
     for t, n in s["shots"]:
         o = Image.open(d / "orig" / f"{n}.png").convert("RGB")
         best = None
+        apart = s.get("apart", ())
+        best_apart = [None] * len(apart)
         for ms, p in frames:
             if abs(ms / 1000 - (t + lead)) > window:
                 continue
@@ -849,6 +873,14 @@ def compare(name, s, window):
             mask = ImageChops.difference(f, o).convert("L").point(lambda v: 255 if v else 0)
             for a, b in s.get("same", ()):  # colour pairs taken as equal (the original's, the port's)
                 mask = ImageChops.subtract(mask, ImageChops.multiply(is_colour(o, a), is_colour(f, b)))
+            for k, box in enumerate(apart):
+                ck = mask.crop(box).histogram()[255]
+                if best_apart[k] is None or ck < best_apart[k]:
+                    best_apart[k] = ck
+            if apart:
+                mask = mask.copy()
+                for box in apart:
+                    mask.paste(0, box)
             c = mask.histogram()[255]
             if best is None or c < best[0]:
                 best = (c, ms, mask, f)
@@ -856,8 +888,11 @@ def compare(name, s, window):
             print(f"{name} {n}: no port frame near {t + lead:.1f} s")
             continue
         c, ms, mask, f = best
+        c += sum(best_apart)
         where = ""
-        if c:
+        if c and not mask.getbbox():
+            where = " in the areas apart"
+        elif c:
             box = mask.getbbox()
             where = f" in {box}"
             zoom(o, f, box).save(d / f"zoom-{n}.png")

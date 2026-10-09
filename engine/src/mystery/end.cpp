@@ -403,9 +403,11 @@ void Mystery::mazeReveal() {
 
 void Mystery::mazePace() {
     // The original runs its maze loop flat out; the port gives each step
-    // of the animations 40 ms.
+    // of the animations 40 ms (EDISON_MAZEPACE: other milliseconds, for
+    // testing: 0 a pass each pump, as many as the original's under winevdm).
+    static const int pace = std::getenv("EDISON_MAZEPACE") ? std::atoi(std::getenv("EDISON_MAZEPACE")) : 40;
     ctx_.pump();
-    while (ctx_.platform.milliseconds() - maze_.lastStep < 40) ctx_.pump();
+    while (ctx_.platform.milliseconds() - maze_.lastStep < static_cast<uint64_t>(pace)) ctx_.pump();
     maze_.lastStep = ctx_.platform.milliseconds();
 }
 
@@ -462,6 +464,14 @@ void Mystery::mazeWander() {
         }
         w.step = 0;
         w.alarmed = false;
+    }
+    // EDISON_MAZELOG: the wanderers after each pass, as DS:89DE has them
+    // (x, y, direction, step; for testing against memwatch.py).
+    static FILE* log = std::getenv("EDISON_MAZELOG") ? std::fopen(std::getenv("EDISON_MAZELOG"), "w") : nullptr;
+    if (log) {
+        for (const Maze::Wanderer& w : m.wanderers) std::fprintf(log, "%d %d %d %d ", w.x, w.y, w.dir & 0xFF, w.step);
+        std::fprintf(log, "\n");
+        std::fflush(log);
     }
 }
 

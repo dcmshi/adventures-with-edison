@@ -437,19 +437,23 @@ bool Mystery::dig(int level) {
         music(0x20);
         select(1);
         if (symbols == 0x20E3) {
-            // g21_1684: two penguins waddle off, one up and one down.
+            // g21_1684: two penguins waddle off, one up and one down. Each
+            // step waits 2000h passes of an empty loop (21:179e), about 1 ms
+            // under winevdm (measured: the walk takes 0.2-0.3 s); the port
+            // gives each step 1 ms of the clock.
             const Bitmap& p = ctx_.bitmap(0x20E3);
             int x1 = 0, y1 = (Screen::kHeight - p.height) / 2;
             int x2 = Screen::kWidth - p.width, y2 = y1;
             bool done1 = false, done2 = false;
-            for (int step = 0; !(done1 && done2); ++step) {
+            const uint64_t start = ctx_.platform.milliseconds();
+            for (uint64_t step = 0; !(done1 && done2); ++step) {
                 if (x1 <= Screen::kWidth / 2) x1 += 2;
                 else if ((y1 -= 2) < 0) done1 = true;
                 if (!done1) drawLogo(x1, y1, 0x20E3);
                 if (x2 >= Screen::kWidth / 2) x2 -= 2;
                 else if ((y2 += 2) >= Screen::kHeight - p.height) done2 = true;
                 if (!done2) drawLogo(x2, y2, 0x20E3);
-                if (step % 4 == 0) ctx_.pump();
+                while (ctx_.platform.milliseconds() - start <= step) ctx_.pump();
             }
         } else {
             // g21_14e2: a ball bounces over its shadow (DS:3DEE heights).

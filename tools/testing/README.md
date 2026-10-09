@@ -96,10 +96,22 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
   (from the title: `MALLFREE.EXE` and the port without `EDISON_SKIP`, with
   its own `start` and `lead`), `players` (player files put in both first),
   `keep` (the players' files the original writes, kept in `NAME/orig/`),
-  `same` (colour pairs, the original's and the port's, taken as equal).
+  `same` (colour pairs, the original's and the port's, taken as equal),
+  `dense` (`(from, to, ms)`: the port's frames every `ms` milliseconds
+  from `from` till `to`, the port's `--capture-dense`: an unpaced animation
+  step by step), `apart` (areas `(x0, y0, x1, y1)` matched on their own,
+  each in its best frame: Dropping Squares' clock, whose phase against the
+  column changes from run to run in the original).
   Events: `click`, `hold` (press and release, shots can come between),
   `key` (typed text) and `keyhold` (a key held by name: `otvdm.ps1`'s
   `keydown` / `keyup` with its virtual-key code, the port's `--key`).
+- `mmmaze.py [--port-only | --compare-only]`: the bonus maze's wanderers
+  pass by pass (its loop is unpaced in the original, so its shots can't
+  be matched in time): `allfound` in the port at a pass a millisecond
+  (`EDISON_MAZEPACE=0`) logging them (`EDISON_MAZELOG`), and in the
+  original read by `memwatch.py` (`DS:89DE`); each state the original
+  shows must come in the port's, in order (reads taken mid-pass aside).
+  PASS or FAIL. About a minute.
 - `mmsolve.py rng | answers | board | next ...`: works out the moves for
   `mmcompare.py`'s `playPPdD` scenarios from the port's draws
   (`EDISON_RNGLOG`): each round's answer (a `random(N)` after a
