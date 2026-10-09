@@ -91,6 +91,12 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
   area, original | port, enlarged). `--watch EXPR...` has `memwatch.py`
   follow the original's data segment while it plays (to
   `NAME/orig/watch.txt`); `--peek SECONDS EXPR...` reads it once.
+  A scenario's keys: `time=S` / `found=True` (`mall_skip.py --time`,
+  `--found`; `EDISON_TIME`, `EDISON_FOUND`: the end of a game), `setup=True`
+  (from the title: `MALLFREE.EXE` and the port without `EDISON_SKIP`, with
+  its own `start` and `lead`), `players` (player files put in both first),
+  `keep` (the players' files the original writes, kept in `NAME/orig/`),
+  `same` (colour pairs, the original's and the port's, taken as equal).
 - `mmsolve.py rng | answers | board | next ...`: works out the moves for
   `mmcompare.py`'s `playPPdD` scenarios from the port's draws
   (`EDISON_RNGLOG`): each round's answer (a `random(N)` after a

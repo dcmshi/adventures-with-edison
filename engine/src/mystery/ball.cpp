@@ -268,7 +268,7 @@ bool Mystery::ballSculpture(int level) {
         select(1);
         if (left == 5) {  // f04_005c(2, 4) after the shape's and answer's draws (its stir too)
             show(2);
-            computeUiColours();
+            // (No f06_01f6 here: the UI colours stay the previous screen's.)
             select(1);
             // The empty view is kept at the top left of screen 2 (once shown).
             duplicateArea(2, 2, kViewX, kViewY, kViewW, kViewH, 0, 0);

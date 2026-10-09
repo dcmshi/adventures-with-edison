@@ -703,7 +703,6 @@ int Mystery::setup(int mode) {
     savedGame_ = false;
     idle_ = false;
     playedAgain_ = mode != 1;  // [B786]
-    bool returning = playedAgain_;
     if (mode == 1) std::fill(std::begin(player_.colours), std::end(player_.colours), 0);
     setupScreen();
     menuEvent_ = 0;
@@ -730,9 +729,11 @@ int Mystery::setup(int mode) {
             step = 2;
             break;
         case 2:
-            // A returning player's record, with Edison's look.
+            // A returning player's record, with Edison's look; the game
+            // counts as played before (08:2532: [B786] = 1: no Director's
+            // letter, "Are you ready to go, Smitty").
             if (loadPlayer()) {
-                returning = true;
+                playedAgain_ = true;
                 step = 3;
             } else {
                 step = 4;
@@ -755,7 +756,7 @@ int Mystery::setup(int mode) {
             break;
         case 7:
             scene(3);
-            step = returning ? 8 : 11;
+            step = playedAgain_ ? 8 : 11;
             break;
         case 8:
             if (player_.savedLevel == 0xFF || !askSavedGame()) step = 9;

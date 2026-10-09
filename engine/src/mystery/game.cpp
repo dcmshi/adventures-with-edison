@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
 
 #include "mystery/mystery.h"
 
@@ -532,6 +533,10 @@ void Mystery::newBoard() {
     const int levelIndex = std::min<int>(player_.level, 7);
     const Level& level = kLevels[levelIndex];
     timeLeft_ = timeTotal_ = level.seconds;
+    // For testing, as mall_skip.py --time S and --found: the countdown
+    // from S seconds, every object found from the start.
+    if (const char* t = std::getenv("EDISON_TIME")) timeLeft_ = timeTotal_ = std::atoi(t);
+    const bool allFoundAtStart = std::getenv("EDISON_FOUND") != nullptr;
     score_ = 0;
     size_t next = level.puzzles;
     for (int s = 0; s < 29; ++s) {
@@ -557,7 +562,7 @@ void Mystery::newBoard() {
     for (int k = 0; k < 16; ++k) {
         Object& o = objects_[k];
         if (kObjectSlots[levelIndex][k] != '1') {
-            o = Object{};
+            o = Object{0xFF, 0xFF, 0xFF};  // all three (09:27E9: saved so too)
             continue;
         }
         int museum;
@@ -568,7 +573,7 @@ void Mystery::newBoard() {
         do s = random(29);
         while (squares_[s].state == 0 || squares_[s].object != 0xFF);
         squares_[s].object = static_cast<uint8_t>(k);
-        o = Object{static_cast<uint8_t>(museum), static_cast<uint8_t>(s), 0};
+        o = Object{static_cast<uint8_t>(museum), static_cast<uint8_t>(s), static_cast<uint8_t>(allFoundAtStart)};
         ++objectCount_;
     }
 }
@@ -731,8 +736,10 @@ int Mystery::play() {
             idleMap();
             startIdleTimer();
         }
-        ctx_.timer.setPeriodic(kSecondSlot, 1, [this] {  // f09_0a7a
-            if (--timeLeft_ < 0) {
+        ctx_.timer.setPeriodic(kSecondSlot, 1, [this] {  // g09_0a7a
+            // The time before the step is tested: the clock shows "0:-1"
+            // for a second, then the game is over.
+            if (timeLeft_-- < 0) {
                 timeLeft_ = 0;
                 if (outcome_ == 0) outcome_ = 1;
             }

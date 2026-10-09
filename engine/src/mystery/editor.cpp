@@ -76,12 +76,13 @@ void Mystery::editorLabels() {
 }
 
 void Mystery::editorButton(int x, int y, int w, int h, uint8_t colour) {
-    // A bevelled box (light top and left, dark bottom and right).
+    // A bevelled box (light top and left, dark bottom and right), in MALL's
+    // line (f06_1af8: on the display each far end stays off).
     fill(x, y, w, h, colour);
-    line(x, y, x + w, y, 0xF8);
-    line(x, y + h, x + w, y + h, 0xFE);
-    line(x, y, x, y + h, 0xF8);
-    line(x + w, y, x + w, y + h, 0xFE);
+    displayLine(x, y, x + w, y, 0xF8);
+    displayLine(x, y + h, x + w, y + h, 0xFE);
+    displayLine(x, y, x, y + h, 0xF8);
+    displayLine(x + w, y, x + w, y + h, 0xFE);
 }
 
 void Mystery::editorMessage(const std::string& first, const std::string& second, int secondY) {
@@ -325,7 +326,12 @@ void Mystery::customLevelEditor(bool edit) {
         editorGames();
     }
     select(1);
-    show(2);
+    // (Not f04_005c: no stir, and the picture's own colours 0 and FF, not
+    // black and white: its palette straight into the DIBs' colour tables,
+    // 11:1a55, and 1-FE onto the display, 11:1b86.)
+    ctx_.displayPalette = ctx_.screens[2].palette;
+    ctx_.screens[1].palette = ctx_.screens[2].palette;
+    ctx_.screens.copyAll(2, 1);
     if (edit) {
         editorView(1);
         editorLabels();

@@ -31,10 +31,18 @@ puzzle at one difficulty.
   the first visit) become `mov [0E74], 1` (the table map's button, g09_0822)
   and a jump to 09:2D5B (the help panel, the timers), so the loop goes
   into the Museum at once. Later visits are as they were.
+- --time S: the countdown starts at S seconds, whatever the level (the
+  level's switch in f09's new board, 09:24B5-25B4, sets [9314] by `mov
+  word [9314], N` for each of the 8 levels; each N becomes S; the clock's
+  total [9312] is copied from it, 09:25FD): for reaching the end of a
+  game out of time.
+- --found: every object starts found (09:27DD: `mov byte [bx+2], 0`, the
+  new object's flag, becomes 1), so the first map of the office ends the
+  game (the dance, the final quiz, the maze, the happy ending).
 
 It's for comparisons only: the CD's file is left as it is.
 
-Usage: python tools/reference/mall_skip.py [--puzzle P] [--difficulty D] [--floor] [RUN DIR]   (default $EDISON_RUN)
+Usage: python tools/reference/mall_skip.py [--puzzle P] [--difficulty D] [--floor] [--time S] [--found] [RUN DIR]   (default $EDISON_RUN)
 then:  tools/reference/otvdm.ps1 start MALLSKIP.EXE
 """
 import argparse
@@ -55,6 +63,8 @@ DIFFICULTY = (10, 0x98A, bytes.fromhex("8a470125ff00"), "the square's difficulty
 PUZZLE = (10, 0x9A4, bytes.fromhex("8a871c9325ff00"), "the square's puzzle (mov al, [bx+931Ch]; and ax, 0FFh)")
 ENTRANCE = (9, 0x17C6, bytes.fromhex("c706b2920400833eb292007503e90300e9f3ffc746fc0000e90400"),
             "the entrance's wait and its steps' start (mov word [92B2], 4 ... jmp 17E5)")
+FOUND = (9, 0x27DD, bytes.fromhex("c6470200"), "the new object's found flag (mov byte [bx+2], 0)")
+TIMES = (9, 0x24B5, 0x2600)  # the level's switch: mov word [9314], N
 FIRST = (9, 0x29D4, bytes.fromhex("68b40068d8006a5c"), "the first visit's objects (push 0B4h; push 0D8h; push 5Ch)")
 CLIP = (42, CLIP_AT, CLIP_WAS, "the ClipCursor call's pushes")
 DGROUP = 73
@@ -67,6 +77,8 @@ def main():
     ap.add_argument("--puzzle", type=int, choices=range(16), metavar="P")
     ap.add_argument("--difficulty", type=int, choices=range(9), metavar="D")
     ap.add_argument("--floor", action="store_true", help="the first visit to the office goes into the Museum")
+    ap.add_argument("--time", type=int, metavar="S", help="the countdown starts at S seconds")
+    ap.add_argument("--found", action="store_true", help="every object starts found")
     a = ap.parse_args()
     run = Path(a.run or os.environ.get("EDISON_RUN") or sys.exit("give the folder with the game files, or set EDISON_RUN"))
     exe = NEFile(run / "MALL.EXE")
@@ -75,7 +87,7 @@ def main():
     def at(seg, off):
         return exe.segments[seg - 1]["offset"] + off
 
-    for seg, off, was, what in (MODE, LOOKS, AGAIN, STEP, DIFFICULTY, PUZZLE, ENTRANCE, FIRST, CLIP):
+    for seg, off, was, what in (MODE, LOOKS, AGAIN, STEP, DIFFICULTY, PUZZLE, ENTRANCE, FIRST, FOUND, CLIP):
         if data[at(seg, off):at(seg, off) + len(was)] != was:
             sys.exit(f"MALL.EXE: {what} isn't at {seg}:{off:04X} (another version?)")
     for where, text in ((NAME_AT, NAME), (PATH_AT, NAME + b".INF")):
@@ -105,12 +117,22 @@ def main():
         jmp = 0x2D5B - (0x29DA + 3)
         first = bytes.fromhex("c706740e0100") + bytes([0xE9, jmp & 0xFF, jmp >> 8])  # mov word [0E74], 1; jmp 2D5B
         data[at(*FIRST[:2]):at(*FIRST[:2]) + len(first)] = first
+    if a.time is not None:
+        start, end = at(TIMES[0], TIMES[1]), at(TIMES[0], TIMES[2])
+        sites = [i for i in range(start, end) if data[i:i + 4] == bytes.fromhex("c7061493")]
+        if len(sites) != 8:
+            sys.exit(f"MALL.EXE: {len(sites)} countdown starts in the level's switch, not 8 (another version?)")
+        for i in sites:
+            data[i + 4:i + 6] = a.time.to_bytes(2, "little")
+    if a.found:
+        data[at(*FOUND[:2]) + 3] = 1
     data[at(*CLIP[:2]):at(*CLIP[:2]) + len(CLIP_NOW)] = CLIP_NOW
     out = run / "MALLSKIP.EXE"
     out.write_bytes(data)
     forced = ", ".join(f"{k} {v}" for k, v in (("puzzle", a.puzzle), ("difficulty", a.difficulty)) if v is not None)
     print(f"wrote {out}: straight to the level pick" + (", then into the Museum" if a.floor else "")
-          + (f"; every square: {forced}" if forced else ""))
+          + (f"; every square: {forced}" if forced else "")
+          + (f"; the countdown from {a.time} s" if a.time is not None else "") + ("; every object found" if a.found else ""))
 
 
 if __name__ == "__main__":

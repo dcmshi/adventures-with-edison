@@ -4,6 +4,7 @@
 // pictures round the well; fill them in to win.
 
 #include <algorithm>
+#include <cstdlib>
 
 #include "mystery/mystery.h"
 
@@ -192,20 +193,30 @@ bool Mystery::droppingSquares(int level) {
         piece[1] = piece[0];
         piece[0] = bottom;
     };
-    auto flyHome = [&](int col, int row, int i) {  // g18_0060 / g18_0120: in 40 steps
-        const int x0 = col * kCellW + kWellX, y0 = row * kCellH;
+    auto flyHome = [&](int col, int row, int i) {  // g18_0060 / g18_0120
+        // Steps of a fortieth of the way (truncated), towards the picture's
+        // corner of the screen, till either way gets there (or 300 steps);
+        // what's under it kept at screen 2's (0, A0). Only on the display:
+        // screen 2's place stays black (it overlaps the store).
+        int x = col * kCellW + kWellX, y = row * kCellH;
         int tx, ty, sqx, sqy;
         home(squares[i], &tx, &ty);
         store(i, &sqx, &sqy);
-        select(1);
-        for (int step = 1; step < 0x28; ++step) {
-            const int x = x0 + (tx - x0) * step / 0x28, y = y0 + (ty - y0) * step / 0x28;
-            const int saved = saveArea(x, y, kCellW, kCellH);
+        const int dx = std::abs(tx - x) / 0x28, dy = std::abs(ty - y) / 0x28;
+        const int picture = squares[i].picture;
+        const bool left = picture < 2, up = picture % 2 == 0;
+        bool flying = true;
+        for (int step = 1; flying; ++step) {
+            if (step > 0x12C) flying = false;
+            x += left ? -dx : dx;
+            y += up ? -dy : dy;
+            if (left ? x <= tx : x >= tx) flying = false, x = tx;
+            if (up ? y <= ty : y >= ty) flying = false, y = ty;
+            duplicateArea(1, 2, x, y, kCellW, kCellH, 0, 0xA0);
             duplicateArea(2, 1, sqx, sqy, kCellW, kCellH, x, y);
             if (step % 2 == 0) ctx_.pump();
-            restoreArea(saved);
+            duplicateArea(2, 1, 0, 0xA0, kCellW, kCellH, x, y);
         }
-        duplicateArea(2, 2, sqx, sqy, kCellW, kCellH, tx, ty);
         duplicateArea(2, 1, sqx, sqy, kCellW, kCellH, tx, ty);
     };
     auto run = [&](int col, int row, int dx, int dy) {  // g18_13ba: three or more alike from here
@@ -302,7 +313,7 @@ bool Mystery::droppingSquares(int level) {
     drawLogo(8, 0xA3, 0x20FB);
     show(2);
     deal();  // after f04_005c's stir (g18_22de)
-    computeUiColours();
+    // (No f06_01f6 here: the UI colours stay the previous screen's.)
     fill(kWellX, 0, kWellW, kWellH, 0);
     copyArea(2, 1, 0, 0, Screen::kWidth, Screen::kHeight);
     for (int i = 0; i < kSquares; ++i) {

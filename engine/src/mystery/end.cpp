@@ -17,6 +17,8 @@ namespace edison {
 
 namespace {
 
+constexpr int kMazeSlot = 8;  // the maze's second (its own timer, g22_0100: the countdown's runs too)
+
 // A pose of an end-screen animation: where it's drawn and its bitmap.
 struct Pose {
     int x, y;
@@ -50,7 +52,9 @@ constexpr int kDy[8] = {-1, 0, 1, 0, -1, -1, 1, 1};
 // --- the end of a game (f09_1dd8, after the map loop) --------------------
 
 void Mystery::endOfGame() {
-    ctx_.timer.setPeriodic(5, 0, nullptr);
+    // The countdown runs on through it all (the office's clock shows it
+    // when the ending redraws the map): the office stops it after the
+    // high scores (09:2FCA).
     if (outcome_ == 1) {
         endScreen(false, false);  // out of time
     } else {
@@ -215,7 +219,7 @@ void Mystery::sadEnding() {
 
     select(1);
     sound(0x401D);
-    speechBox(Screen::kWidth / 3, Screen::kHeight / 3, dataLines(0x4B90), 2, false);
+    speechBox(Screen::kWidth * 2 / 3, Screen::kHeight / 3, dataLines(0x4B90), 2, false);  // 23:0d5a
     draw(e[0]);
     sulk();
     select(2);
@@ -544,7 +548,7 @@ void Mystery::bonusMaze(int level) {
     panels_.add(door);
     int points = 0;       // [8ABA]
     bool redraw = true;   // [8AB8]
-    ctx_.timer.setPeriodic(5, 1, [&] {  // g22_0100
+    ctx_.timer.setPeriodic(kMazeSlot, 1, [&] {  // g22_0100
         if (m.timeLeft > 0) --m.timeLeft;
         redraw = true;
     });
@@ -619,7 +623,7 @@ void Mystery::bonusMaze(int level) {
         mazePace();
     }
     if (m.done) {
-        ctx_.timer.setPeriodic(5, 0, nullptr);
+        ctx_.timer.setPeriodic(kMazeSlot, 0, nullptr);
         points += 100;
         while (m.timeLeft > 0) {
             --m.timeLeft;
@@ -631,7 +635,7 @@ void Mystery::bonusMaze(int level) {
         score_ += points;
         waitCountdown(0xF);
     }
-    ctx_.timer.setPeriodic(5, 0, nullptr);
+    ctx_.timer.setPeriodic(kMazeSlot, 0, nullptr);
     panels_.clear();
     music(0);
 }

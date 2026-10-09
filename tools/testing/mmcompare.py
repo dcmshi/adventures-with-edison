@@ -2,7 +2,8 @@
 and keys from "Please pick a level", played in the port (EDISON_SKIP:
 setup starts at the level pick as the player SKIP; EDISON_SQUARE: every
 square plays one puzzle; EDISON_FLOOR, a scenario's floor=True: the
-first visit to the office goes into the Museum) and in the original under
+first visit to the office goes into the Museum; EDISON_TIME, time=S: the
+countdown from S seconds; EDISON_FOUND, found=True: every object found) and in the original under
 winevdm (MALLSKIP.EXE, tools/reference/mall_skip.py, the same), each of
 the original's shots against the port's closest frame near its time.
 
@@ -67,7 +68,8 @@ def office(level=0):
     return [click(0, *LEVELS[level])] + [hold(11 + 1.5 * i, *ARROW) for i in range(6)]
 
 
-DOOR = (268, 309)  # the office's door to the Museum (DS:0E76: 210-326, 284-334)
+DOOR = (268, 309)
+MAZE_EXIT = (180, 13)  # the bonus maze's exit (level 6's maze): a click gives up  # the office's door to the Museum (DS:0E76: 210-326, 284-334)
 
 SCENARIOS = {
     "office": dict(events=office(0), shots=[(-0.01, "pick"), (1, "letsdoit"), (6, "office"), (10, "letter"), (13, "page2"),
@@ -75,6 +77,16 @@ SCENARIOS = {
     "skipfloor": dict(floor=True, events=[click(0, *LEVELS[0])],
                       shots=[(5, "office"), (7, "in"), (9, "floor"), (12, "floor2")]),
     "clock": dict(events=office(0), shots=[(18 + 0.5 * i, f"c{i:02d}") for i in range(21)]),
+    # The end of a game out of time (mall_skip.py --time): the sad ending
+    # and the high scores.
+    "timeout": dict(time=10, events=office(0), shots=[(28 + i, f"t{28 + i}") for i in range(48)]),
+    # Every object found (mall_skip.py --found): the dance, the final quiz,
+    # the bonus maze, the happy ending and the high scores.
+    "allfound": dict(found=True, events=office(0) + [click(36, *MAZE_EXIT)],
+                     shots=[(26 + i, f"f{26 + i}") for i in range(70)]),
+    # P in the office: "Game Paused!" (f06_229a) till a mouse button is held.
+    "pause": dict(events=office(0) + [key(34, "p"), hold(38, 320, 300)],
+                  shots=[(33 + 0.5 * i, f"p{i:02d}") for i in range(16)]),
     "floor": dict(events=office(0) + [click(34, *DOOR)], shots=[(33.9, "map"), (35, "door"), (37, "floor1"),
                                                                (40, "floor2"), (44, "floor3")]),
 }
@@ -290,6 +302,56 @@ QA_MACHINE = (0x58 + 0x24, 0xF4 + 0x13)
 # Each block's right answer (resource 3F0B's questions, as the generator
 # shuffles them with no facts learned).
 QA_RIGHT = [2, 2, 0, 0, 2, 2, 2, 3, 0, 3, 1, 3, 1, 3, 1, 1]
+QA_EXIT = (0x228 + 0x28, 0x16B + 0xB)  # f06_23d8's, the final quiz's only
+# Every object found at level 9 (index 3): the dance, then the final quiz
+# (nine questions in 4 minutes): three answered (pad 0, right or wrong),
+# then its exit: the sad ending and the high scores.
+SCENARIOS["allfound3"] = dict(found=True, events=office(3) + [e for k in range(3) for e in (
+                                  click(30 + 3 * k, *QA_BLOCKS[k]), click(31 + 3 * k, *QA_PADS[0]))]
+                              + [click(40.5, *QA_EXIT)],
+                              shots=[(24 + i, f"q{24 + i}") for i in range(50)])
+# From the title (setup=True: MALLFREE.EXE, the port without EDISON_SKIP;
+# time 0 is the start, the port's a second sooner: winevdm's own start).
+LOOKS = [(0x12C + 0x30 + 0x36, 0x86 + y + 0xF) for y in (0x24, 0x42, 0x60, 0x7E)]  # DS:07D8, panel DS:080A
+LOOKS_DONE = (0x12C + 0x39 + 0x37, 0x86 + 0xB0 + 0x15)
+SETUP = dict(setup=True, start=0, lead=-1.1)
+SCENARIOS["setupnew"] = dict(SETUP, events=[key(17, "zed|"), click(21, *LOOKS[0]), click(22, *LOOKS[0]),
+                                            click(23, *LOOKS[1]), click(24, *LOOKS[2]), click(25, *LOOKS[3]),
+                                            click(27, *LOOKS_DONE)],
+                             shots=[(1 + 0.5 * i, f"n{i:02}") for i in range(88)])
+QUIT = (0x1FC + 0x1E, 0x158 + 0xB)  # the office's EXIT (DS:0DC6)
+# The office's yes/no (f06_2976 at W/4 + fh, 2H/5 + 1.5 fh): clicked, as its
+# keys are read held ([929C + scan / 8]) once a pass, and a typed one can
+# come and go between two passes.
+YES, NO = (192, 203), (320, 203)
+# A new player's game left in the office: "Do you want to quit this game?"
+# yes, "Do you want to play again?" no, "I'll save this game.": ZED.INF
+# kept (orig/ZED.INF, port/save/ZED.INF), then loaded by loadgame.
+SCENARIOS["savegame"] = dict(SETUP, keep=["ZED.INF"], events=[key(17, "zed|"), key(21, "|"), click(28, *LEVELS[0])]
+                             + [hold(39 + 1.5 * i, *ARROW) for i in range(6)]
+                             + [click(62, *QUIT), click(65, *YES), click(69, *NO)],
+                             shots=[(20 + 2 * i, f"a{20 + 2 * i}") for i in range(18)]
+                             + [(56 + i, f"a{56 + i}") for i in range(15)])
+# ZED again (savegame's original file): keep the looks, play the saved game.
+SCENARIOS["loadgame"] = dict(SETUP, players={"ZED.INF": OUT / "savegame" / "orig" / "Zed.INF"},
+                             events=[key(17, "zed|"), click(20, 165, 241), click(23, 37, 250)],
+                             shots=[(16 + i, f"l{16 + i}") for i in range(44)])
+# The custom board editor (f11_19b4): "MAKE CUSTOM BOARD" at the level pick,
+# the first map, OK.
+CUSTOM = (0x14 + 2 + 0x56, 200 + 0x34 + 6)  # DS:0A24's last button (mode 2)
+EDIT_MAPS = [(45 + 78 * i, 20) for i in range(8)]
+EDIT_OK = (318, 370)
+EDIT_GAMES = [(0x28, 0x10C), (0x28, 0xDC)]  # games 1 and 2 (the left column, bottom up)
+EDIT_READY = (0x22E, 0x16A)  # "Level Ready"
+# Under winevdm each blit takes the source's colour table at the time, so
+# the editor's own palette (11:1a55: the picture's 0 and FF, not black and
+# white) and the forced one of the screens shown before and after mix on
+# the display; the port has one palette at a time: its 0 and FF differ.
+EDIT_SAME = [((140, 164, 180), (0, 0, 0)), ((255, 255, 255), (236, 252, 252)), ((236, 252, 252), (255, 255, 255))]
+SCENARIOS["editor"] = dict(SETUP, same=EDIT_SAME, events=[key(17, "zed|"), key(21, "|"), click(28, *CUSTOM), click(32, *EDIT_MAPS[0]),
+                                          click(36, *EDIT_OK), click(38, *EDIT_GAMES[0]), click(40, 175, 95),
+                                          click(42, *EDIT_GAMES[1]), click(44, 230, 140), click(47, *EDIT_READY)],
+                           shots=[(27 + i, f"e{27 + i}") for i in range(34)])
 SCENARIOS["play04d0"] = puzzle_play(4, 0, [click(13.5, *QA_BLOCKS[0]), click(14.5, *QA_PADS[0]), click(17.5, *QA_HELP),
                                           click(19, 320, 200), click(20, *QA_MACHINE)]
                                     + [e for k in range(1, 16) for e in (click(19.5 + 3 * k, *QA_BLOCKS[k]),
@@ -320,7 +382,7 @@ SCENARIOS["play05d0"] = puzzle_play(5, 0, drop_moves(13, [DROP_LEFT, DROP_LEFT, 
                                     + drop_moves(24, [DROP_TURN, DROP_DROP])
                                     + [click(26, *DROP_HELP), click(28, 320, 200)]
                                     + drop_moves(30, [DROP_RIGHT, DROP_DROP]) + [click(33, *DROP_EXIT)],
-                                    [(12.5, "c1"), (13.5, "moved1"), (15, "landed1"), (16.5, "moved2"), (18, "landed2"),
+                                    [(12.5, "c1"), (13.5, "moved1"), (15.3, "landed1"), (16.3, "moved2"), (18.3, "landed2"),
                                      (20.5, "landed3"), (23.5, "landed4"), (25.5, "landed5"), (27, "help"),
                                      (29, "helped"), (32, "landed6"), (34, "exit"), (36, "exit2"), (40, "exit3")])
 
@@ -542,15 +604,15 @@ def dig_wall(a, b):
 DIG_HELP, DIG_SOLUTION, DIG_GADGET = (0x1B0 + 0x23, 0x10), (0x24C + 0x1A, 0xE0 + 0x24), (0x1D, 0x48 + 0x19)
 # (The dug-out tiles' places, from the generator: level 0 (4, 3), (0, 1);
 # level 1 those, (2, 3), (3, 2).)
-SCENARIOS["play15d0"] = puzzle_play(15, 0, dig_move(13, dig_slot(1), dig_wall(4, 3))
+SCENARIOS["play15d0"] = puzzle_play(15, 0, dig_move(13.3, dig_slot(1), dig_wall(4, 3))
                                     + [click(15.5, *DIG_HELP), click(17, 320, 200), click(20, *DIG_GADGET)]
                                     + dig_move(25, dig_slot(0), dig_wall(4, 3)) + dig_move(27, dig_slot(1), dig_wall(0, 1)),
-                                    [(12.5, "wall"), (13.5, "held"), (14.6, "back"), (16, "help"), (21, "gadget"), (24.5, "gadget2"), (26.5, "placed"),
+                                    [(12.5, "wall"), (13.6, "held"), (14.9, "back"), (16, "help"), (21, "gadget"), (24.5, "gadget2"), (26.5, "placed"),
                                      (28.6, "won"), (30, "won2"), (33, "won3"), (38, "won4")])
 SCENARIOS["play15d1"] = puzzle_play(15, 1, [e for i, (a, b) in enumerate([(4, 3), (0, 1), (2, 3), (3, 2)])
-                                            for e in dig_move(13 + 2 * i, dig_slot(i), dig_wall(a, b))],
-                                    [(12.5, "wall"), (14.5, "placed1"), (16.5, "placed2"), (18.5, "placed3"),
-                                     (20.6, "won"), (22, "won2"), (25, "won3"), (30, "won4")])
+                                            for e in dig_move(13.3 + 2 * i, dig_slot(i), dig_wall(a, b))],
+                                    [(12.5, "wall"), (14.8, "placed1"), (16.8, "placed2"), (19.1, "placed3"),
+                                     (20.9, "won"), (22, "won2"), (25, "won3"), (30, "won4")])
 
 def run_folder():
     if not os.environ.get("EDISON_RUN"):
@@ -598,8 +660,17 @@ def play_orig(name, s, watch=None, peek=None):
         skip += ["--difficulty", str(s["difficulty"])]
     if s.get("floor"):
         skip.append("--floor")
-    subprocess.run(skip, check=True, stdout=subprocess.DEVNULL)
-    lines = [f"wait {START}"]
+    if "time" in s:
+        skip += ["--time", str(s["time"])]
+    if s.get("found"):
+        skip.append("--found")
+    if s.get("setup"):  # from the title: MALLFREE.EXE (free_mouse.py), nothing skipped
+        exe = "MALLFREE.EXE"
+        subprocess.run([sys.executable, str(REFERENCE / "free_mouse.py")], check=True, stdout=subprocess.DEVNULL)
+    else:
+        exe = "MALLSKIP.EXE"
+        subprocess.run(skip, check=True, stdout=subprocess.DEVNULL)
+    lines = [f"wait {s.get('start', START)}"]
     timeline = [(e[0], e) for e in s["events"]] + [(t, ("shot", n)) for t, n in s["shots"]]
     now = 0.0
     for at, e in sorted(timeline, key=lambda p: p[0]):
@@ -617,17 +688,24 @@ def play_orig(name, s, watch=None, peek=None):
             lines.append(f"type {e[2]}")
     (d / "script.txt").write_text("\n".join(lines) + "\n")
     kept = {f: (run / f).read_bytes() for f in SAVES if (run / f).exists()}
+    for f, src in s.get("players", {}).items():  # players' files to start with
+        shutil.copy2(src, run / f)
+    players = set(run.glob("*.INF")) - {run / f for f in s.get("players", {})}
     watcher = None
     if watch or peek:
         end = max([t for t, _ in s["shots"]] + [e[0] for e in s["events"]])
         watcher = memwatch(d, watch, peek, START / 2 + end + 2)
     try:
-        subprocess.run(["pwsh", "-NoProfile", "-File", str(REFERENCE / "otvdm.ps1"), "play", "MALLSKIP.EXE",
+        subprocess.run(["pwsh", "-NoProfile", "-File", str(REFERENCE / "otvdm.ps1"), "play", exe,
                         str(d / "script.txt"), str(d)], check=True)
     finally:
         for f, data in kept.items():
             (run / f).write_bytes(data)
         (run / "SKIP.INF").unlink(missing_ok=True)
+        for f in set(run.glob("*.INF")) - players:  # the players the scenario made
+            if f.name.upper() in s.get("keep", ()):
+                shutil.copy2(f, d / f.name)
+            f.unlink()
         if watcher:
             watcher.join(timeout=10)
     shots = {(d / f"{n}.png").read_bytes() for _, n in s["shots"] if (d / f"{n}.png").exists()}
@@ -647,9 +725,12 @@ def play_port(name, s):
     for f in SAVES:  # the original's high scores and Edison's colours
         if (run_folder() / f).exists():
             shutil.copy2(run_folder() / f, save / f)
+    for f, src in s.get("players", {}).items():
+        shutil.copy2(src, save / f)
+    lead = s.get("lead", LEAD)
     args = []
     for e in s["events"]:
-        ms = str(int((e[0] + LEAD) * 1000))
+        ms = str(int((e[0] + lead) * 1000))
         if e[1] == "click":
             args += ["--click", ms, str(e[2]), str(e[3])]
         elif e[1] == "hold":
@@ -657,10 +738,16 @@ def play_port(name, s):
         elif e[1] == "type":
             args += ["--type", ms, e[2]]
 
-    end = max([t for t, _ in s["shots"]] + [e[0] for e in s["events"]]) + LEAD + 2
-    env = dict(os.environ, EDISON_SKIP="1")
+    end = max([t for t, _ in s["shots"]] + [e[0] for e in s["events"]]) + lead + 2
+    env = dict(os.environ)
+    if not s.get("setup"):
+        env["EDISON_SKIP"] = "1"
     if s.get("floor"):
         env["EDISON_FLOOR"] = "1"
+    if "time" in s:
+        env["EDISON_TIME"] = str(s["time"])
+    if s.get("found"):
+        env["EDISON_FOUND"] = "1"
     if "puzzle" in s:
         env["EDISON_SQUARE"] = f"{s['puzzle']},{s['difficulty']}" if "difficulty" in s else str(s["puzzle"])
     with open(d / "run.log", "w") as log:
@@ -683,24 +770,33 @@ def zoom(orig, port, box, pad=8, most=600):
     return pair.resize((pair.width * k, pair.height * k), Image.NEAREST)
 
 
+def is_colour(im, rgb):
+    """255 where IM is the colour RGB, else 0."""
+    r, g, b = ImageChops.difference(im, Image.new("RGB", im.size, rgb)).split()
+    return ImageChops.lighter(ImageChops.lighter(r, g), b).point(lambda v: 0 if v else 255)
+
+
 def compare(name, s, window):
     """Each original shot against the port's frames within the window of
     its time: the fewest pixels that differ."""
     d = OUT / name
+    lead = s.get("lead", LEAD)
     frames = sorted((int(p.stem), p) for p in (d / "port").glob("*.bmp"))
     for t, n in s["shots"]:
         o = Image.open(d / "orig" / f"{n}.png").convert("RGB")
         best = None
         for ms, p in frames:
-            if abs(ms / 1000 - (t + LEAD)) > window:
+            if abs(ms / 1000 - (t + lead)) > window:
                 continue
             f = Image.open(p).convert("RGB")
             mask = ImageChops.difference(f, o).convert("L").point(lambda v: 255 if v else 0)
+            for a, b in s.get("same", ()):  # colour pairs taken as equal (the original's, the port's)
+                mask = ImageChops.subtract(mask, ImageChops.multiply(is_colour(o, a), is_colour(f, b)))
             c = mask.histogram()[255]
             if best is None or c < best[0]:
                 best = (c, ms, mask, f)
         if best is None:
-            print(f"{name} {n}: no port frame near {t + LEAD:.1f} s")
+            print(f"{name} {n}: no port frame near {t + lead:.1f} s")
             continue
         c, ms, mask, f = best
         where = ""
@@ -710,7 +806,7 @@ def compare(name, s, window):
             zoom(o, f, box).save(d / f"zoom-{n}.png")
             f.paste((255, 0, 255), mask=mask)
             f.save(d / f"diff-{n}.png")
-        print(f"{name} {n}: {c} pixels (port {ms / 1000 - LEAD:.1f} s){where}")
+        print(f"{name} {n}: {c} pixels (port {ms / 1000 - lead:.1f} s){where}")
 
 
 def main():

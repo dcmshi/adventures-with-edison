@@ -186,7 +186,11 @@ class Program:
     def _switch(self, seg, i, recent):
         """Borland switch: cmp bx, N / ja default / shl bx, 1 / jmp cs:[bx + table]."""
         count = None
-        for p in reversed(recent[:-1]):
+        # The cmp is on this path, or (cmp / jbe table's block / jmp default)
+        # just before it, decoded on the path that jumped here.
+        insns = self.insns[seg]
+        before = [insns[a] for a in range(max(0, i.address - 24), i.address) if a in insns]
+        for p in list(reversed(recent[:-1])) + list(reversed(before)):
             m = re.fullmatch(r"(bx|ax|cx|dx|si|di), 0x([0-9a-f]+)|(bx|ax|cx|dx|si|di), (\d+)", p.op_str)
             if p.mnemonic == "cmp" and m:
                 count = int(m.group(2), 16) + 1 if m.group(2) else int(m.group(4)) + 1

@@ -120,6 +120,7 @@ private:
     void smittySays(int mode, int result);                      // f09_1212
     void entrance(bool first, int found);                       // f09_15f8
     void museumList();                                          // f09_0f8a
+    void pauseGame();                                           // f06_229a
     void smittyShow();                                          // f09_002e
     void mapView();                                             // f09_01ee
     void redrawMap();                                           // g09_1c92

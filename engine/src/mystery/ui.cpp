@@ -44,6 +44,41 @@ int Mystery::speechBox(int x, int y, const std::vector<std::string>& lines, int 
     return handle;
 }
 
+void Mystery::pauseGame() {
+    // f06_229a, from a panel poll with P held (f06_219c): "Game Paused!"
+    // in a box in the middle of the display until Space or a mouse button
+    // is held. Its flag [7576] is the timer DLL's (SETUPTIMERDLL, 45:0160):
+    // no ticks while paused, so the clocks stand still.
+    const int previous = current();
+    select(1);
+    const std::string first = dataString(0x269), second = dataString(0x29A);
+    const int w = std::max(font_->width(first), font_->width(second)) + 0x20, h = 3 * 0x10;  // f06_0956
+    const int x = (Screen::kWidth - w) >> 1, y = (Screen::kHeight - h) >> 1;
+    const int saved = saveArea(x, y, w, h);
+    fill(x, y, w, h, 0xF4);
+    // f06_08c0: the outline in MALL's line (on the display the bottom
+    // right corner, both lines' far end, stays off).
+    displayLine(x, y, x + w - 1, y, 0xFF);
+    displayLine(x + w - 1, y, x + w - 1, y + h - 1, 0xFF);
+    displayLine(x, y, x, y + h - 1, 0xFF);
+    displayLine(x, y + h - 1, x + w - 1, y + h - 1, 0xFF);
+    text(x + 0x10, y + 8, first, 0xFF);
+    text(x + 0x10, y + 0x18, second, 0xFF);
+    clearInput();
+    for (;;) {
+        int mx, my;
+        bool down;
+        ctx_.platform.mouse(&mx, &my, &down);
+        if (down || ctx_.platform.takeKeyIf(' ')) break;
+        if (!ctx_.platform.pumpEvents()) throw GameContext::Closed{};
+        ctx_.platform.present(ctx_.screens[1], ctx_.displayPalette);
+    }
+    ctx_.timer.reset(ctx_.platform.milliseconds());
+    clearInput();
+    restoreArea(saved);
+    select(previous);
+}
+
 void Mystery::computeUiColours() {
     // Nearest match in the display palette (entries 1-253). The original
     // reads the table as signed chars, so components above 127 count as

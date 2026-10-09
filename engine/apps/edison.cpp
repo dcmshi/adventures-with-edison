@@ -275,6 +275,13 @@ public:
         return k;
     }
 
+    bool takeKeyIf(int key) override {
+        const auto it = std::find(keys_.begin(), keys_.end(), key);
+        if (it == keys_.end()) return false;
+        keys_.erase(it);
+        return true;
+    }
+
     bool escapeHeld() override { return SDL_GetKeyboardState(nullptr)[SDL_SCANCODE_ESCAPE]; }
 
     bool keyHeld(int key) override {

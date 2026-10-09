@@ -288,7 +288,7 @@ bool Mystery::questionPeriod(int level, bool asPuzzle) {
     drawLogo(0x218, 0xF8, 0x2099);
     drawOpaque(0x58, 0xF4, 0x2248);
     show(2);
-    computeUiColours();
+    // (No f06_01f6 here: the UI colours stay the previous screen's.)
     loadQuestions();
     shuffle();
     if (!asPuzzle) {

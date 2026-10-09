@@ -120,9 +120,9 @@ bool Mystery::dig(int level) {
         select(1);
     };
     auto button = [&](int k, uint16_t id) { drawLogo(kButton[k][0], kButton[k][1], id); };  // g21_01d4
-    auto showTime = [&] {
+    auto showTime = [&](int y = 10) {  // g21_027a (y 0xC while a tile is held: 21:0da0)
         if (!timeShown) return;
-        digitalTime(0x6A, 10, 0x2A, 0x14, timeLeft);
+        digitalTime(0x6A, y, 0x2A, 0x14, timeLeft);
         timeShown = false;
     };
     auto beltEmpty = [&] {  // g21_148e
@@ -229,10 +229,22 @@ bool Mystery::dig(int level) {
         // shrinking to half size while held and growing back as it flies
         // to where it lands.
         drawTile(t, 0x140, 0, 2);
-        std::vector<uint8_t> image(kTileW * kTileH);
+        // It's grabbed into a DIB (g35_071a: 0x36 bytes of headers and one
+        // palette entry, then the rows bottom up), but the scaler is given
+        // the block's start as the pixels' (21:0d4e; the Ball Sculpture's
+        // g30_0f98 skips the headers): each row 0x3A bytes early, the left
+        // of it from the row below, the bottom row's left the headers.
+        std::vector<uint8_t> block(0x3A + kTileW * kTileH);
+        const uint8_t info[0x28] = {0x28, 0, 0, 0, kTileW, 0, 0, 0, kTileH, 0, 0, 0, 1, 0, 8, 0,
+                                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1};  // biClrUsed 1
+        std::copy(info, info + 0x28, block.begin() + 0x0E);
         for (int r = 0; r < kTileH; ++r)
             for (int c = 0; c < kTileW; ++c)
-                image[r * kTileW + c] = ctx_.screens[2].pixels[static_cast<size_t>(r) * Screen::kWidth + 0x140 + c];
+                block[0x3A + (kTileH - 1 - r) * kTileW + c] =
+                    ctx_.screens[2].pixels[static_cast<size_t>(r) * Screen::kWidth + 0x140 + c];
+        std::vector<uint8_t> image(kTileW * kTileH);
+        for (int r = 0; r < kTileH; ++r)
+            for (int c = 0; c < kTileW; ++c) image[r * kTileW + c] = block[(kTileH - 1 - r) * kTileW + c];
         int saved = saveArea(mx - 50, my - 30, kTileW, kTileH);
         int shownScale = -1, shownX = -1, shownY = -1;
         int w = kTileW, h = kTileH;
@@ -241,7 +253,7 @@ bool Mystery::dig(int level) {
         ctx_.countdown[0] = 5;
         while (held || ctx_.countdown[0] > 0) {
             ctx_.pump();
-            showTime();
+            showTime(0xC);
             ctx_.platform.mouse(&mx, &my, &down);
             const int tick = ctx_.countdown[0];
             const int scale = held ? tick * 128 / 5 + 128 : (5 - tick) * 128 / 5 + 128;

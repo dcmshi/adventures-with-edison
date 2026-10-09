@@ -38,6 +38,8 @@ public:
     // Next key typed, as Windows would give it: printable ASCII, or
     // kBackspace, kTab, kEnter, kEscape; 0 when there's none.
     virtual int takeKey() = 0;
+    // Takes the first queued KEY (others stay), if there is one.
+    virtual bool takeKeyIf(int key) { (void)key; return false; }
     enum Key { kBackspace = 8, kTab = 9, kEnter = 13, kEscape = 27, kLeft = 0x100, kRight, kUp, kDown };
     // Whether an arrow key (kLeft-kDown) is held down now.
     virtual bool keyHeld(int key) { (void)key; return false; }

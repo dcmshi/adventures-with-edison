@@ -255,7 +255,7 @@ bool Mystery::planetarium(int level) {
     drawLogo(0x26, 0x2E, 0x2267);
     for (int k = 0; k < 4; ++k) drawLogo(kArrowsX + kArrow[k][0], kArrowsY + kArrow[k][1], static_cast<uint16_t>(0x22DA + k));
     show(2);
-    computeUiColours();
+    // (No f06_01f6 here: the UI colours stay the previous screen's.)
     select(1);
     intBox(0x154, 0x168, 0x3C, 0x14, points);
     music(0x1E);

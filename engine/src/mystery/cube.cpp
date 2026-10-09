@@ -273,7 +273,7 @@ bool Mystery::foldedCube(int level) {
         turnC = static_cast<uint16_t>(random(0x10000));
         if (cubesLeft == 5) {  // f04_005c(2, 4) after the turn's draws (its stir too)
             show(2);
-            computeUiColours();
+            // (No f06_01f6 here: the UI colours stay the previous screen's.)
             select(1);
             showTime();
             // The empty preview is kept at the top left of screen 2 (once

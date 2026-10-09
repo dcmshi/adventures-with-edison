@@ -30,6 +30,8 @@ public:
     // One poll (f07_01fe): dispatches a new click, then release or held.
     // Returns true if there was a click (at *x, *y) that hit no panel.
     bool poll(Platform& platform, int* x = nullptr, int* y = nullptr);
+    // P at a poll pauses the game (f06_219c: the key held, after each message).
+    std::function<void()> onPause;
 
 private:
     int hitPanel(int x, int y) const;

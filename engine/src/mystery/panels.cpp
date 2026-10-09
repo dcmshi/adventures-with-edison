@@ -33,6 +33,7 @@ int Panels::hitButton(int panel, int x, int y) const {
 }
 
 bool Panels::poll(Platform& platform, int* outX, int* outY) {
+    if (onPause && (platform.takeKeyIf('p') || platform.takeKeyIf('P'))) onPause();
     int x, y;
     bool missed = false;
     if (platform.takeClick(&x, &y)) {

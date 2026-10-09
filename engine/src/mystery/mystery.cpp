@@ -45,6 +45,7 @@ uint16_t Mystery::dataWord(uint16_t offset) const {
 void Mystery::run() {
     // f02_00ba's loop: setup, then games until the player leaves.
     ctx_.startTimer();
+    panels_.onPause = [this] { pauseGame(); };
     loadHighScores();  // f24_005a, at the end of setup's first pass
     if (options_.startPuzzle >= 0) {
         player_.name = "Test";
