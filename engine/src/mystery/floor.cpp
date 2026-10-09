@@ -50,7 +50,7 @@ void Mystery::floorRegions() {
         for (int k = 0; k < n; ++k)
             pts.emplace_back(static_cast<int16_t>(dataWord(static_cast<uint16_t>(poly + 2 + 4 * k))),
                              static_cast<int16_t>(dataWord(static_cast<uint16_t>(poly + 4 + 4 * k))));
-        fillPolygon(pts, static_cast<uint8_t>(colour));
+        fillPolygonSolid(pts, static_cast<uint8_t>(colour));  // f32_2e46: draw_poly, the library's spans
     }
     int previous = -1;
     for (int i = 0; i < 15; ++i) {

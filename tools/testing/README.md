@@ -103,8 +103,10 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
   each in its best frame: Dropping Squares' clock, whose phase against the
   column changes from run to run in the original).
   Events: `click`, `hold` (press and release, shots can come between),
-  `key` (typed text) and `keyhold` (a key held by name: `otvdm.ps1`'s
-  `keydown` / `keyup` with its virtual-key code, the port's `--key`).
+  `key` (typed text), `press` (typed text, the port's as key events with
+  Caps Lock on, `--press`: the characters from the keys and Shift alone) and
+  `keyhold` (a key held by name, `shift` too: `otvdm.ps1`'s `keydown` /
+  `keyup` with its virtual-key code, the port's `--key`).
 - `mmmaze.py [--port-only | --compare-only]`: the bonus maze's wanderers
   pass by pass (its loop is unpaced in the original, so its shots can't
   be matched in time): `allfound` in the port at a pass a millisecond

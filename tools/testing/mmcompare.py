@@ -62,7 +62,13 @@ def key(t, text):
 
 # Keys held by name: the original's virtual-key codes (with their scan codes:
 # VK_CLEAR is the keypad's 5, 4Ch), the port's --key names.
-VKEYS = {"esc": 27, "kp5": 12, "left": 37, "up": 38, "right": 39, "down": 40}
+VKEYS = {"esc": 27, "kp5": 12, "left": 37, "up": 38, "right": 39, "down": 40, "shift": 16}
+
+
+def press(t, text):
+    """Typed as key presses: the port's --press (SDL key events, Caps Lock
+    on), the original's as key()."""
+    return (t, "press", text)
 
 
 def keyhold(t, name, seconds=0.08):
@@ -326,6 +332,24 @@ SCENARIOS["allfound3"] = dict(found=True, events=office(3) + [e for k in range(3
                                   click(30 + 3 * k, *QA_BLOCKS[k]), click(31 + 3 * k, *QA_PADS[0]))]
                               + [click(40.5, *QA_EXIT)],
                               shots=[(24 + i, f"q{24 + i}") for i in range(50)])
+# Concentration's facts are forgotten at the start of each game (f19_0000,
+# 09:248a): two games at level 3, whose final quiz asks the facts learned
+# first. Game 1: square 17's Concentration (museum 4: theme 1, DS:147E), its
+# two pairs (a fact each), back to the office (every object found: the
+# final quiz), a question, given up. Then play again, this level; game 2:
+# back from the floor, the quiz's first block: "The U.S. flag was planted
+# on the moon by" (with the facts kept, "Inuit sculptures are mostly carved
+# from").
+FACTS_SQUARE = (224, 225)  # square 17's building (room 4: 93h, C0h)
+FLOOR_BACK = (0x3E + 0x27, 0x13C + 0x25)  # the floor's way back (DS:18CA)
+SCENARIOS["factsclear"] = dict(floor=True, found=True, puzzle=7, difficulty=0, events=[
+    click(0, *LEVELS[3]), click(9, *FACTS_SQUARE), click(12, *door(1, 2)), click(13, *door(1, 3)),
+    click(17, 320, 200), click(18, *door(2, 2)), click(19, *door(2, 3)), click(22, 320, 200), click(34, *FLOOR_BACK),
+    click(49, *QA_BLOCKS[0]), click(52, *QA_EXIT), click(106, 37, 242), click(109, 165, 242), hold(125, 107, 228),
+    click(140, *FLOOR_BACK), click(155, *QA_BLOCKS[0])],
+    shots=[(14.5, "fact1"), (20.5, "fact2"), (36, "office"), (48.5, "quiz1"), (50.5, "question1"), (80, "scores"),
+           (105, "again"), (108, "looks"), (124, "level"), (138, "floor2"), (154, "quiz2"), (155.8, "question2"),
+           (157, "question2b")])
 # From the title (setup=True: MALLFREE.EXE, the port without EDISON_SKIP;
 # time 0 is the start, the port's a second sooner: winevdm's own start).
 LOOKS = [(0x12C + 0x30 + 0x36, 0x86 + y + 0xF) for y in (0x24, 0x42, 0x60, 0x7E)]  # DS:07D8, panel DS:080A
@@ -335,6 +359,12 @@ SCENARIOS["setupnew"] = dict(SETUP, events=[key(17, "zed|"), click(21, *LOOKS[0]
                                             click(23, *LOOKS[1]), click(24, *LOOKS[2]), click(25, *LOOKS[3]),
                                             click(27, *LOOKS_DONE)],
                              shots=[(1 + 0.5 * i, f"n{i:02}") for i in range(88)])
+# The name typed as keys with Caps Lock on: the library takes each key's
+# character from its scan code (DS:72C8, Shift only: 39:0218), so the port
+# shows "Zed" as the original does (the first letter made upper case by
+# f08_0380), not "ZED".
+SCENARIOS["setupcaps"] = dict(SETUP, events=[press(17, "zed"), press(18.5, "|")],
+                              shots=[(16 + 0.5 * i, f"c{i:02}") for i in range(12)])
 QUIT = (0x1FC + 0x1E, 0x158 + 0xB)  # the office's EXIT (DS:0DC6)
 # The office's yes/no (f06_2976 at W/4 + fh, 2H/5 + 1.5 fh): clicked, as its
 # keys are read held ([929C + scan / 8]) once a pass, and a typed one can
@@ -348,6 +378,13 @@ SCENARIOS["savegame"] = dict(SETUP, keep=["ZED.INF"], events=[key(17, "zed|"), k
                              + [click(62, *QUIT), click(65, *YES), click(69, *NO)],
                              shots=[(20 + 2 * i, f"a{20 + 2 * i}") for i in range(18)]
                              + [(56 + i, f"a{56 + i}") for i in range(15)])
+# A new player's game left in the office for another: "Do you want to quit
+# this game?" yes, "Do you want to play again?" yes: the setup again
+# (mode 0Fh), Edison as the player made him.
+SCENARIOS["againsetup"] = dict(SETUP, events=[key(17, "zed|"), key(21, "|"), click(28, *LEVELS[0])]
+                               + [hold(39 + 1.5 * i, *ARROW) for i in range(6)]
+                               + [click(62, *QUIT), click(65, *YES), click(69, *YES)],
+                               shots=[(60 + i, f"g{60 + i}") for i in range(30) if i != 9])  # (69: the click)
 # ZED again (savegame's original file): keep the looks, play the saved game.
 SCENARIOS["loadgame"] = dict(SETUP, players={"ZED.INF": OUT / "savegame" / "orig" / "Zed.INF"},
                              events=[key(17, "zed|"), click(20, 165, 241), click(23, 37, 250)],
@@ -656,6 +693,10 @@ SCENARIOS["keys05"] = puzzle_play(5, 0, [keyhold(13, "kp5"), key(14, "h"), click
 SCENARIOS["keys09"] = puzzle_play(9, 0, [key(13.5, "h"), click(15, 320, 200), key(16.5, "0"), key(19, "3")],
                                   [(12.5, "rows"), (14.2, "help"), (15.8, "helped"), (17.8, "time"), (19.6, "restart"),
                                    (21, "restart2"), (23, "restart3")])
+# Any key ends a wait ([B756], set for each WM_KEYDOWN: 39:0218), Shift
+# alone too: Binary Lights' help closed with it.
+SCENARIOS["keysany"] = puzzle_play(3, 0, [key(13, "h"), keyhold(15, "shift")],
+                                   [(12.5, "r1"), (14, "help"), (15.8, "closed")])
 SCENARIOS["keys14"] = puzzle_play(14, 0, [key(13.5, "h"), click(15, 320, 200)],
                                   [(12.5, "rows"), (14.2, "help"), (15.8, "helped")])
 SCENARIOS["keys10"] = puzzle_play(10, 0, [keyhold(13, "esc", 0.3)],
@@ -758,7 +799,7 @@ def play_orig(name, s, watch=None, peek=None):
             lines.append(f"{e[1]} {e[2]} {e[3]}")
         elif e[1] in ("keydown", "keyup"):
             lines.append(f"{e[1]} {e[2]}")
-        elif e[1] == "type":
+        elif e[1] in ("type", "press"):
             lines.append(f"type {e[2]}")
     (d / "script.txt").write_text("\n".join(lines) + "\n")
     kept = {f: (run / f).read_bytes() for f in SAVES if (run / f).exists()}
@@ -811,6 +852,8 @@ def play_port(name, s):
             args += ["--drag", ms, str(e[2]), str(e[3]), str(e[2]), str(e[3]), str(int(e[4] * 1000))]
         elif e[1] == "type":
             args += ["--type", ms, e[2]]
+        elif e[1] == "press":
+            args += ["--press", ms, e[2]]
         elif e[1] == "keyhold":
             args += ["--key", ms, e[2], str(int(e[3] * 1000))]
     for a, b, every in s.get("dense", []):  # the port's frames every EVERY ms from A till B

@@ -179,17 +179,19 @@ void Mystery::nameEntry() {
     bool cursorOn = true;
     clearInput();
     for (;;) {
-        // Blink the cursor until a key comes.
+        // Blink the cursor until a key comes: any key down ([B756]), then
+        // its character ([B76E]: none for Shift).
         int key = 0;
         int cx = 0;
-        while (key == 0) {
+        for (bool down = false; !down;) {
             cx = x0 + font_->width(prompt) + font_->width(name);
             text(cx, y0, cursor, cursorOn ? 0x32 : 0xFF);
             cursorOn = !cursorOn;
             ctx_.countdown[0] = 2;
-            while (ctx_.countdown[0] != 0 && key == 0) {
+            while (ctx_.countdown[0] != 0 && !down) {
                 ctx_.pump();
                 key = ctx_.platform.takeKey();
+                down = ctx_.platform.takeKeyDown() || key != 0;
             }
         }
         text(cx, y0, cursor, 0xFF);

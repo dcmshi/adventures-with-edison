@@ -73,7 +73,8 @@ void Mystery::backdrop(uint16_t id) {
 
 void Mystery::clockHand(int cx, int cy, uint16_t hand, int value, uint8_t colour) {
     // f05_00a0: the angle runs from start to end over the period (a full
-    // turn is 0x10000, 0 pointing right, clockwise); f51_103b is sine.
+    // turn is 0x10000, 0 pointing right, clockwise); f51_103b is sine,
+    // f51_106d cosine.
     Hand h{data_[hand], dataWord(hand + 1), dataWord(hand + 3), static_cast<int16_t>(dataWord(hand + 5))};
     if (hand == 0x0CA8) {
         h.start = hourStart_;

@@ -6,9 +6,13 @@ puzzle at one difficulty.
 - The game loop (f02_00ba) first calls the setup (f08_232c) with mode 0x0F
   (as after a game) instead of 1, so the players' names and looks aren't
   reset.
-- The setup jumps from its start (08:2339) over the title (f08_2284) to
-  Edison's and Smitty's colours (f06_1ce0 with the looks [C65C], [C130],
-  [92AC], [C76E]: 0, the defaults), which only mode 1 sets.
+- The setup in mode 0x0F jumps from its start (08:2339) over the title
+  (f08_2284) to Edison's and Smitty's colours (f06_1ce0 with the looks
+  [C65C], [C130], [92AC], [C76E]: 0, the defaults), which only mode 1
+  sets. Not after a game (mode 0): f06_1ce0 turns its table's 6-bit
+  colours into 8-bit ones where they are, so a second time spoils them
+  (Edison's colours garbled in the next setup). (Play again from the
+  office's quit box is mode 0x0F too: its setup still does it again.)
 - The setup's "after a game" flag ([B786], 08:245D) stays 0, as on the
   first setup: the map shows the Director's letter and the first greeting,
   as the port's --level does.
@@ -18,6 +22,10 @@ puzzle at one difficulty.
   file, the looks and the saved game's question are skipped. The player is "SKIP" ([B465]) with the file SKIP.INF ([C3F2],
   which the skipped step 2 would have built: g08_0154), so the run
   folder's own players are left alone; the game writes SKIP.INF there.
+  The record is a new player's, as step 2 makes it without a file
+  (f08_01ee: no saved game [B58C] or custom level [B4E7], FF; the 29
+  squares of each FF FF FF 0, the 16 objects FF FF FF), not the data
+  segment's zeros (a saved game at level 0, asked about after a game).
 - --puzzle P (0-15, names at DS:1A9C; docs/MYSTERY.md) and --difficulty D
   (0-8, below the game's count at DS:197C): the floor (f10_0708) reads the square's puzzle at 10:09A4 and its
   difficulty at 10:098A; here they're constants, so any square clicked
@@ -56,7 +64,8 @@ from ne import NEFile  # noqa: E402
 
 # (segment, offset, the bytes there, what they are)
 MODE = (2, 0xD8, bytes.fromhex("c646fa01"), "the first setup's mode (mov byte [bp-6], 1)")
-LOOKS = (8, 0x2339, bytes.fromhex("8a460625ff00"), "the setup's mode test (mov al, [bp+6]; and ax, 0FFh)")
+LOOKS = (8, 0x2339, bytes.fromhex("8a460625ff003d01007403"),
+         "the setup's mode test (mov al, [bp+6]; and ax, 0FFh; cmp ax, 1; je 2347)")
 AGAIN = (8, 0x245D, bytes.fromhex("c60686b701"), "the setup's [B786] = 1 (mov byte [B786], 1)")
 STEP = (8, 0x250E, bytes.fromhex("8346fc02"), "mode 0x0F's next step (add word [bp-4], 2)")
 DIFFICULTY = (10, 0x98A, bytes.fromhex("8a470125ff00"), "the square's difficulty (mov al, [bx+1]; and ax, 0FFh)")
@@ -69,6 +78,12 @@ FIRST = (9, 0x29D4, bytes.fromhex("68b40068d8006a5c"), "the first visit's object
 CLIP = (42, CLIP_AT, CLIP_WAS, "the ClipCursor call's pushes")
 DGROUP = 73
 NAME, NAME_AT, PATH_AT = b"SKIP", 0xB465, 0xC3F2  # (zeros there in the file)
+# A new player's record (f08_01ee without a file): (address, bytes).
+NEW_PLAYER = ([(0xB473 + 4 * k, b"\xff\xff\xff\x00") for k in range(29)]  # the custom level's squares
+              + [(0xB4E7, b"\xff")]                                       # no custom level
+              + [(0xB4E8 + 4 * k, b"\xff\xff\xff\x00") for k in range(29)]  # the saved game's squares
+              + [(0xB55C + 3 * k, b"\xff\xff\xff") for k in range(16)]      # its objects
+              + [(0xB58C, b"\xff")])                                      # no saved game
 
 
 def main():
@@ -94,8 +109,13 @@ def main():
         if any(data[at(DGROUP, where):at(DGROUP, where) + len(text) + 1]):
             sys.exit(f"MALL.EXE: DS:{where:04X} isn't empty (another version?)")
         data[at(DGROUP, where):at(DGROUP, where) + len(text)] = text
+    for where, text in NEW_PLAYER:
+        if any(data[at(DGROUP, where):at(DGROUP, where) + len(text)]):
+            sys.exit(f"MALL.EXE: DS:{where:04X} isn't empty (another version?)")
+        data[at(DGROUP, where):at(DGROUP, where) + len(text)] = text
     data[at(*MODE[:2]) + 3] = 0x0F
-    data[at(*LOOKS[:2]):at(*LOOKS[:2]) + 2] = bytes([0xEB, 0x11])  # jmp 234C
+    # mov al, [bp+6]; cmp al, 0Fh; je 234C; cmp al, 1 (then je 2347 as it was)
+    data[at(*LOOKS[:2]):at(*LOOKS[:2]) + 9] = bytes.fromhex("8a46063c0f740c3c01")
     data[at(*AGAIN[:2]) + 4] = 0
     data[at(*STEP[:2]) + 3] = 10
     if a.difficulty is not None:  # mov ax, D

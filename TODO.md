@@ -24,8 +24,9 @@ What's left is checking it against the original:
 - [x] The Dig's won screens (`mmcompare.py play15d0`, `play15d1`): the penguins' walk (`g21_1684`) waits 2000h passes of an empty loop a step, about 1 ms under winevdm; the port had shown four steps a frame. Now a step a millisecond of the clock, and the scenarios take the port's frames every millisecond through it (`dense`, the port's `--capture-dense`): pixel for pixel.
 - [x] The maze's wanderers (`allfound` f27-f35, which still differ: the original's loop is unpaced, about 1000 passes a second under winevdm, the port keeps 40 ms a step): compared pass by pass instead (`tools/testing/mmmaze.py`: `EDISON_MAZELOG`, `EDISON_MAZEPACE`, memwatch on `DS:89DE`), every state the original shows in the port's, in order, over about 10000 passes.
 - [x] The p05 clock (`p05d0`, `p05d3`): Dropping Squares' second against its column's step is set by the calls its setup takes, which change from run to run in the original (shot every 50 ms: once the step with the second, as the port's, once 0.37 s before). `mmcompare.py` matches its clock apart (`apart`): pixel for pixel.
-- [ ] Concentration's learned facts cleared each game (`f19_0000`): ported from the code, not yet compared (needs two games in a row).
-- [ ] The library (segments 31-60): ported as needed, never scanned function by function as segments 1-30 were.
+- [x] Concentration's learned facts cleared each game (`f19_0000`): compared over two games (`mmcompare.py factsclear`), pixel for pixel. (`mall_skip.py`'s SKIP had kept the data segment's zeros for its record, a saved game at level 0, and converted Edison's colours again in each setup: now a new player's record, the colours only in the first setup.)
+- [x] The library (segments 31-60), scanned function by function (`docs/MYSTERY.md`'s "The library"): 174 of 285 functions reached, each read against the port. Ported: any key ends a wait (`keysany`), typing by Shift alone, Caps Lock not read (`setupcaps`; the keyboard's own layout kept, not the tables' US one), the floor's and the editor's paths by the library's polygon spans (`factsclear`).
+- [ ] Wild Science's waits (`science/`) take a key with a character (`takeKey`); WMAIN's handler (`f71_0187`, the same as MALL's) sets "a key came" (`[9558]`) for any key: compare and use `takeKeyDown` where it reads that.
 
 ## Rock and Bach
 

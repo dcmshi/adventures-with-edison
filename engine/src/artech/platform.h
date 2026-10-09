@@ -35,10 +35,17 @@ public:
     // [3BA8]); false before the first press.
     virtual bool lastPress(int* x, int* y) { (void)x, (void)y; return false; }
     virtual bool escapeHeld() = 0;
-    // Next key typed, as Windows would give it: printable ASCII, or
-    // kBackspace, kTab, kEnter, kEscape, an arrow (the keypad's too) or
-    // kCentre (the keypad's 5, scan code 4Ch); 0 when there's none.
+    // Next key typed: its character as Shift (not Caps Lock) makes it, as
+    // the Artech library's tables do (MALL DS:72C8 / 7328; WM_CHAR is
+    // ignored), but in the keyboard's own layout, not the tables' US one:
+    // printable ASCII, kBackspace, kTab, kEnter or kEscape; or an arrow
+    // (the keypad's too) or kCentre (the keypad's 5, scan code 4Ch); 0 when
+    // there's none.
     virtual int takeKey() = 0;
+    // Whether a key went down since the last call: any key with a scan code,
+    // Shift, F1 or Alt too, repeats included (39:0218 and 39:02e4 set "a key
+    // came", MALL's [B756], for each WM_KEYDOWN and WM_SYSKEYDOWN).
+    virtual bool takeKeyDown() { return false; }
     // Takes the first queued KEY (others stay), if there is one.
     virtual bool takeKeyIf(int key) { (void)key; return false; }
     enum Key { kBackspace = 8, kTab = 9, kEnter = 13, kEscape = 27, kLeft = 0x100, kRight, kUp, kDown, kCentre };

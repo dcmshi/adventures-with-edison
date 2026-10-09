@@ -17,6 +17,8 @@ void ArtechGame::drawLogo(int x, int y, uint16_t id) {  // MALL f06_120c
 }
 
 void ArtechGame::drawShifted(int x, int y, uint16_t id, int add) {
+    // MALL's f06_19fa at 1:1 (f40_0782 → f41_0658: colour 0 left out, ADD
+    // added to the others).
     const Bitmap& bmp = ctx_.bitmap(id);
     drawVia3(x, y, bmp.width, bmp.height, [&](int s) {
         Screen& scr = ctx_.screens[s];
@@ -311,11 +313,15 @@ void ArtechGame::clearInput() {
     int x, y;
     while (ctx_.platform.takeClick(&x, &y)) {}
     while (ctx_.platform.takeKey()) {}
+    ctx_.platform.takeKeyDown();
 }
 
 bool ArtechGame::anyInput() {
+    // A click, or any key down ([B756]: Shift and F1 count, as a letter).
     int x, y;
-    return ctx_.platform.takeClick(&x, &y) || ctx_.platform.takeKey() != 0;
+    if (ctx_.platform.takeClick(&x, &y)) return true;
+    const bool down = ctx_.platform.takeKeyDown();
+    return ctx_.platform.takeKey() != 0 || down;
 }
 
 void ArtechGame::waitCountdown(int tenths) {

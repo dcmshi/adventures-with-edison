@@ -20,7 +20,9 @@
 //     --move T X Y        move the mouse to X, Y at T milliseconds (its button up)
 //     --drag T X0 Y0 X1 Y1 MS   press at X0, Y0 at T, move to X1, Y1 over MS, release
 //     --type T TEXT       type TEXT at T milliseconds ('|' is Enter; repeatable)
-//     --key T NAME MS     press key NAME (esc, kp5, left, right, up, down) at T and
+//     --press T TEXT      the same as key presses (letters, digits, '|'), Caps Lock
+//                         on: the characters from the keys and Shift alone
+//     --key T NAME MS     press key NAME (esc, kp5, left, right, up, down, shift) at T and
 //                         hold it MS milliseconds
 //     --quit-after MS     close after MS milliseconds
 //     --hidden            no window shown, nothing drawn but the captures, the sound
@@ -70,6 +72,7 @@ struct Automation {
     std::vector<Drag> drags;
     struct Typed { uint64_t at; std::string text; };  // '|' types Enter
     std::vector<Typed> typed;
+    std::vector<Typed> pressed;  // --press: as SDL key events
     struct Key { uint64_t at; int key; uint64_t ms; bool down = false, done = false; };
     std::vector<Key> keys;
     uint64_t quitAfter = 0;
@@ -78,8 +81,74 @@ struct Automation {
     bool virtualClock = false;  // --virtual-clock: 1 ms per pumpEvents (deterministic test runs)
 };
 
+// The Artech library's characters by scan code (MALL DS:72C8 unshifted,
+// DS:7328 with Shift; the same tables in EDISON, WINMAIN and WMAIN): a US
+// keyboard's, whatever the layout, and Caps Lock not read. The port takes
+// the keyboard's own layout instead, Shift and AltGr, still not Caps Lock;
+// the keypad's characters come from here (its digits only with Shift).
+const char kLibraryChars[2][0x54] = {
+    {0, '\x1B', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', '\b', '\t',
+     'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', '\r', 0, 'a', 's',
+     'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', '\'', '`', 0, '\\', 'z', 'x', 'c', 'v',
+     'b', 'n', 'm', ',', '.', '/', 0, '*', 0, ' ', 0, 0, 0, 0, 0, 0,
+     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '-', 0, 0, 0, '+', 0,
+     0, 0, 0, 0},
+    {0, '\x1B', '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '_', '+', '\b', '\t',
+     'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', '{', '}', '\r', 0, 'A', 'S',
+     'D', 'F', 'G', 'H', 'J', 'K', 'L', ':', '"', '~', 0, '|', 'Z', 'X', 'C', 'V',
+     'B', 'N', 'M', '<', '>', '?', 0, '*', 0, ' ', 0, 0, 0, 0, 0, 0,
+     0, 0, 0, 0, 0, 0, 0, '7', '8', '9', '-', '4', '5', '6', '+', '1',
+     '2', '3', '0', '.'},
+};
+
+// A key's scan code as Windows gives it in WM_KEYDOWN (the low byte: an
+// extended key's is its plain twin's, the keypad's Enter 1Ch); 0 for those
+// without a character in the tables.
+int scanCode(SDL_Scancode s) {
+    if (s >= SDL_SCANCODE_A && s <= SDL_SCANCODE_Z) {
+        static const uint8_t kLetters[26] = {0x1E, 0x30, 0x2E, 0x20, 0x12, 0x21, 0x22, 0x23, 0x17, 0x24, 0x25, 0x26, 0x32,
+                                             0x31, 0x18, 0x19, 0x10, 0x13, 0x1F, 0x14, 0x16, 0x2F, 0x11, 0x2D, 0x15, 0x2C};
+        return kLetters[s - SDL_SCANCODE_A];
+    }
+    if (s >= SDL_SCANCODE_1 && s <= SDL_SCANCODE_0) return 2 + (s - SDL_SCANCODE_1);
+    switch (s) {
+    case SDL_SCANCODE_ESCAPE: return 0x01;
+    case SDL_SCANCODE_MINUS: return 0x0C;
+    case SDL_SCANCODE_EQUALS: return 0x0D;
+    case SDL_SCANCODE_BACKSPACE: return 0x0E;
+    case SDL_SCANCODE_TAB: return 0x0F;
+    case SDL_SCANCODE_LEFTBRACKET: return 0x1A;
+    case SDL_SCANCODE_RIGHTBRACKET: return 0x1B;
+    case SDL_SCANCODE_RETURN: case SDL_SCANCODE_KP_ENTER: return 0x1C;
+    case SDL_SCANCODE_SEMICOLON: return 0x27;
+    case SDL_SCANCODE_APOSTROPHE: return 0x28;
+    case SDL_SCANCODE_GRAVE: return 0x29;
+    case SDL_SCANCODE_BACKSLASH: return 0x2B;
+    case SDL_SCANCODE_COMMA: return 0x33;
+    case SDL_SCANCODE_PERIOD: return 0x34;
+    case SDL_SCANCODE_SLASH: case SDL_SCANCODE_KP_DIVIDE: return 0x35;
+    case SDL_SCANCODE_KP_MULTIPLY: return 0x37;
+    case SDL_SCANCODE_SPACE: return 0x39;
+    case SDL_SCANCODE_KP_7: case SDL_SCANCODE_HOME: return 0x47;
+    case SDL_SCANCODE_KP_8: case SDL_SCANCODE_UP: return 0x48;
+    case SDL_SCANCODE_KP_9: case SDL_SCANCODE_PAGEUP: return 0x49;
+    case SDL_SCANCODE_KP_MINUS: return 0x4A;
+    case SDL_SCANCODE_KP_4: case SDL_SCANCODE_LEFT: return 0x4B;
+    case SDL_SCANCODE_KP_5: return 0x4C;
+    case SDL_SCANCODE_KP_6: case SDL_SCANCODE_RIGHT: return 0x4D;
+    case SDL_SCANCODE_KP_PLUS: return 0x4E;
+    case SDL_SCANCODE_KP_1: case SDL_SCANCODE_END: return 0x4F;
+    case SDL_SCANCODE_KP_2: case SDL_SCANCODE_DOWN: return 0x50;
+    case SDL_SCANCODE_KP_3: case SDL_SCANCODE_PAGEDOWN: return 0x51;
+    case SDL_SCANCODE_KP_0: case SDL_SCANCODE_INSERT: return 0x52;
+    case SDL_SCANCODE_KP_PERIOD: case SDL_SCANCODE_DELETE: return 0x53;
+    default: return 0;
+    }
+}
+
 class SdlPlatform : public edison::Platform {
 public:
+    static constexpr int kShift = 0x1000;  // --key's shift: a key down without a character
     Automation automation;
     std::string startGame;
 
@@ -93,7 +162,6 @@ public:
         SDL_SetRenderLogicalPresentation(renderer_, edison::Screen::kWidth, edison::Screen::kHeight,
                                          SDL_LOGICAL_PRESENTATION_LETTERBOX);
         SDL_SetRenderVSync(renderer_, automation.hidden ? 0 : 1);
-        SDL_StartTextInput(window_);
         texture_ = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_XRGB8888, SDL_TEXTUREACCESS_STREAMING,
                                      edison::Screen::kWidth, edison::Screen::kHeight);
         if (!texture_) return fail(error, "SDL_CreateTexture");
@@ -125,14 +193,39 @@ public:
         if (automation.virtualClock) ++virtualNow_;
         const uint64_t now = milliseconds();
         if (automation.quitAfter && now >= automation.quitAfter) return false;
+        for (auto& t : automation.pressed)
+            if (t.at && now >= t.at) {
+                for (char c : t.text) {
+                    SDL_Event e{};
+                    e.type = SDL_EVENT_KEY_DOWN;
+                    e.key.down = true;
+                    e.key.mod = SDL_KMOD_CAPS;
+                    if (c == '|') {
+                        e.key.scancode = SDL_SCANCODE_RETURN;
+                        e.key.key = SDLK_RETURN;
+                    } else if (c >= '1' && c <= '9') {
+                        e.key.scancode = static_cast<SDL_Scancode>(SDL_SCANCODE_1 + (c - '1'));
+                    } else if (c == '0') {
+                        e.key.scancode = SDL_SCANCODE_0;
+                    } else {
+                        const bool upper = c >= 'A' && c <= 'Z';
+                        e.key.scancode = static_cast<SDL_Scancode>(SDL_SCANCODE_A + ((upper ? c + 32 : c) - 'a'));
+                        if (upper) e.key.mod |= SDL_KMOD_LSHIFT;
+                    }
+                    SDL_PushEvent(&e);
+                }
+                t.at = 0;
+            }
         for (auto& t : automation.typed)
             if (t.at && now >= t.at) {
                 for (char c : t.text) keys_.push_back(c == '|' ? static_cast<int>(kEnter) : c);
+                keyDown_ = true;
                 t.at = 0;
             }
         for (auto& k : automation.keys) {
             if (!k.down && !k.done && now >= k.at) {
-                keys_.push_back(k.key);
+                if (k.key != kShift) keys_.push_back(k.key);
+                keyDown_ = true;
                 k.down = true;
             }
             if (k.down && now >= k.at + k.ms) k.down = false, k.done = true;
@@ -182,11 +275,8 @@ public:
         SDL_Event e;
         while (SDL_PollEvent(&e)) {
             if (e.type == SDL_EVENT_QUIT) return false;
-            if (e.type == SDL_EVENT_TEXT_INPUT) {
-                for (const char* c = e.text.text; *c; ++c)
-                    if (*c >= 32 && *c < 127) keys_.push_back(*c);
-            }
             if (e.type == SDL_EVENT_KEY_DOWN) {
+                keyDown_ = true;
                 // The keypad by its keys (the games read scan codes: its 4,
                 // 8, 6 and 2 are the arrows' and its 5 is 4Ch, NumLock or not).
                 switch (e.key.scancode) {
@@ -201,15 +291,29 @@ public:
                                     e.key.scancode == SDL_SCANCODE_KP_8 || e.key.scancode == SDL_SCANCODE_KP_2 ||
                                     e.key.scancode == SDL_SCANCODE_KP_5;
                 if (!keypad) switch (e.key.key) {
-                case SDLK_BACKSPACE: keys_.push_back(kBackspace); break;
-                case SDLK_TAB: keys_.push_back(kTab); break;
-                case SDLK_RETURN: case SDLK_KP_ENTER: keys_.push_back(kEnter); break;
-                case SDLK_ESCAPE: keys_.push_back(kEscape); break;
                 case SDLK_LEFT: keys_.push_back(kLeft); break;
                 case SDLK_RIGHT: keys_.push_back(kRight); break;
                 case SDLK_UP: keys_.push_back(kUp); break;
                 case SDLK_DOWN: keys_.push_back(kDown); break;
                 default: break;
+                }
+                // The character, Caps Lock not read (the library takes Shift
+                // alone): the keyboard's layout, Backspace, Tab, Enter and Esc
+                // (8, 9, 0Dh, 1Bh); the keypad by the library's table. None
+                // with Alt alone (WM_SYSKEYDOWN: 39:02e4 takes any as Alt).
+                const SDL_Keymod mod = e.key.mod;
+                if (!(mod & SDL_KMOD_ALT) || (mod & SDL_KMOD_CTRL) || (mod & SDL_KMOD_MODE)) {
+                    const bool shift = (mod & SDL_KMOD_SHIFT) != 0;
+                    const bool pad = e.key.scancode >= SDL_SCANCODE_KP_DIVIDE && e.key.scancode <= SDL_SCANCODE_KP_PERIOD;
+                    if (pad) {
+                        if (const int scan = scanCode(e.key.scancode))
+                            if (const char c = kLibraryChars[shift ? 1 : 0][scan]) keys_.push_back(c);
+                    } else {
+                        const SDL_Keycode k = SDL_GetKeyFromScancode(
+                            e.key.scancode, static_cast<SDL_Keymod>(mod & (SDL_KMOD_SHIFT | SDL_KMOD_MODE)), false);
+                        if ((k >= 32 && k < 127) || k == kBackspace || k == kTab || k == kEnter || k == kEscape)
+                            keys_.push_back(static_cast<int>(k));
+                    }
                 }
             }
             if (e.type == SDL_EVENT_MOUSE_MOTION) autoMouse_ = false;
@@ -301,6 +405,12 @@ public:
         const int k = keys_.front();
         keys_.erase(keys_.begin());
         return k;
+    }
+
+    bool takeKeyDown() override {
+        const bool down = keyDown_;
+        keyDown_ = false;
+        return down;
     }
 
     bool takeKeyIf(int key) override {
@@ -455,6 +565,7 @@ private:
     bool music_ = true;
     std::string fmDll_;
     std::vector<int> keys_;
+    bool keyDown_ = false;  // a key went down (takeKeyDown)
     uint64_t start_ = 0;
     uint64_t virtualNow_ = 0, wavEnd_ = 0;  // --virtual-clock
     uint64_t lastCapture_ = 0;
@@ -515,12 +626,16 @@ int main(int argc, char** argv) {
             const std::string name = argv[++i];
             const int key = name == "esc" ? SdlPlatform::kEscape : name == "kp5" ? SdlPlatform::kCentre
                             : name == "left" ? SdlPlatform::kLeft : name == "right" ? SdlPlatform::kRight
-                            : name == "up" ? SdlPlatform::kUp : name == "down" ? SdlPlatform::kDown : 0;
+                            : name == "up" ? SdlPlatform::kUp : name == "down" ? SdlPlatform::kDown
+                            : name == "shift" ? SdlPlatform::kShift : 0;
             const uint64_t ms = std::strtoull(argv[++i], nullptr, 10);
             if (key) automation.keys.push_back({at, key, ms});
         } else if (a == "--type" && i + 2 < argc) {
             const uint64_t at = std::strtoull(argv[++i], nullptr, 10);
             automation.typed.push_back({at, argv[++i]});
+        } else if (a == "--press" && i + 2 < argc) {
+            const uint64_t at = std::strtoull(argv[++i], nullptr, 10);
+            automation.pressed.push_back({at, argv[++i]});
         } else if (a == "--room" && i + 1 < argc) {
             startRoom = std::atoi(argv[++i]);
         } else if (a == "--virtual-clock") {
