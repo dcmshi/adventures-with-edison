@@ -162,7 +162,12 @@ bool Mystery::planetarium(int level) {
             points += 0x32;
             drawLogo(x, y, 0x20A3);
             nameBox(dataString(dataWord(record(shown) + 7)));
-            messageBox(lines_at(dataWord(dataWord(record(shown) + 9))));
+            // At the top, centred on the fact's own lines (f06_0956: the
+            // widest + 20h, not counting the box's last line; 28:1134).
+            const std::vector<std::string> fact = lines_at(dataWord(dataWord(record(shown) + 9)));
+            int widest = 0;
+            for (const auto& l : fact) widest = std::max(widest, font_->width(l));
+            messageBox(fact, (Screen::kWidth - (widest + 0x20)) / 2, 1);
             select(2);
             fill(0xE2, 0x107, 0xB8, 0x46, 0);
             copyArea(2, 1, 0xE2, 0x107, 0xB8, 0x46);
@@ -307,12 +312,13 @@ bool Mystery::planetarium(int level) {
             }
         }
     }
-    ctx_.timer.setPeriodic(kSecondSlot, 0, nullptr);  // g28_174c
     panels_.clear();
     if (!won) {
+        ctx_.timer.setPeriodic(kSecondSlot, 0, nullptr);  // g28_174c
         puzzleResult(false, 0, 0, 0);
         return false;
     }
+    // The clock runs on through the count (g28_174c stops it after).
     const int used = limit - timeLeft;  // [B794]
     int result = 2;
     if (misses <= 5) {
@@ -327,6 +333,7 @@ bool Mystery::planetarium(int level) {
         }
     }
     digitalTime(0x96, 0xEC, 0x3C, 0x14, limit - used);
+    ctx_.timer.setPeriodic(kSecondSlot, 0, nullptr);
     puzzleResult(true, points, result, used);
     return true;
 }

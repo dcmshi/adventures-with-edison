@@ -87,7 +87,17 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
   shots against the port's closest frame within 1.5 s, the diffs to
   `build/scratch/mmcompare/`; the original's `MYSTERY.HS` and
   `MEDISON.COL` put back after. Needs the CD image mounted (the speech).
-  Not in `check.py`.
+  Not in `check.py`. A shot that differs also gets `zoom-SHOT.png` (the
+  area, original | port, enlarged). `--watch EXPR...` has `memwatch.py`
+  follow the original's data segment while it plays (to
+  `NAME/orig/watch.txt`); `--peek SECONDS EXPR...` reads it once.
+- `mmsolve.py rng | answers | board | next ...`: works out the moves for
+  `mmcompare.py`'s `playPPdD` scenarios from the port's draws
+  (`EDISON_RNGLOG`): each round's answer (a `random(N)` after a
+  `random(M)`), the Switch, Slide and Arrow puzzles' deals and solutions,
+  the Dig's dug-out tiles and places, What Comes Next's answers (probed).
+  Ties with the clock: a solve or a blocking box near a second's tick
+  races between the two games; the scenarios put them mid-second.
 - `aimsearch.py SPEC [--jobs N] [--limit S] -- ARGS...`: `SCI_AIMSEARCH`
   split by rows over N processes (default half the cores), dialogs
   skipped; progress per process to stderr, the aims found to stdout; a

@@ -3,7 +3,6 @@
 // following the key.
 
 #include <algorithm>
-#include <cmath>
 #include <utility>
 
 #include "mystery/mystery.h"
@@ -78,12 +77,12 @@ bool Mystery::colourTransformation(int level) {
         auto lower = [&](int rx, int ry, int w, int h) {  // g27_0308
             poly({{rx, ry}, {rx + w - 1, ry + h - 1}, {rx, ry + h - 1}}, next());
         };
-        auto circle = [&](int cx, int cy, int r) {  // g27_03b6: twenty points
+        auto circle = [&](int cx, int cy, int r) {  // g27_03b6: twenty points, the table's sines (g51_1000)
             std::vector<std::pair<int, int>> pts;
             for (int k = 0; k < 20; ++k) {
-                const double a = static_cast<uint16_t>(k * 0xD79) * (2 * 3.14159265358979 / 65536);
-                pts.emplace_back(cx + static_cast<int>(std::lround(std::cos(a) * 32767) * r >> 15),
-                                 cy + static_cast<int>(std::lround(std::sin(a) * 32767) * r >> 15));
+                int sine, cosine;
+                sinCos(static_cast<uint16_t>(k * 0xD79), &sine, &cosine);
+                pts.emplace_back(cx + (cosine * r >> 15), cy + (sine * r >> 15));
             }
             poly(pts, next());
         };

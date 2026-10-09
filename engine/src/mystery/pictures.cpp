@@ -554,10 +554,12 @@ void Mystery::addBoardPanel() {
         if (r >= pic_.size || c >= pic_.size) return;
         music(0x12);
         const int x = pic_.left + c * (pic_.tileW + kGap), y = pic_.top + r * (pic_.tileH + kGap);
-        line(x, y, x + pic_.tileW - 1, y, 0xC2);
-        line(x, y + pic_.tileH - 1, x + pic_.tileW - 1, y + pic_.tileH - 1, 0xC2);
-        line(x, y, x, y + pic_.tileH - 1, 0xC2);
-        line(x + pic_.tileW - 1, y, x + pic_.tileW - 1, y + pic_.tileH - 1, 0xC2);
+        // MALL's line (f06_1af8) on the display: each line's far end left
+        // off, so the bottom right corner stays.
+        displayLine(x, y, x + pic_.tileW - 1, y, 0xC2);
+        displayLine(x, y + pic_.tileH - 1, x + pic_.tileW - 1, y + pic_.tileH - 1, 0xC2);
+        displayLine(x, y, x, y + pic_.tileH - 1, 0xC2);
+        displayLine(x + pic_.tileW - 1, y, x + pic_.tileW - 1, y + pic_.tileH - 1, 0xC2);
         if (pic_.pickedCount == 0) pic_.picked = b;
         ++pic_.pickedCount;
     };

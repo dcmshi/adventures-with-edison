@@ -44,6 +44,7 @@ bool Mystery::ballSculpture(int level) {
     std::vector<Point3> balls;       // DS:C452
     std::vector<int> ballColour;     // DS:C5B6 (DS:B32C keeps them)
     std::vector<int> shape;          // this sculpture's places
+    uint16_t shapeList = 0;          // where they're listed (DS:6480...)
     int shapeCount = 0;              // [C774]
     uint16_t turnA = 0, turnC = 0;   // [9396], [939A]
 
@@ -74,10 +75,22 @@ bool Mystery::ballSculpture(int level) {
             if (first) ballColour.push_back(colours == 1 ? 0 : random(colours));
         }
         std::vector<int> colour = ballColour;
+        // The added balls' places (30:0e81): each is checked against one
+        // word only, the list's first at first; the loop meant to walk the
+        // list moves its start on instead (30:0ea6), 27 words for each
+        // ball let in. A -1 there lets any place in.
+        uint16_t check = shapeList;
         for (int n = 0; n < extra; ++n) {
             int at;
-            do at = random(kSpots);
-            while (std::find(shape.begin(), shape.end(), at) != shape.end());
+            for (;;) {
+                at = random(kSpots);
+                const int16_t w = word(check);
+                if (w == -1) break;
+                if (at != w) {
+                    check = static_cast<uint16_t>(check + 2 * kSpots);
+                    break;
+                }
+            }
             balls.push_back(spots[static_cast<size_t>(at)]);
             colour.push_back(colours == 1 ? 0 : random(colours));
         }
@@ -240,9 +253,6 @@ bool Mystery::ballSculpture(int level) {
     panels_.add(machine);
     setView(0xAA, 0x54, 0x1D6, 0x110);
     helpPanel(0xC, 0x22, 0x4A, 0x2A);
-    ctx_.timer.setPeriodic(kSecondSlot, 1, [&] {  // g30_0026
-        if (timeLeft > 0) --timeLeft;
-    });
 
     while (left > 0 && !quit) {
         // A new sculpture (one of the level's six shapes) and the four
@@ -251,8 +261,8 @@ bool Mystery::ballSculpture(int level) {
         roundDone = false;
         shape.clear();
         ballColour.clear();
-        for (uint16_t at = dataWord(static_cast<uint16_t>(row + 1 + 2 * random(6))); word(at) != -1 && shape.size() < kSpots;
-             at = static_cast<uint16_t>(at + 2))
+        shapeList = dataWord(static_cast<uint16_t>(row + 1 + 2 * random(6)));
+        for (uint16_t at = shapeList; word(at) != -1 && shape.size() < kSpots; at = static_cast<uint16_t>(at + 2))
             shape.push_back(word(at));
         right = random(4);
         select(1);
@@ -280,6 +290,10 @@ bool Mystery::ballSculpture(int level) {
         turnA = static_cast<uint16_t>(random(0x10000));
         turnC = static_cast<uint16_t>(random(0x10000));
         render(true, colour, false);
+        // The clock's second starts again with each sculpture (30:15FB).
+        ctx_.timer.setPeriodic(kSecondSlot, 1, [&] {  // g30_0026
+            if (timeLeft > 0) --timeLeft;
+        });
         while (!roundDone && !quit) {
             panels_.poll(ctx_.platform);
             ctx_.pump();

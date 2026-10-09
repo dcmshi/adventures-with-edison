@@ -7,6 +7,7 @@ winevdm (MALLSKIP.EXE, tools/reference/mall_skip.py, the same), each of
 the original's shots against the port's closest frame near its time.
 
   python tools/testing/mmcompare.py [NAME ...] [--port-only | --compare-only] [--list]
+      [--watch EXPR ...] [--peek SECONDS EXPR ...]
 
 Both draw the same random numbers (segment 46's generator is never
 seeded: docs/MYSTERY.md), so the boards, the puzzles and their layouts are
@@ -14,12 +15,22 @@ the same. Time 0 is the level's click. Shots and diffs (the pixels that
 differ in magenta) go to build/scratch/mmcompare/NAME/. Needs EDISON_RUN
 and OTVDM, and the CD mounted (the speech WAVs are on it). The original's
 MYSTERY.HS and MEDISON.COL are put back after each run, SKIP.INF removed.
+
+A shot that differs also gets zoom-SHOT.png: the differing area, the
+original's on the left, the port's on the right, enlarged. --watch has
+tools/reference/memwatch.py follow the original's data segment while it
+plays (its expressions: `88ac` the word at DS:88AC, `u:9396`, `[x]+2`...;
+lines to NAME/orig/watch.txt, milliseconds since it found the game);
+--peek reads them once, SECONDS after the level's click. mmsolve.py works
+out the puzzles' moves.
 """
 import argparse
 import os
 import shutil
 import subprocess
 import sys
+import threading
+import time
 from pathlib import Path
 
 from PIL import Image, ImageChops
@@ -170,11 +181,376 @@ def decode(t, word, gap=1.6):
 
 
 SCENARIOS["play06d0"] = puzzle_play(6, 0, [click(13, *code_slot(0)), click(13.4, *code_letter("B"))]
-                                    + decode(15, "WASHINGTON"),
-                                    [(13.2, "picked"), (13.8, "wrong"), (14.6, "after"), (15.8, "right"),
-                                     (17, "one"), (22, "mid"), (29.6, "last"), (30.2, "right10"), (31.5, "won"),
-                                     (33, "won2"), (36, "won3"), (40, "won4")])
+                                    + decode(15.5, "WASHINGTON"),
+                                    [(13.2, "picked"), (13.8, "wrong"), (14.6, "after"), (16.3, "right"),
+                                     (17.5, "one"), (22.5, "mid"), (30.1, "last"), (30.7, "right10"), (32, "won"),
+                                     (33.5, "won2"), (36.5, "won3"), (40.5, "won4")])
+# (The decoding starts at 15.5 s so the solve, a second after the last
+# letter, comes halfway between two of the clock's seconds: the clock runs
+# on through the count, and a second there takes a step off it.)
+# Unscrambling (level 1): "DLOLAR DIME  AS IDME NPENY" (phrase 1, DS:39B6)
+# by four swaps; slot 16 is clicked twice before 17, which still swaps
+# them ([3D80] counts on).
+SCENARIOS["play06d1"] = puzzle_play(6, 1, [click(t, *code_slot(i)) for t, i in
+                                           [(13, 1), (13.6, 2), (15, 16), (15.6, 16), (16.4, 17), (18, 21),
+                                            (18.6, 22), (19.7, 22), (20.3, 23)]],
+                                    [(13.2, "one"), (13.8, "swap1"), (15.8, "same"), (16.6, "swap2"),
+                                     (18.8, "swap3"), (20.5, "won"), (22, "won2"), (25, "won3"), (30, "won4")])
 
+
+# The Folded Cube (g29_10c0): net K (DS:674A's panel at 1B2h, DEh), the
+# arrows that turn the cube (DS:6708's at 40h, 110h), the machine.
+CUBE_NETS = [(0x1B2 + x + 0x26, 0xDE + y + 0x1C) for x, y in ((0x10, 0xE), (0x68, 0xE), (0x10, 0x52), (0x68, 0x52))]
+CUBE_ARROWS = [(0x40 + x + w // 2, 0x110 + y + h // 2)
+               for x, y, w, h in ((0x18, 2, 0x28, 0x19), (0x28, 0x39, 0x28, 0x17), (0, 0x1E, 0x28, 0x19),
+                                  (0x40, 0x19, 0x20, 0x1C))]
+CUBE_MACHINE = (0x15E + 0x15, 0x162 + 0x10)
+# (The arrows turn the cube 180h a pass of the loop, unpaced: under winevdm
+# about 570 a second, so a held arrow isn't compared; the port turns once
+# a frame.)
+SCENARIOS["play00d0"] = puzzle_play(0, 0, [click(17, *CUBE_NETS[0]), click(19, *CUBE_MACHINE),
+                                          click(23, *CUBE_NETS[3])]
+                                    + [click(23 + 3 * i, *CUBE_NETS[k]) for i, k in enumerate([0, 1, 3, 1], 1)],
+                                    [(14, "cube1"), (17.3, "wrong"),
+                                     (19.5, "machine"), (21, "machine2"), (23.3, "right"), (24.5, "cube2"),
+                                     (27.5, "cube3"), (30.5, "cube4"), (33.5, "cube5"), (35.5, "won"), (37, "won2"),
+                                     (40, "won3"), (45, "won4")])
+# (Each cube's right net, from the generator: 3, 0, 1, 3, 1.)
+# The hardest level (two faces traded on the wrong nets): six misses, so
+# no bonus and the result's mode 2 (Edison's speech for a score <= 0).
+SCENARIOS["play00d7"] = puzzle_play(0, 7, [click(t, *CUBE_NETS[k]) for t, k in
+                                          [(13, 0), (13.6, 1), (14.2, 2), (15, 3), (17, 0), (17.6, 1), (18.2, 2),
+                                           (19, 3), (21, 2), (23, 2), (25, 1)]],
+                                    [(12.5, "cube1"), (13.3, "miss1"), (14.4, "miss3"), (15.5, "cube2"),
+                                     (18.4, "miss6"), (19.5, "cube3"), (21.5, "cube4"), (23.5, "cube5"),
+                                     (25.3, "won"), (27, "won2"), (30, "won3"), (35, "won4")])
+
+
+
+# Liberty Planetarium (g28_178e): picture K (DS:909C's panel at 1C0h, EBh),
+# the dome (a click shows or hides the lines), the help button (f06_2436
+# at Eh, 78h), the projector (DS:5FE2). A right pick shows the fact (at
+# the top: 28:1148), which a click puts away.
+PLAN_BOXES = [(0x1C0 + x + 0x28, 0xEB + y + 0x1D) for x, y in ((0, 0), (0x58, 0), (0, 0x46), (0x58, 0x46))]
+PLAN_DOME = (0xF0 + 0x5A, 0x28 + 0x50)
+PLAN_HELP = (0xE + 0x1E, 0x78 + 0x1E)
+PLAN_MACHINE = (0x26 + 0x1B, 0x2E + 0xB)
+BALL_BOXES = CUBE_NETS  # the same panel (DS:674A)
+
+
+def plan_rounds(t, picks):
+    return [e for i, k in enumerate(picks) for e in (click(t + 4 * i, *PLAN_BOXES[k]), click(t + 4 * i + 2, 320, 200))]
+
+
+# (Each round's right picture, from the generator: 1, 2, 2, 2, 1.)
+SCENARIOS["play01d0"] = puzzle_play(1, 0, [click(13, *PLAN_BOXES[0]), click(14, *PLAN_DOME), click(15, *PLAN_HELP),
+                                          click(17, 320, 200), click(18, *PLAN_MACHINE)]
+                                    + plan_rounds(27, [1, 2, 2, 2, 1]),
+                                    [(12.5, "r1"), (13.3, "wrong"), (14.3, "nolines"), (15.5, "help"),
+                                     (17.5, "helped"), (19, "projector"), (22, "projector2"), (26.5, "projected"),
+                                     (27.5, "fact1"), (29.5, "r2"), (31.5, "fact2"), (39.5, "fact4"), (41.5, "r5"),
+                                     (43.5, "fact5"), (45.5, "won"), (47, "won2"), (50, "won3"), (55, "won4")])
+# The hardest level (dots, a star moved on the wrong ones; answers 1, 0, 1,
+# 1, 2): six misses, so no bonus.
+SCENARIOS["play01d2"] = puzzle_play(1, 2, [click(t, *PLAN_BOXES[k]) for t, k in [(13, 0), (13.6, 2), (14.2, 3), (15, 1)]]
+                                    + [click(17, 320, 200)]
+                                    + [click(t, *PLAN_BOXES[k]) for t, k in [(19, 1), (19.6, 2), (20.2, 3), (21, 0)]]
+                                    + [click(23, 320, 200)] + plan_rounds(25, [1, 1, 2]),
+                                    [(12.5, "r1"), (14.4, "miss3"), (15.5, "fact1"), (18, "r2"), (20.4, "miss6"),
+                                     (21.5, "fact2"), (25.5, "fact3"), (33.5, "fact5"), (35.5, "won"), (37, "won2"),
+                                     (40, "won3"), (45, "won4")])
+
+
+# The 3D Ball Sculpture (g30_136c): the Folded Cube's panels. (Answers 2,
+# 2, 3, 1, 1.)
+SCENARIOS["play02d0"] = puzzle_play(2, 0, [click(13, *BALL_BOXES[0]), click(14.5, *CUBE_MACHINE), click(18, *BALL_BOXES[2])]
+                                    + [click(21.3 + 3 * i, *BALL_BOXES[k]) for i, k in enumerate([2, 3, 1, 1])],
+                                    [(12.5, "r1"), (13.3, "wrong"), (15, "machine"), (18.3, "right"), (19.5, "r2"),
+                                     (22.5, "r3"), (25.5, "r4"), (28.5, "r5"), (30.6, "won"), (32, "won2"),
+                                     (35, "won3"), (40, "won4")])
+# The hardest level (answers 2, 0, 2, 0, 2): six misses, no bonus. (Its
+# time is the level of the game before's: level 0's in a new game.)
+SCENARIOS["play02d5"] = puzzle_play(2, 5, [click(t, *BALL_BOXES[k]) for t, k in
+                                          [(13, 0), (13.6, 1), (14.2, 3), (15, 2), (16.5, 1), (17.1, 2), (17.7, 3),
+                                           (18.5, 0), (21.5, 2), (24.5, 0), (27.5, 2)]],
+                                    [(12.5, "r1"), (14.4, "miss3"), (15.5, "r2"), (17.9, "miss6"), (19, "r3"),
+                                     (22, "r4"), (25, "r5"), (27.8, "won"), (29, "won2"), (32, "won3"), (37, "won4")])
+
+
+# The Question and Answer Period (f19_16a2): block K (DS:368E's panel at
+# B0h, 4Eh: 48h x 2Eh), the pads 1-4 (DS:37B2 at C2h, 142h, every 48h),
+# help (218h, F8h), the machine (DS:37D6).
+QA_BLOCKS = [(0xB0 + x + 0x24, 0x4E + y + 0x17) for x, y in
+             ((0x20, 0), (0x68, 0), (0xB0, 0), (0, 0x27), (0x48, 0x27), (0x90, 0x27), (0xD8, 0x27), (0x20, 0x4E),
+              (0x68, 0x4E), (0xB0, 0x4E), (0, 0x75), (0x48, 0x75), (0x90, 0x75), (0xD8, 0x75), (0x20, 0x9C),
+              (0xB0, 0x9C))]
+QA_PADS = [(0xC2 + 0x48 * k + 0x13, 0x142 + 0xA) for k in range(4)]
+QA_HELP = (0x218 + 0x28, 0xF8 + 0xB)
+QA_MACHINE = (0x58 + 0x24, 0xF4 + 0x13)
+# Each block's right answer (resource 3F0B's questions, as the generator
+# shuffles them with no facts learned).
+QA_RIGHT = [2, 2, 0, 0, 2, 2, 2, 3, 0, 3, 1, 3, 1, 3, 1, 1]
+SCENARIOS["play04d0"] = puzzle_play(4, 0, [click(13.5, *QA_BLOCKS[0]), click(14.5, *QA_PADS[0]), click(17.5, *QA_HELP),
+                                          click(19, 320, 200), click(20, *QA_MACHINE)]
+                                    + [e for k in range(1, 16) for e in (click(19.5 + 3 * k, *QA_BLOCKS[k]),
+                                                                         click(20.5 + 3 * k, *QA_PADS[QA_RIGHT[k]]))],
+                                    [(12.5, "board"), (14.2, "q0"), (14.8, "wrong"), (16, "wrong2"), (17, "answered"),
+                                     (18, "help"), (20.5, "machine"), (22.8, "q1"), (23.7, "right1"), (25, "q1done"),
+                                     (40, "mid"), (65, "q15"), (65.8, "right15"), (67, "won"), (69, "won2"),
+                                     (72, "won3"), (77, "won4")])
+
+
+# Dropping Squares (g18_22de): the buttons under the well (DS:34EC's panel
+# at D5h, 131h: left, right, turn, drop), help (8, A3h), exit (223h, A3h).
+# The drop falls a row a pass of the loop, unpaced in the original, so the
+# shots come after each column lands. (Winning is 53 squares of cloth: not
+# played; the exit lever ends it.)
+DROP_LEFT, DROP_RIGHT = (0xD5 + 0x32, 0x131 + 0x28), (0xD5 + 0x96, 0x131 + 0x28)
+DROP_TURN, DROP_DROP = (0xD5 + 0x62, 0x131 + 0xA), (0xD5 + 0x64, 0x131 + 0x4C)
+DROP_HELP, DROP_EXIT = (8 + 0x2A, 0xA3 + 0x26), (0x223 + 0x2A, 0xA3 + 0x26)
+
+
+def drop_moves(t, buttons, gap=0.2):
+    return [click(t + gap * i, *b) for i, b in enumerate(buttons)]
+
+
+SCENARIOS["play05d0"] = puzzle_play(5, 0, drop_moves(13, [DROP_LEFT, DROP_LEFT, DROP_TURN, DROP_DROP])
+                                    + drop_moves(16, [DROP_RIGHT] * 3 + [DROP_DROP]) + drop_moves(19, [DROP_DROP])
+                                    + drop_moves(21, [DROP_LEFT] * 5 + [DROP_DROP])
+                                    + drop_moves(24, [DROP_TURN, DROP_DROP])
+                                    + [click(26, *DROP_HELP), click(28, 320, 200)]
+                                    + drop_moves(30, [DROP_RIGHT, DROP_DROP]) + [click(33, *DROP_EXIT)],
+                                    [(12.5, "c1"), (13.5, "moved1"), (15, "landed1"), (16.5, "moved2"), (18, "landed2"),
+                                     (20.5, "landed3"), (23.5, "landed4"), (25.5, "landed5"), (27, "help"),
+                                     (29, "helped"), (32, "landed6"), (34, "exit"), (36, "exit2"), (40, "exit3")])
+
+
+# The Circuit Analyzer (g16_089c, Mastermind): plug K (DS:30CC's panel at
+# 8, A0h: column K / 4, place K % 4), column C's check button (DS:31A4 at
+# 5, 65h), the meter (DS:31C8), help. A plug goes empty, colour 0, 1...
+def circuit_plug(k):
+    return (8 + (k // 4) * 0x34 + 0x18, 0xA0 + (k % 4) * 0x32 + 0xD)
+
+
+def circuit_check(c):
+    return (5 + c * 0x34 + 0x17, 0x65 + 0xE)
+
+
+CIRCUIT_METER = (0x21C + 0x32, 0x15E + 0x17)
+CIRCUIT_HELP = (0x12 + 0x1C, 0xC + 9)
+
+
+def circuit_try(t, column, colours, gap=0.3):
+    """Column's four plugs set to the colours (colour v: v + 1 clicks), then
+    its check button."""
+    events = []
+    for place, v in enumerate(colours):
+        for _ in range(v + 1):
+            events.append(click(t, *circuit_plug(column * 4 + place)))
+            t += gap
+    return events + [click(t + 0.3, *circuit_check(column))]
+
+
+# (The codes, from the generator: level 0 1, 0, 0, 1; level 7 3, 2, 4, 1.)
+SCENARIOS["play08d0"] = puzzle_play(8, 0, circuit_try(13, 0, [0, 0, 0, 0])
+                                    + [click(15.5, *CIRCUIT_METER), click(17.5, *CIRCUIT_HELP), click(19, 320, 200)]
+                                    + circuit_try(20, 1, [1, 0, 0, 1]),
+                                    [(12.5, "start"), (13.5, "plugs"), (14.8, "checked"), (16, "meter"),
+                                     (18, "help"), (20.5, "plugs2"), (22, "plugs3"), (22.5, "won"), (24, "won2"),
+                                     (27, "won3"), (32, "won4")])
+SCENARIOS["play08d7"] = puzzle_play(8, 7, circuit_try(13, 0, [0, 1, 2, 3]) + circuit_try(17.5, 1, [3, 2, 4, 1]),
+                                    [(12.5, "start"), (16, "plugs"), (17, "checked"), (21, "plugs2"), (22.7, "won"),
+                                     (24, "won2"), (27, "won3"), (32, "won4")])
+
+
+# Stackup (g25_1f6a): row I's stack C (DS:8CDE's panel at 168h, 23h: 46h x
+# 32h, rows 37h apart), help (26h, 15Fh), the monitor's gadget (DS:B73C).
+def stack(i, c):
+    return (0x168 + c * 0x46 + 0x23, 0x23 + i * 0x37 + 0x19)
+
+
+STACK_HELP, STACK_MACHINE = (0x26 + 0x22, 0x15F + 0xE), (0x12C + 0x1C, 0x162 + 0x12)
+# (Each row's right stack, from the generator: level 0 2, 0, 0, 2, 1; level
+# 2 2, 1, 2, 1, 1. A wrong pick slides the bars together.)
+SCENARIOS["play09d0"] = puzzle_play(9, 0, [click(13, *stack(0, 0)), click(15, *STACK_HELP), click(16.5, 320, 200),
+                                          click(17.5, *STACK_MACHINE)]
+                                    + [click(t, *stack(i, c)) for t, i, c in
+                                       [(21, 1, 0), (22, 2, 0), (23, 3, 2), (24.3, 4, 1)]],
+                                    [(12.5, "rows"), (14.5, "wrong"), (15.5, "help"), (17, "helped"), (18.5, "machine"),
+                                     (21.3, "right1"), (23.3, "right3"), (24.5, "won"), (26, "won2"), (30, "won3"),
+                                     (35, "won4")])
+SCENARIOS["play09d2"] = puzzle_play(9, 2, [click(t, *stack(i, c)) for t, i, c in
+                                          [(13, 0, 0), (15, 1, 0), (17, 2, 0), (19, 3, 1), (20, 4, 1)]],
+                                    [(12.5, "rows"), (14.5, "wrong1"), (18.5, "wrong3"), (19.5, "right4"),
+                                     (20.5, "won"), (22, "won2"), (26, "won3"), (31, "won4")])
+
+
+# The picture puzzles (segments 12-14): the board's cell R, C (loadPicture's
+# layout for an N x N board of a W x H picture), the hold-to-view button
+# (DS:223A), the gadget (DS:220A), help.
+def pic_cell(n, w, h, r, c):
+    tw, th = w // n, h // n
+    left, top = 0x140 - (tw * n + (n - 1) * 2) // 2, 0x100 - (th * n + (n - 1) * 2) // 2
+    return (left + c * (tw + 2) + tw // 2, top + r * (th + 2) + th // 2)
+
+
+PIC_VIEW, PIC_GADGET, PIC_HELP = (0x118 + 0x35, 0x54 + 0xC), (0x232 + 0x1C, 0x10C + 0xD), (0x6C + 0x24, 0x12 + 0x11)
+
+
+def pic_extras(t):
+    """The whole picture held a second, the gadget, help: about 9 s."""
+    return [hold(t, *PIC_VIEW, 1.0), click(t + 2, *PIC_GADGET), click(t + 7, *PIC_HELP), click(t + 8.5, 320, 200)]
+
+
+def switch_solve(t, n, size, board, gap=0.4):
+    """Tiles swapped into place in order (two clicks a swap)."""
+    board, events = list(board), []
+    for at in range(n * n):
+        if board[at] != at:
+            other = board.index(at)
+            for k in (at, other):
+                events.append(click(t, *pic_cell(n, *size, k // n, k % n)))
+                t += gap
+            board[at], board[other] = board[other], board[at]
+    return events
+
+
+# (The deals, from the generator.)
+SCENARIOS["play12d0"] = puzzle_play(12, 0, pic_extras(13) + switch_solve(23, 2, (320, 200), [1, 0, 2, 3]),
+                                    [(12.5, "board"), (13.5, "view"), (14.5, "viewed"), (16, "gadget"), (18, "show"),
+                                     (20.5, "help"), (22, "helped"), (23.2, "marked"), (23.8, "won"), (25, "won2"),
+                                     (28, "won3"), (33, "won4")])
+SCENARIOS["play12d6"] = puzzle_play(12, 6, switch_solve(13, 8, (304, 192), [
+    22, 36, 3, 62, 51, 55, 63, 49, 14, 9, 24, 54, 28, 52, 34, 27, 6, 18, 41, 38, 5, 43, 53, 25, 48, 19, 47, 58, 8, 2, 31,
+    57, 42, 61, 10, 33, 16, 35, 12, 44, 21, 7, 20, 46, 56, 59, 17, 60, 45, 37, 29, 40, 11, 30, 50, 26, 4, 39, 23, 32, 1, 0,
+    15, 13]), [(12.5, "board"), (20, "swaps"), (35, "swaps2"), (50, "swaps3"), (61.6, "won"), (63, "won2"), (66, "won3"),
+               (71, "won4")])
+
+
+def slide_moves(t, n, size, cells, gap=0.6):
+    return [click(t + gap * i, *pic_cell(n, *size, r, c)) for i, (r, c) in enumerate(cells)]
+
+
+# (The shortest slides back from the generator's mix. The bonus count has
+# no waits, so the original's takes as long as its drawing; the shots
+# come after it.)
+SCENARIOS["play10d0"] = puzzle_play(10, 0, pic_extras(13) + slide_moves(23, 2, (320, 200),
+                                                                        [(1, 1), (1, 0), (0, 0), (0, 1), (1, 1)]),
+                                    [(12.5, "board"), (13.5, "view"), (16, "gadget"), (20.5, "help"), (23.3, "slid"),
+                                     (24.5, "slid3"), (25.7, "won"), (27, "won2"), (30, "won3"), (35, "won4")])
+SCENARIOS["play10d1"] = puzzle_play(10, 1, slide_moves(13, 3, (300, 180), [
+    (2, 1), (2, 0), (1, 0), (0, 0), (0, 1), (0, 2), (1, 2), (1, 1), (1, 0), (0, 0), (0, 1), (1, 1), (2, 1), (2, 2)]),
+                                    [(12.5, "board"), (15.3, "slid4"), (18.9, "slid10"), (22, "won"), (23, "won2"),
+                                     (26, "won3"), (31, "won4")])
+
+
+def arrow_button(n, size, a):
+    """The Arrow Puzzle's arrow A (0-7 above column A, 8-15 below, 16-23
+    left of row A - 16, 24-31 right) for N x N tiles of a W x H picture."""
+    w, h = size
+    b = n + 2
+    tw, th = w // n, h // n
+    left, top = 0x140 - (tw * b + (b - 1) * 2) // 2, 0x100 - (th * b + (b - 1) * 2) // 2
+    right, bottom = left + b * tw + (b - 1) * 2, top + b * th + (b - 1) * 2
+    g, k = divmod(a, 8)
+    if g < 2:
+        return (left + k * (tw + 2) + tw // 2, top - 20 + 9 if g == 0 else bottom + 9)
+    return (left - 20 + 9 if g == 2 else right + 9, top + k * (th + 2) + th // 2)
+
+
+PIC_LEVER = (0x258 + 0xF, 0xBA + 0x20)  # DS:21E6: give up
+# (Level 0's shortest way from the generator's deal; level 1's is too long
+# to search, so it shoves a few rows and columns and gives up.)
+# (The arrows are held 80 ms, as the original's script's clicks are: the
+# win ends the loop with the last one still down, so it stays pressed. The
+# clock starts at the first shove; half a second apart, the win comes clear
+# of a second: one during the lever's 0.4 s counts the bonus twice, the
+# second time from nothing, in both games: g12_1416.)
+SCENARIOS["play13d0"] = puzzle_play(13, 0, pic_extras(13) + [hold(23 + 0.5 * i, *arrow_button(2, (172, 100), a))
+                                                             for i, a in enumerate([3, 17, 26, 3, 17, 27, 3])],
+                                    [(12.5, "board"), (13.5, "view"), (16, "gadget"), (20.5, "help"), (23.3, "shove1"),
+                                     (24.3, "shove3"), (25.5, "shove6"), (27, "won"), (28, "won2"), (30, "won3"),
+                                     (35, "won4")])
+SCENARIOS["play13d1"] = puzzle_play(13, 1, [hold(13 + 0.6 * i, *arrow_button(3, (204, 120), a))
+                                            for i, a in enumerate([0, 8, 16, 24, 2, 18, 12, 28])]
+                                    + [click(19, *PIC_LEVER)],
+                                    [(12.5, "board"), (14, "shove3"), (16, "shove6"), (18, "shove8"), (19.5, "lever"),
+                                     (21, "lever2"), (24, "lever3"), (28, "lever4")])
+
+
+# Color Transformation (g27_1032): row I's choice K (DS:5034's buttons at
+# F5h + 50h K, 4Bh + 30h I: 46h x 28h), help, the monitor's gadget.
+def colour_choice(i, k):
+    return (0xF5 + k * 0x50 + 0x23, 0x4B + i * 0x30 + 0x14)
+
+
+# (Each row's right choice, from the generator: level 0 2, 2, 0, 1, 3; level
+# 8 2, 1, 2, 0, 0. Five right first time cycle the colours at the end.)
+SCENARIOS["play11d0"] = puzzle_play(11, 0, [click(13.5, *STACK_HELP), click(14.7, 320, 200), click(15.5, *STACK_MACHINE)]
+                                    + [click(t, *colour_choice(i, k)) for i, (t, k) in
+                                       enumerate([(19, 2), (20, 2), (21, 0), (22, 1), (23.3, 3)])],
+                                    [(12.5, "rows"), (14, "help"), (16.5, "machine"), (19.3, "right1"),
+                                     (22.3, "right4"), (23.5, "cycle"), (24.5, "cycle2"), (25.5, "cycle3"),
+                                     (27.5, "won"), (29, "won2"), (35, "won3")])
+SCENARIOS["play11d8"] = puzzle_play(11, 8, [click(t, *colour_choice(i, k)) for t, i, k in
+                                          [(13, 0, 0), (13.6, 0, 2), (14.5, 1, 0), (15.1, 1, 2), (15.7, 1, 3),
+                                           (16.5, 1, 1), (17.5, 2, 2), (18.5, 3, 0), (19.3, 4, 0)]],
+                                    [(12.5, "rows"), (13.3, "wrong"), (13.9, "right1"), (16, "wrong3"),
+                                     (16.8, "right2"), (19.5, "won"), (21, "won2"), (24, "won3"), (29, "won4")])
+
+
+# What Comes Next (g26_19d8): row I's answer K (DS:9006's panel at 14Fh,
+# 23h: 3Ch x 32h, rows 37h apart); help and the monitor as Stackup's.
+def next_answer(i, k):
+    return (0x14F + k * 0x3C + 0x1E, 0x23 + i * 0x37 + 0x19)
+
+
+# (Each row's right answer, probed in the port: level 0 0, 2, 2, 0, 1;
+# level 5 0, 1, 0, 1, 0.)
+SCENARIOS["play14d0"] = puzzle_play(14, 0, [click(13.5, *STACK_HELP), click(14.7, 320, 200), click(15.5, *STACK_MACHINE),
+                                          click(18.5, *next_answer(0, 1))]
+                                    + [click(t, *next_answer(i, k)) for i, (t, k) in
+                                       enumerate([(19.5, 0), (20.5, 2), (21.5, 2), (22.5, 0), (23.3, 1)])],
+                                    [(12.5, "rows"), (14, "help"), (16.5, "machine"), (18.8, "wrong"), (19.8, "right1"),
+                                     (22.8, "right4"), (24, "won"), (26, "won2"), (30, "won3"), (36, "won4")])
+SCENARIOS["play14d5"] = puzzle_play(14, 5, [click(t, *next_answer(i, k)) for t, i, k in
+                                          [(13, 0, 1), (13.6, 0, 2), (14.3, 0, 0), (15, 1, 0), (15.7, 1, 1),
+                                           (16.5, 2, 0), (17.5, 3, 1), (18.5, 4, 0)]],
+                                    [(12.5, "rows"), (13.9, "wrong2"), (14.6, "right1"), (16, "right2"),
+                                     (18.8, "won"), (20.5, "won2"), (25, "won3"), (31, "won4")])
+
+
+# The Dig (g21_185c): belt slot I (the five in view), wall place A, B
+# (DS:3DD2's panel; g21_0a74's centres), help, the solution (held), the
+# gadget. A player of level 6 or below plays the penguins: each tile must
+# go back to its own place. A click picks a tile up and the next puts it
+# down (g21_0be8). (The solution button isn't played: held by the script,
+# the original shows it pressed but not the solution; not explained yet.)
+
+
+def dig_move(t, frm, to):
+    return [click(t, *frm), click(t + 1, *to)]
+
+def dig_slot(i):
+    return (i * 0x65 + 0x76, 0x15D)
+
+
+def dig_wall(a, b):
+    return (a * 0x64 + 0x78, b * 0x3C + 0x4B)
+
+
+DIG_HELP, DIG_SOLUTION, DIG_GADGET = (0x1B0 + 0x23, 0x10), (0x24C + 0x1A, 0xE0 + 0x24), (0x1D, 0x48 + 0x19)
+# (The dug-out tiles' places, from the generator: level 0 (4, 3), (0, 1);
+# level 1 those, (2, 3), (3, 2).)
+SCENARIOS["play15d0"] = puzzle_play(15, 0, dig_move(13, dig_slot(1), dig_wall(4, 3))
+                                    + [click(15.5, *DIG_HELP), click(17, 320, 200), click(20, *DIG_GADGET)]
+                                    + dig_move(25, dig_slot(0), dig_wall(4, 3)) + dig_move(27, dig_slot(1), dig_wall(0, 1)),
+                                    [(12.5, "wall"), (13.5, "held"), (14.6, "back"), (16, "help"), (21, "gadget"), (24.5, "gadget2"), (26.5, "placed"),
+                                     (28.6, "won"), (30, "won2"), (33, "won3"), (38, "won4")])
+SCENARIOS["play15d1"] = puzzle_play(15, 1, [e for i, (a, b) in enumerate([(4, 3), (0, 1), (2, 3), (3, 2)])
+                                            for e in dig_move(13 + 2 * i, dig_slot(i), dig_wall(a, b))],
+                                    [(12.5, "wall"), (14.5, "placed1"), (16.5, "placed2"), (18.5, "placed3"),
+                                     (20.6, "won"), (22, "won2"), (25, "won3"), (30, "won4")])
 
 def run_folder():
     if not os.environ.get("EDISON_RUN"):
@@ -182,7 +558,33 @@ def run_folder():
     return Path(os.environ["EDISON_RUN"])
 
 
-def play_orig(name, s):
+def memwatch(d, watch=None, peek=None, seconds=0.0):
+    """memwatch.py on the original while otvdm.ps1 plays (a thread): the
+    expressions watched to D/watch.txt, or peeked once PEEK = (seconds
+    after the level's click, expressions) to D/peek.txt."""
+    exe = str(run_folder() / "MALLSKIP.EXE")
+    tool = [sys.executable, str(REFERENCE / "memwatch.py")]
+
+    def run():
+        if peek:
+            time.sleep(START + peek[0])
+            out = subprocess.run(tool + ["peek", exe, *peek[1]], capture_output=True, text=True)
+            (d / "peek.txt").write_text(out.stdout + out.stderr)
+            return
+        time.sleep(START / 2)  # the game started
+        for _ in range(10):  # until memwatch finds it
+            w = subprocess.run(tool + ["watch", exe, "--every", "1", "--for", str(seconds), "--out",
+                                       str(d / "watch.txt"), *watch], capture_output=True, text=True)
+            if w.returncode == 0:
+                return
+            time.sleep(1)
+
+    t = threading.Thread(target=run, daemon=True)
+    t.start()
+    return t
+
+
+def play_orig(name, s, watch=None, peek=None):
     """MALLSKIP.EXE written for the scenario, then otvdm.ps1 runs it and
     the timeline; the save files put back after."""
     d = OUT / name / "orig"
@@ -215,6 +617,10 @@ def play_orig(name, s):
             lines.append(f"type {e[2]}")
     (d / "script.txt").write_text("\n".join(lines) + "\n")
     kept = {f: (run / f).read_bytes() for f in SAVES if (run / f).exists()}
+    watcher = None
+    if watch or peek:
+        end = max([t for t, _ in s["shots"]] + [e[0] for e in s["events"]])
+        watcher = memwatch(d, watch, peek, START / 2 + end + 2)
     try:
         subprocess.run(["pwsh", "-NoProfile", "-File", str(REFERENCE / "otvdm.ps1"), "play", "MALLSKIP.EXE",
                         str(d / "script.txt"), str(d)], check=True)
@@ -222,6 +628,8 @@ def play_orig(name, s):
         for f, data in kept.items():
             (run / f).write_bytes(data)
         (run / "SKIP.INF").unlink(missing_ok=True)
+        if watcher:
+            watcher.join(timeout=10)
     shots = {(d / f"{n}.png").read_bytes() for _, n in s["shots"] if (d / f"{n}.png").exists()}
     if len(s["shots"]) > 1 and len(shots) == 1:
         # One picture throughout: the display asleep (nothing drawn) or
@@ -248,6 +656,7 @@ def play_port(name, s):
             args += ["--drag", ms, str(e[2]), str(e[3]), str(e[2]), str(e[3]), str(int(e[4] * 1000))]
         elif e[1] == "type":
             args += ["--type", ms, e[2]]
+
     end = max([t for t, _ in s["shots"]] + [e[0] for e in s["events"]]) + LEAD + 2
     env = dict(os.environ, EDISON_SKIP="1")
     if s.get("floor"):
@@ -259,6 +668,19 @@ def play_port(name, s):
                         "--virtual-clock", "--save", str(save), "--capture", str(d), "100", *args,
                         "--quit-after", str(int(end * 1000))],
                        cwd=d, env=env, stdout=log, stderr=subprocess.STDOUT, timeout=end + 60)
+
+
+def zoom(orig, port, box, pad=8, most=600):
+    """The area BOX (and PAD round it) of both, side by side, enlarged to
+    at most MOST pixels wide."""
+    x0, y0 = max(box[0] - pad, 0), max(box[1] - pad, 0)
+    x1, y1 = min(box[2] + pad, orig.width), min(box[3] + pad, orig.height)
+    w, h = x1 - x0, y1 - y0
+    pair = Image.new("RGB", (w * 2 + 2, h), (255, 0, 255))
+    pair.paste(orig.crop((x0, y0, x1, y1)), (0, 0))
+    pair.paste(port.crop((x0, y0, x1, y1)), (w + 2, 0))
+    k = max(1, min(8, most // pair.width))
+    return pair.resize((pair.width * k, pair.height * k), Image.NEAREST)
 
 
 def compare(name, s, window):
@@ -283,7 +705,9 @@ def compare(name, s, window):
         c, ms, mask, f = best
         where = ""
         if c:
-            where = f" in {mask.getbbox()}"
+            box = mask.getbbox()
+            where = f" in {box}"
+            zoom(o, f, box).save(d / f"zoom-{n}.png")
             f.paste((255, 0, 255), mask=mask)
             f.save(d / f"diff-{n}.png")
         print(f"{name} {n}: {c} pixels (port {ms / 1000 - LEAD:.1f} s){where}")
@@ -296,7 +720,11 @@ def main():
     ap.add_argument("--compare-only", action="store_true", help="compare the last runs' frames")
     ap.add_argument("--list", action="store_true")
     ap.add_argument("--window", type=float, default=1.5, help="seconds around each shot to search the port's frames")
+    ap.add_argument("--watch", nargs="+", metavar="EXPR", help="memwatch.py these in the original as it plays")
+    ap.add_argument("--peek", nargs="+", metavar=("SECONDS", "EXPR"),
+                    help="memwatch.py these once in the original, SECONDS after the level's click")
     a = ap.parse_args()
+    peek = (float(a.peek[0]), a.peek[1:]) if a.peek else None
     if a.list:
         for n, s in SCENARIOS.items():
             print(n, f"({len(s['shots'])} shots)")
@@ -306,7 +734,7 @@ def main():
         if not a.compare_only:
             play_port(name, s)
             if not a.port_only:
-                play_orig(name, s)
+                play_orig(name, s, a.watch, peek)
         compare(name, s, a.window)
 
 

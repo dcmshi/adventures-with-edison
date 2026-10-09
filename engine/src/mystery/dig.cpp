@@ -211,7 +211,7 @@ bool Mystery::dig(int level) {
         if (b < 3 && wall[a][b + 1] >= 0 && tiles[wall[a][b + 1]].v[0] != tiles[t].v[2]) return false;
         return true;
     };
-    auto drag = [&] {  // g21_0be8
+    auto drag = [&] {  // g21_0be8: a click picks a tile up, the next one puts it down
         int mx, my;
         bool down;
         ctx_.platform.mouse(&mx, &my, &down);
@@ -256,19 +256,26 @@ bool Mystery::dig(int level) {
                 h = kTileH * scale / 256;
                 restoreArea(saved);
                 saved = saveArea(x - w / 2, y - h / 2, w, h);
+                // The library's scaler (f41_0024, 21:10f7): 16.16 steps of 256 / scale.
+                const uint32_t step = scaleStep(scale);
                 drawVia3(x - w / 2, y - h / 2, w, h, [&](int s) {
                     Screen& scr = ctx_.screens[s];
                     for (int r = 0; r < h; ++r)
                         for (int c = 0; c < w; ++c) {
                             const int px = x - w / 2 + c, py = y - h / 2 + r;
                             if (px < 0 || py < 0 || px >= Screen::kWidth || py >= Screen::kHeight) continue;
-                            scr.pixels[static_cast<size_t>(py) * Screen::kWidth + px] =
-                                image[(r * kTileH / h) * kTileW + c * kTileW / w];
+                            const int sr = std::min(static_cast<int>(r * step >> 16), kTileH - 1);
+                            const int sc = std::min(static_cast<int>(c * step >> 16), kTileW - 1);
+                            scr.pixels[static_cast<size_t>(py) * Screen::kWidth + px] = image[sr * kTileW + sc];
                         }
                 });
                 shownScale = scale, shownX = x, shownY = y;
             }
-            if (held && !down) {
+            // The next press ([739F], cleared at 21:0d74; 21:11db), not the
+            // release, puts it down.
+            int px, py;
+            if (held && ctx_.platform.takeClick(&px, &py)) {
+                mx = px, my = py;
                 to = nearest(mx, my);
                 bool ok = to.tile < 0;
                 if (ok && to.row < 0) {
@@ -323,11 +330,10 @@ bool Mystery::dig(int level) {
     select(1);
     show(2);
     deal();  // after f04_005c's stir (21:1A24)
-    computeUiColours();
+    // (No f06_01f6 here: the UI colours stay the previous screen's.)
     drawWall(wall);
     drawBelt(0, 5, kBeltX, kBeltY, 1);
-    startTimer(true);
-    digitalTime(0x6A, 10, 0x2A, 0x14, timeLeft);
+    startTimer(true);  // (the clock is drawn when a second has gone: 21:1a88)
 
     auto take = [&](int k) {
         const bool on = pressed[k] || held[k];

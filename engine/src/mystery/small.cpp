@@ -146,7 +146,7 @@ bool Mystery::circuitAnalyzer(int level) {
         music(0x12);
         const int x = plugX(k) + 8, y = plugY(k) + 0xA0;
         copyArea(2, 1, x, y, 0x36, 0x20);
-        drawLogo(x, y, static_cast<uint16_t>(0x20AF + plugs[k]));
+        drawLogo(x, y, static_cast<uint16_t>(0x20A9 + plugs[k]));  // the code's colours (16:02e6)
     };
     panels_.add(board);
     Panels::Panel gadget;  // DS:31C8
@@ -242,7 +242,6 @@ bool Mystery::codes(int level) {
     int lastPicked = -1;          // [88A8] (the letter wanted, in decode mode)
     int wantAt = -1;              // [88A6]
     bool messagePicked = false;
-    int clicks = 0;               // [3D80]
     bool fixed[40] = {};          // DS:B362: spaces, not clickable
     bool done[40] = {};           // DS:C24C: decoded letters
     std::string phrase, message;  // the answer, and segment 66:0x28
@@ -379,8 +378,8 @@ bool Mystery::codes(int level) {
         if (!decode) {
             if (picked >= 0) {
                 symbol(picked, true, true);
-                if (++clicks > 1 && picked != lastPicked) {
-                    clicks = 0;
+                if (++codesClicks_ > 1 && picked != lastPicked) {
+                    codesClicks_ = 0;
                     if (lastPicked >= 0) std::swap(message[picked], message[lastPicked]);
                     copyArea(2, 1, 0x48, 0x24, 0x1EE, 0xA8);
                     drawMessage();
@@ -438,22 +437,26 @@ bool Mystery::codes(int level) {
         }
         if (quit) drawShifted(0x208, 0x156, 0x2175, 0x14);
     }
-    ctx_.timer.setPeriodic(kSecondSlot, 0, nullptr);
     bool won = false;
     if (solved) {
         // Every second left is worth 2 points (6 in the unscramble mode).
-        const int used = limit - timeLeft;
+        // The clock keeps running till g20_143c, so a second that passes
+        // during the count takes a step off it; the clock then shows the
+        // time left at the solve.
+        const int mode = timeLeft < 60 ? 3 : 0;
+        const int used = limit - timeLeft;  // [B794]
         while (timeLeft > 0) {
             --timeLeft;
             clock();
             points += decode ? 2 : 6;
             score();
         }
+        timeLeft = limit - used;
         clock();
         waitCountdown(4);
         font_ = normal;
         panels_.clear();
-        won = puzzleResult(true, points, 0, used);
+        won = puzzleResult(true, points, mode, used);
     } else {
         // The answer is shown.
         message = phrase;
@@ -464,6 +467,7 @@ bool Mystery::codes(int level) {
         panels_.clear();
         puzzleResult(false, 0, 0, 0);
     }
+    ctx_.timer.setPeriodic(kSecondSlot, 0, nullptr);  // g20_143c
     font_ = normal;
     clearInput();
     return won;

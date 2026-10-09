@@ -49,9 +49,12 @@ bool Mystery::questionPeriod(int level, bool asPuzzle) {
 
     // f19_0632: resource 3F0B holds the questions, each the question, four
     // answers, an empty line and a byte with the right answer (1-4).
+    // (Both come after the board is shown, its stir among the draws:
+    // 19:129a.)
     std::vector<std::string> lines;
     std::vector<int> right;
-    {
+    std::vector<int> asked;
+    auto loadQuestions = [&] {
         std::vector<uint8_t> raw;
         ctx_.read(0x3F0B, raw);
         size_t at = 0;
@@ -65,11 +68,10 @@ bool Mystery::questionPeriod(int level, bool asPuzzle) {
             }
             right.push_back(at < raw.size() ? raw[at++] - 1 : 0);
         }
-    }
+    };
     // f19_0d60: the facts learned in Concentration come first; if there
     // are too few, questions 0, 1, 2... make up the rest.
-    std::vector<int> asked;
-    {
+    auto shuffle = [&] {
         std::vector<int> known;
         for (int t = 0; t < 5; ++t)
             for (int c = 0; c < 10; ++c)
@@ -90,7 +92,7 @@ bool Mystery::questionPeriod(int level, bool asPuzzle) {
         for (int i = 0; i < count / 2; ++i) std::swap(asked[random(count)], asked[random(count)]);
         const int questions = static_cast<int>(right.size());
         for (int& q : asked) q = questions ? q % questions : 0;
-    }
+    };
 
     auto blockAt = [&](int k, uint16_t id) {
         drawLogo(kBlocksX + kBlock[k][0], kBlocksY + kBlock[k][1], id);
@@ -287,6 +289,8 @@ bool Mystery::questionPeriod(int level, bool asPuzzle) {
     drawOpaque(0x58, 0xF4, 0x2248);
     show(2);
     computeUiColours();
+    loadQuestions();
+    shuffle();
     if (!asPuzzle) {
         // f19_0fb8: Edison turns to face the player.
         select(1);

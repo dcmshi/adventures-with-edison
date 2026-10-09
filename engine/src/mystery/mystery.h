@@ -278,6 +278,7 @@ private:
     int hintUnder_ = 0;         // [91A0]
     int menuEvent_ = 0;         // [91A4]: 1 make a custom level, 2 play it, 3 the saved game, 4 edit it
     bool customLevel_ = false;  // [C654]: playing a custom level
+    int codesClicks_ = 0;       // [3D80]: Codes' letters clicked toward a swap (kept between games)
     struct HighScore {
         std::string name;  // up to 8 characters
         int32_t score = 0;
