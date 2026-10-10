@@ -1855,3 +1855,109 @@ nothing writes it): `f31_0025` skips the story, `f32_0319` the title, and
 the player's first event 9 goes to room 1 instead of 501. Then
 `otvdm.ps1 start "WMAINSKP.EXE -A"`: room 1 at rest about 8 seconds later.
 The port's equivalent is `--game science --room 1`.
+
+### The scan: segments 10, 14-23, 31-39, 62
+
+What the port leaves out of these segments, and why (the rest is cited in
+`engine/src/science`).
+
+- **Segment 39** is a small library of the game's own: a fraction
+  (`f39_0003`, from "a.b" text, unreached; `f39_010d` halves both parts
+  while either is past 7FFFh: cited in `play.cpp`), the error object
+  (`f39_01e8`, unreached; `f39_01b1` the library's "Artech graphics
+  library error occurred" and `f39_023f` `error_obj::Err_Message`, a
+  `MessageBox`), a bit set (`f39_02fb` built, `f39_0383` copied,
+  `f39_0427` freed, `f39_045a` grown to hold a bit, `f39_0629` filled,
+  `f39_067b` compared), a bit matrix of them (`f39_07a5`, `f39_0878`,
+  `f39_094b`, `f39_0a17`, `f39_0ae5`, `f39_0261` its destructor: all
+  unreached), a pool of numbers on a bit set (`f39_0b43` built, unreached;
+  `f39_0b9d` the first free number, `f39_0d0f` given back), the quicksort's
+  sorter (`f39_0e3c` its destructor, `f39_0ec3` the count, `f39_0f42` and
+  `f39_1135` unreached), a list of pointers (`f39_13e1` built, `f39_1466`
+  copied, `f39_14fd` one taken out, `f39_15ea` has, `f39_1674` the index
+  of, `f39_16c1` added once, `f39_1747` compared, `f39_1863` grown,
+  `f39_192c` the count) and a string (`f39_1bb8` assigned, `f39_1b55` and
+  `f39_1b8e` compared: unreached). The port uses C++'s containers and
+  strings for these; the uses that do the game's own work are cited
+  (the high scores' `f39_1996`, `f39_1a06`, `f39_1a67`, `f39_1adc`,
+  `f39_1c22`).
+- **What the pools number**: the game objects (`f10_0000`: a number from
+  `DS:1104`, "MAX_GAME_OBJECTS exceeded" when none is left; `f10_003c`,
+  `gameObj`'s destructor, gives it back), the events (`f32_0000`, `DS:2798`)
+  and the room's drawables (`f35_0084` and `f35_0133`, the records' two
+  constructors, `DS:298C`; `f35_0221` the destructor; the first entered at
+  35:0081). The port keeps none: its objects are values and its
+  events calls. `f32_0000` also shows three numbers (`f32_060e`) when 60
+  events are out or one is over 16 bytes: a debugging aid never seen.
+  `f35_01f1` gives an object its drawable's index (kind 1, a box's `+0`;
+  else the object's `+26`), which the port's drawables don't need.
+- **The drawables' graph** (segment 35): a record's links to the ones
+  behind it, 4 in it and more in a chained record (`f35_0272` add,
+  `f35_02d8` take, `f35_038c` remove, `f35_042b` clear, `f35_047f` the nth;
+  entered at 35:026f, 35:02d5, 35:0389, 35:0428 and
+  35:047c), and two depth-first walks over them (`f35_05c5`, `f35_0681`
+  drawing after; entered at 35:05c2, 35:067e): nothing calls them. The
+  painter's order (`f27_1d2f`) walks the room's matrix instead.
+- **Bit sets made and never used**: the room's `+F11` (`f27_03da`) and the
+  player's `+B2` (`f31_0025`), 128 bits each, are only built and freed.
+- **Destructors**, with nothing the port has to free: the lessons'
+  (`f15_11ef`, `f15_1725`, `f15_1bd5`, `f15_1fbc`, `f15_23b6`,
+  `f15_27c7`), the animation's (`f15_00a2`), the heads' (`f15_3558`,
+  `f15_3614`, `f15_3796`, `f15_3858`, `f15_38d4`, `f15_3984`), the
+  bubble's (`f15_3a4c`), an object list's (the code at 15:3B82, in
+  `f15_3b12`), the player's (`f31_01c6`), the game's object lists
+  (`f32_01cd`, `f32_0270`: each object's own at the end), the high
+  scores' list (`f19_125d`) and string (`f19_14ad`). At the game's end
+  `f32_0889` also frees the font's resource and closes `GRAFX.DAT`
+  (`f69_0257`).
+- **Borland's RTTI records** (data in the code segments, which `nedis.py`
+  reads as code): `f15_3492` (`textFormatter<DString>`), `f15_39bc`
+  (`storyPlayer`), `f15_3a84` (`animation`), `f15_3ac8` (`gamearea`),
+  `f15_3b12` (`animList`, `signaler`), `f15_3bc0`
+  (`gamearea::objectList`), `f16_0350` (`sigRamp`), `f16_0382`
+  (`sigPeriodic`), `f19_1401` (`hardSortList<score>`, then three of
+  Borland's adjustor thunks to segment 39's list), `f19_1473` (`DString`),
+  `f31_2a28` and `f31_2a66` (the game's, at `DS:2802`).
+- **`gameObj`'s methods the port has no use for** (segment 10, the slots
+  above): hide and show (`f10_00d9`, `f10_0100`: `+A`, then a redraw), slot
+  8 (`f10_0127`: `+C` = arg == 0) and the move (`f10_0140`). The port's
+  lesson objects are drawn where they are, and nothing hides or moves them.
+- **The signalers' other methods** (segment 16): the reset (`f16_005e`,
+  only from `f15_0409`, unreached), a period's change (`f16_00e9`), the
+  ramp's second constructor (`f16_015e`) and the up-and-down's two
+  (`f16_01fb`, `f16_023e`; its value `f16_0281`, above): no lesson makes
+  them.
+- **Unreached** (nothing calls them): `f14_05bb`, `f14_063d`, `f14_06bf`,
+  `f14_0731` (a polygon's points halved or doubled), `f14_1659` (a text in
+  a box 7 pixels a letter), `f15_0394` (a sprite drawn, `f14_1179`),
+  `f15_0409` (an animation from its first frames again), `f15_09e3` (a
+  child taken out of an area), `f15_0acb` (an area's tick), `f15_33d3`
+  (a text's point, `+22`), `f18_0003` (a rectangle's middle), `f18_0086` (a
+  panel's current button, past the disabled ones), `f18_02a8` (a panel replaced in the list),
+  `f19_014a`, `f19_01b3` (records in segment 94), `f22_0295`, `f23_0035`
+  (a text's size, through `f22_020a`), `f23_00e9`, `f23_0143` (two small
+  records, {n, 1} and {1, 1}), `f31_1ad9` (the play area set again), `f32_06a0`,
+  `f32_06cc`, `f32_06f8` (a game object added and taken out), `f32_08b3`,
+  `f32_0942` (the point at `DS:6EC0` as a box and as a point), `f32_1096` (the
+  cycles' first colours), `f33_0142`, `f33_01bc`, `f33_020d`, `f33_0282`
+  (a ball kind's other fractions; a fraction 0/1; `DS:2828`), `f34_0ef4`,
+  `f36_02bd` (a scan code in 26h-2Dh).
+- **Fixed in the port**: the player's play area and the panel's height kept
+  within the window (`f31_0405`, from `f31_0025`, and again by `f31_1b26`:
+  the port's layout is the original's at 640 x 400), the front panel's pointer (`f31_04ec`), the
+  game object's (`f32_0265`, `DS:27B6`), and `f33_00f6` (`[9224]` = 0,
+  which nothing reads).
+- **Nothing to do**: `f14_0140` and `f14_0924` (empty: the first stands in
+  for `f14_00a3` on the story's later pages), `f36_02b2` (empty, after the
+  library's error box), `f62_0667` (empty) and `f62_067b` (`GetMenu`, for
+  the window's menu, which it has none of). `f14_00a3` sets one colour in
+  the display's and a screen's WinG colour tables: the story's colour 10
+  to 3F3F3F, which the page's own palette (`f20_00f3`) replaces before
+  anything is drawn with it. `f32_0bfe` reads `[27E6]`, which only
+  `f32_0c0c` (unreached) sets: so the room's tick (`f27_2434`) never copies
+  it to `+180`.
+- **`f15_05af`** puts the player's name for `ZZZZZZZZ` (its dots as
+  spaces) and the room's score for `YYYYYYY` ("MAXIMUM" past 7 digits)
+  into each 200 bytes of text read (`f22_0041`): only `760E` ("You got a
+  high score, YYYYYYY points. That's great!") has one, and nothing shows
+  it (nor `760F`, `7610`).

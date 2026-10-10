@@ -127,6 +127,8 @@ void Science::drawColumn(bool right) {
     // every 24 rows, each a random frame of the rolling ball (Borland's
     // rand), then the PUSH button (1421 at (0, 70h), 1422 at (25Eh, D0h)).
     const int x = right ? 0x256 : 0, y = right ? 0x8C : 6, h = right ? 0x96 : 0xFA, w = right ? 0x28 : 0x23;
+    // (Its count the player's +BA / +BC, given it as it's made: f31_046c,
+    // f31_04ac.)
     const int count = right ? rightBalls_ : leftBalls_;
     copyArea(3, 2, x, y, w, h);
     select(2);

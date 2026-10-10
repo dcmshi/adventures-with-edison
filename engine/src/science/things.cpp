@@ -543,7 +543,7 @@ void Science::retry(Object& o, int on) {
     // RETRY's method 3 (f04_070e): only while neither column waits for its
     // PUSH (+132): the switch, the area redrawn; the player's balls and
     // the game's score as they were (f06_028a: the room's box too), no
-    // completion bonus (+F7B), and event 9 to this room again.
+    // completion bonus (+F7B), and event 9 to this room again (f31_0373).
     if (!columns_[0].ballOut || !columns_[1].ballOut) return;
     switchSet(o, on);
     leftBalls_ = o.savedBalls[0], rightBalls_ = o.savedBalls[1];

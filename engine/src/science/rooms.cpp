@@ -977,15 +977,17 @@ void Science::roomObjects(int room) {
 
 void Science::cycleStart(int first, int last, int period) {
     // f32_0e7f (f32_00e3: first, last - first + 1 colours, kept within
-    // 256): one already there for that colour gets the new period and one
-    // more use; else a new one with one use.
+    // 256): one already there whose colours meet these (f32_0150: the two
+    // spans, f11_0a26) gets the new period and one more use; else a new
+    // one with one use.
+    const int count = std::min(last - first + 1, 0x100 - first);
     for (Cycle& c : cycles_)
-        if (c.first == first) {
+        if (c.first + c.count - 1 >= first && first + count - 1 >= c.first) {
             c.period = period, ++c.uses;
             return;
         }
     Cycle c;
-    c.first = first, c.count = std::min(last - first + 1, 0x100 - first), c.period = period, c.uses = 1;
+    c.first = first, c.count = count, c.period = period, c.uses = 1;
     cycles_.push_back(c);
 }
 
@@ -1265,8 +1267,9 @@ Science::Object* Science::holeTo(int room) {
 
 void Science::roomArrival(int room) {
     // The builders' own ends (segments 41-60), after the room's pictures:
-    // a greeting box on a black screen (f24_1ee3: screen 2's play area in
-    // colour 2; [275C] is set while event 9 builds a room, so its closing
+    // a greeting box on a black screen (f24_1ee3: screen 2's play area,
+    // f31_0385, 40 taller, in colour 2; [275C] is set while event 9 builds
+    // a room, so its closing
     // redraws nothing), some only when coming from a given room (the
     // player's +90) or not from the same one; doors met on arrival (the
     // ball coming out of the one it came through); holes shut by the

@@ -109,7 +109,7 @@ Science::Face Science::faceUnder(int x, int y) const {
                 break;
             }
     }
-    return {box, faceAt(*box, x, y)};
+    return {box, faceAt(*box, x, y)};  // a face record (f34_007d: the box, which face)
 }
 
 int Science::faceHeight(const Face& f, int x, int y) const {
@@ -202,14 +202,14 @@ void Science::ballMove(Ball& b, const int16_t d[3]) {
 }
 
 bool Science::ballDampsOthers() const {
-    // f08_1802: not in rooms 14, 60, 64, 69 and 91.
+    // f08_1802: not in rooms 14, 60, 64, 69 and 91 (the room: f31_0373).
     const int r = currentRoom_;
     return !(r == 14 || r == 60 || r == 64 || r == 69 || r == 91);
 }
 
 void Science::ballBounce(Ball& b, const int16_t normal[3], bool always) {
     // f08_1843 (the player's ball only): how hard it hit (along the
-    // normal): too hard for its kind (+21) and it breaks (+7C); else, at
+    // normal): too hard for its kind (+21, f33_01f6) and it breaks (+7C); else, at
     // most every 2 timer ticks, a sound by its speed (6004, 6001, 6002).
     if (&b != &ball_) return;
     const int16_t v[3] = {ball_.v[0], ball_.v[1], ball_.v[2]};
@@ -238,7 +238,7 @@ void Science::ballStep(Ball& b) {
     if (b.state != 0) return;
     // The acceleration (f08_125c): the kick and the push, gravity on z;
     // with a magnetic part (f05_0c0b, its core's +30), if its type is
-    // magnetic (the record's +11: Iron's 1), the field where it is
+    // magnetic (the record's +11, f33_017c: Iron's 1), the field where it is
     // (f26_02e2, every source but its own), backwards when its strength is
     // below 0.
     int16_t accel[3] = {w(b.kick[0] + b.push[0]), w(b.kick[1] + b.push[1]), w(b.kick[2] + b.push[2] + gravity_)};
@@ -372,7 +372,7 @@ void Science::ballStep(Ball& b) {
         return;
     }
     b.hitFlag = 0, b.lastHit = 0;
-    const int32_t en = ballKinds_[b.kind].bounceNum, ed = ballKinds_[b.kind].bounceDen;
+    const int32_t en = ballKinds_[b.kind].bounceNum, ed = ballKinds_[b.kind].bounceDen;  // f33_0104: its kind's +1, +5
     auto scale = [&](int16_t v) { return w(static_cast<int32_t>(v) * en / ed); };
     auto flipScale = [&](int16_t v) { return w(static_cast<int32_t>(w(-v)) * en / ed); };
     // The world's sides: x, then y (the near one, the machine's glass, can

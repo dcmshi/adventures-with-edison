@@ -552,7 +552,8 @@ void Science::markButton(Control c) {
 
 void Science::applyPanelPhysics() {
     // Gravity (f30_39fc → f27_108d): p = (-value * [2360] (4) * 42) /
-    // (50 * 2), the room's ratio p * -200 / 10. Friction (f30_3bb2): +F07 =
+    // (50 * 2), the room's ratio p * -200 / 10 (halved by f39_010d only
+    // past 7FFFh: never from the slider's range). Friction (f30_3bb2): +F07 =
     // value * +F0B (255) * 8 / 256. Power (f30_3739 → f27_26e3): value *
     // (168 * 3 / 8) / 16 (2000 at the top), at most 7FFFh / 168, times 168.
     const int16_t p = static_cast<int16_t>(static_cast<int16_t>(-panel_.gravity * 4 * kTimerK) / (kTimerRate * 2));
