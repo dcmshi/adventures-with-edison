@@ -31,7 +31,8 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
   time when the machine is busy (ComfyUI).
   `smoke`: the aim search finds room 22's suckhole, room 96's greeting box
   shows in the heartbeat when unanswered and is skipped with
-  `SCI_SKIPDIALOGS`.
+  `SCI_SKIPDIALOGS`, and `test_deadscan.py` finds deadscan.py's classes
+  for functions whose references were read by hand.
 - Test runs of the port: `--hidden` (no window, no sound, no drawing but
   the captures) and `--virtual-clock` (1 ms per event pump: the inputs'
   times, the captures and the ticks the same on every run however busy
@@ -142,7 +143,10 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
   exports): unreferenced, a dead chain (only dead code refers to it),
   table only (a vtable or callback table), or reached from cited code.
   The reached ones each need their reason in the notes; near pointers are
-  any matching immediate, so it errs towards "reached".
+  any matching immediate, so it errs towards "reached". A far pointer's
+  offset matches a function's label or the 1-3 prologue bytes before it
+  (an exported callback's entry); in Mystery's and Rock and Bach's data a
+  far pointer is a segment relocation with the offset in the word before.
 - `mmmaze.py [--port-only | --compare-only]`: the bonus maze's wanderers
   pass by pass (its loop is unpaced in the original, so its shots can't
   be matched in time): `allfound` in the port at a pass a millisecond

@@ -2,9 +2,9 @@
 tests (ctest), room 1 against the original's shots (regress.py), the shots
 traced in the original (retrace.py), the scenarios against the original's
 shots of their last --orig run (scenario.py: room 1's holes, the lessons,
-the game over and won), and smoke tests of the testing switches (the aim
-search, the dialogs skipped, the heartbeat). PASS or FAIL for each; exits 1
-if any failed. About 40 s.
+the game over and won), and smoke tests of the testing switches and tools
+(the aim search, the dialogs skipped, the heartbeat, deadscan.py's known
+functions). PASS or FAIL for each; exits 1 if any failed. About 40 s.
 
 Usage: check.py [unit] [regress] [retrace] [scenario] [smoke] [--jobs N]
   (default: all steps; --jobs N: the scenarios N at a time, 1 when the
@@ -57,6 +57,10 @@ def smoke():
     text = run.log.read_text(errors="replace") if run.log.exists() else ""
     hit = "dialog (message 0040) skipped" in text and "room 96 tick" in text and not run.hung
     lines.append("dialogs skipped: " + ("ok" if hit else "the box wasn't answered or the room didn't tick\n" + text[-300:]))
+    ok &= hit
+    # deadscan.py's classes for functions read by hand (test_deadscan.py).
+    hit, output = command([sys.executable, str(HERE / "test_deadscan.py")], 60)
+    lines.append(output.strip())
     ok &= hit
     return ok, "\n".join(lines)
 

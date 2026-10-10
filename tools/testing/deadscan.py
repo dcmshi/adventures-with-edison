@@ -56,12 +56,16 @@ CLASSES = ("unreferenced", "dead chain", "table only", "reached")
 
 
 def starts(funcs):
-    """{(seg, off): name} of every function's start, and its prologue's."""
+    """{(seg, off): name} of every function's start, and the 1-3 bytes of
+    prologue before it that nedis leaves to the function before (Borland's
+    "mov ax, ss; nop" for a far function, an exported callback's entry
+    2 bytes before its label: Mystery's window procedure at 01:032E)."""
     out = {}
     for seg, rows in funcs.items():
         for off, _, name in rows:
             out[(seg, off)] = name
-            out.setdefault((seg, off - 3), name)
+            for back in (1, 2, 3):
+                out.setdefault((seg, off - back), name)
     return out
 
 
@@ -97,7 +101,8 @@ def references(key, funcs):
             seg = int(m.group(1))
             for near in lines[max(0, i - 3):i + 4]:
                 for v in IMM.findall(near.split(";", 1)[0]):
-                    name = begin.get((seg, int(v, 0)))
+                    # (Beside a segment, an offset: a start, or inside.)
+                    name = begin.get((seg, int(v, 0))) or find(seg, int(v, 0))
                     if name:
                         add(name, current, "far pointer")
         if here is not None:
@@ -106,12 +111,25 @@ def references(key, funcs):
                 if name:
                     add(name, current, "near pointer")
     ne = NEFile(str(EXE_DIR / exe))
+    code_segs = {s["index"] for s in ne.segments if not s["data"]}
     for s in ne.segments:
         if not s["data"]:
             continue
+        data = ne.segment_bytes(s["index"])
         for r in ne.relocations(s["index"]):
-            if r["kind"] == "internal" and r["addr_type"] == 3:
+            if r["kind"] != "internal":
+                continue
+            if r["addr_type"] == 3:
                 add(find(*r["target"]), None, f"data s{s['index']}")
+            elif r["addr_type"] == 2 and r["target"][0] in code_segs:
+                # A far pointer as the segment's relocation, its offset the
+                # plain word before it (Mystery's panels' callbacks: 64 in
+                # MALL's data, 8 in WINMAIN's).
+                for site in r["sites"]:
+                    if site >= 2:
+                        off = int.from_bytes(data[site - 2:site], "little")
+                        seg = r["target"][0]
+                        add(begin.get((seg, off)) or find(seg, off), None, f"data s{s['index']}")
     for seg, off in ne.entries.values():
         add(find(seg, off), None, "export")
     return refs
