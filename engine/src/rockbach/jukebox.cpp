@@ -24,7 +24,7 @@ void RockBach::bandCommand(const std::vector<uint8_t>& bytes) {
     // f09_036e: the bytes over sound 1, which is then started.
     if (!options_.music) return;
     ctx_.platform.withFm([&bytes](ArtechFmDriver& d) {
-        const uint16_t to = d.soundAddress(1);
+        const uint16_t to = d.soundAddress(1);  // f09_03a8 / f09_0404 (GETADDR)
         for (size_t k = 0; k < bytes.size(); ++k) d.poke(static_cast<uint16_t>(to + k), bytes[k]);
         d.sendSound(1);
     });
@@ -374,7 +374,7 @@ int RockBach::jukebox() {
             // to full.
             const int i = r - 35;
             lightColour[i] = lightColour[i] == 3 ? 0 : lightColour[i] + 1;
-            setColours(displayColours(lightColour[i] * 16 + 0x45, 11), i * 16 + 5);
+            setColours(displayColours(lightColour[i] * 16 + 0x45, 11), i * 16 + 5);  // f03_1a8c
             jukeboxSliders_[4 + i].value = 0;
             placeSlider(jukeboxWidgets_[r + 16], true);
         }

@@ -32,7 +32,7 @@ void RockBach::sfxProcess() {
     s.processing = true;
     const long oldLen = s.len;
     const bool wasAll = s.start < 10 && s.end > oldLen - 11;
-    std::vector<int8_t> cur = s.input;
+    std::vector<int8_t> cur = s.input;  // f13_03d6: the input into the working buffer
     const long nIn = static_cast<long>(s.input.size());
     if (s.reverse) std::reverse(cur.begin(), cur.end());  // f13_0350
     if (s.filter) {
@@ -121,7 +121,8 @@ bool RockBach::sfxLoad(const std::string& path) {
     // f13_0eb6: at most 55000 bytes; the header (2C bytes, or 2A when the
     // format tag is even) kept; the samples made signed.
     SoundFxState& s = sfx_;
-    ctx_.platform.stopWav();
+    ctx_.platform.stopWav();  // f32_0048
+    // f31_0000 (_lopen), f31_0128 (its length), f31_00b4 (_hread), f31_006e (_lclose).
     std::ifstream in(findPath(path), std::ios::binary);
     if (!in) return false;
     std::vector<uint8_t> file((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
@@ -131,6 +132,7 @@ bool RockBach::sfxLoad(const std::string& path) {
     s.header.assign(file.begin(), file.begin() + s.hdr);
     s.fileRate = s.rate = file[0x18] | file[0x19] << 8;
     s.input.clear();
+    // f13_00e2: the samples made signed.
     for (size_t i = static_cast<size_t>(s.hdr); i < file.size(); ++i) s.input.push_back(static_cast<int8_t>(file[i] - 0x80));
     s.start = 0;
     s.end = static_cast<long>(s.input.size()) - 1;
@@ -230,7 +232,11 @@ void RockBach::sfxTip(int n) {
 
 void RockBach::sfxSliders(int which, bool apply) {
     // f29_1322: the sliders' values into the effects (all of them, reset,
-    // for -1; else echo 0, reverb 1, the filter 2).
+    // for -1; else echo 0, reverb 1, the filter 2): f13_114e the rate (the
+    // file's plus the slider's), f13_08e0 and f13_090c the echo's delay and
+    // gain, f13_0882 and f13_08b4 the reverb's, f13_0938 the filter's
+    // frequency; each but the rate marks the output stale while its effect
+    // is on.
     SoundFxState& s = sfx_;
     std::vector<Widget>& w = soundFxWidgets_;
     auto v = [this](int i) { return sfxSliders_[i].value; };
@@ -301,7 +307,7 @@ void RockBach::sfxWave(int left, int right) {
     sfxWaveArea_ = saveArea(0, 8, 0x280, 0x8A);
     int leftX = 0, rightX = kRightMost;
     constexpr int kW = 0x254;
-    const long step = std::max(1L, (s.len << 8) / kW);
+    const long step = std::max(1L, (s.len << 8) / kW);  // the output: f13_1126 (buffer A)
     sfxScale_ = static_cast<int>(step >> 8);
     Screen& scr = ctx_.screens[2];
     long pos = 0;
@@ -335,7 +341,7 @@ void RockBach::sfxWave(int left, int right) {
 int RockBach::soundFx() {
     // f29_17e2.
     SoundFxState& s = sfx_;
-    s = SoundFxState{};
+    s = SoundFxState{};  // f13_0000: the effects off, their defaults, the buffers
     std::vector<Widget>& w = soundFxWidgets_;
     std::string name = dataString(0x2ADB), path;  // DS:4D72 "Noname", DS:4B6E
     const std::string ext = dataString(0x2AD6);    // ".wav"
@@ -412,6 +418,7 @@ int RockBach::soundFx() {
             looping = false;
             ctx_.platform.stopWav();
         }
+        // f29_0eba: LOAD's dialog, then the name from the path.
         if (r == 3 && loadDialog(0x73, 0x2B, ext, &path, 1, dataString(0x28C2))) {
             sfxTip(0);
             sfxSet(1, -1);
@@ -427,13 +434,16 @@ int RockBach::soundFx() {
                 const auto slash = path.find_last_of("/\\");
                 name = path.substr(slash == std::string::npos ? 0 : slash + 1);
                 name = name.substr(0, name.find('.'));
+                // (f13_1288 asks whether the loop is still on, to light it
+                // again: never, as f13_0964 has just turned everything off.)
                 sfxToggle(-1, on);
                 sfxSet(1, 1);
                 sfxWave(-1, -1);
             }
         }
         if (r == 4 && loaded) {
-            // SAVE (f29_0dc6): the header at the playing rate, then the selection.
+            // SAVE (f29_0dc6): the header at the playing rate, then the selection
+            // (f31_0038 _lcreat, f31_008a _hwrite, f31_006e _lclose).
             std::string out;
             if (nameDialog(0xAE, 0x2E, &name, ext, &out)) {
                 std::ofstream f(out, std::ios::binary);
@@ -448,7 +458,8 @@ int RockBach::soundFx() {
             }
         }
         if (r == 5) {
-            // DELETE (f29_0f18): only from the game's folder, after a yes.
+            // DELETE (f29_0f18): only from the game's folder, after a yes
+            // (f31_0148: OpenFile with OF_DELETE).
             std::string victim;
             if (fileList(0x73, 0x2B, options_.saveDir + "/", false, ext, &victim, 1, dataString(0x28FC), true)) {
                 const auto slash = victim.find_last_of("/\\");
@@ -500,7 +511,7 @@ int RockBach::soundFx() {
             sfxWave(old[0], old[1]);
         }
     }
-    ctx_.platform.stopWav();
+    ctx_.platform.stopWav();  // f13_10ae: the sound stopped, the buffers freed
     freeArea(sfxArea_[0]);
     freeArea(sfxArea_[1]);
     freeArea(sfxWaveArea_);

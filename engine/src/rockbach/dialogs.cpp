@@ -79,7 +79,7 @@ std::vector<std::string> RockBach::listFiles(const std::string& dir, const std::
         names.push_back(file.substr(0, dot));
         if (names.size() >= 0x1FF) break;
     }
-    std::sort(names.begin(), names.end());
+    std::sort(names.begin(), names.end());  // qsort with f22_0094 (strcmp)
     return names;
 }
 
@@ -108,7 +108,9 @@ bool RockBach::fileList(int x, int y, const std::string& dir, bool cd, const std
         w.push_back(s);
     }
     widgets_ = &w;
-    // The scroll bar (f22_087c), right of the slots.
+    // The scroll bar (f22_087c), right of the slots: f23_0000 clears the
+    // bars, f23_007a adds this one (its arrows and track), f23_0546 puts
+    // the thumb at top * (track - thumb) / (count - 12).
     const int bx = w[4].x1 + 10, by = w[4].y0, bh = w[12].y1 - w[4].y0;
     const int trackY = by + 0xC, trackH = bh - 2 * 0xC, thumbH = 0xC, page = 0xC;
     int top = 0;
@@ -167,6 +169,8 @@ bool RockBach::fileList(int x, int y, const std::string& dir, bool cd, const std
         }
         if (lastClick_.on && lastClick_.x >= bx - 2 && lastClick_.x < bx + 0x10 && lastClick_.y >= by && lastClick_.y < by + bh) {
             // f23_0768: the arrows step a row (4 names) while held; the thumb drags.
+            // (f23_0184: the bar clicked, f23_0222: which part; f23_06e8: the
+            // step, kept within 0 to count - 12.)
             const bool up = lastClick_.y < by + 0xC, down = lastClick_.y >= by + bh - 0xC;
             const int range = std::max(0, count - page);
             for (bool held = true; held;) {

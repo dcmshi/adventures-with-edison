@@ -141,7 +141,9 @@ void RockBach::sound(uint16_t id) {
 void RockBach::setDriver(int driver) {
     // f02_006e: the driver (and its 72 Hz timer) is swapped.
     // Not in name order: the switch in f02_006e calls ADLIB, ADLIB1, ADLIB3,
-    // ADLIB4 and ADLIB2 for drivers 0-4.
+    // ADLIB4 and ADLIB2 for drivers 0-4. Its 72 Hz callbacks, f02_0000,
+    // f02_0016, f02_002c, f02_0042 and f02_0058 (each driver's
+    // UPDATE_ADLIB), are the platform's driver ticking itself.
     static const char* const kDlls[5] = {"ADLIB.DLL", "ADLIB1.DLL", "ADLIB3.DLL", "ADLIB4.DLL", "ADLIB2.DLL"};
     driver_ = driver;
     if (!options_.music) return;

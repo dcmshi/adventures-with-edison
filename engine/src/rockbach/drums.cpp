@@ -52,6 +52,8 @@ void RockBach::drumsReset() {
         if (in) in.read(reinterpret_cast<char*>(to), static_cast<std::streamsize>(count));
         return static_cast<bool>(in);
     };
+    // f10_0612: STANDARD.PAT, then the player's file (noname.pat when
+    // no name is given).
     std::array<uint8_t, 8 * 7 * 64> standard{};
     if (!load(options_.cdDir + "/STANDARD.PAT", standard.data(), standard.size()))
         logLine("Rock and Bach: can't read STANDARD.PAT");
@@ -77,7 +79,7 @@ void RockBach::drumsDone() {
     drumStop();
     std::array<uint8_t, 8 * 64> own{};
     for (int k = 0; k < 8; ++k) std::copy_n(drums_.patterns.begin() + (k * 8 + 7) * 64, 64, own.begin() + k * 64);
-    std::ofstream out(options_.saveDir + "/noname.pat", std::ios::binary);
+    std::ofstream out(options_.saveDir + "/noname.pat", std::ios::binary);  // f10_07d2
     if (out) out.write(reinterpret_cast<const char*>(own.data()), static_cast<std::streamsize>(own.size()));
     else logLine("Rock and Bach: error opening noname.pat");
 }
@@ -151,6 +153,7 @@ void RockBach::drumKit(int kit) {
         base[d] = data_[0x14D8 + kit * 5 + d];
         drums_.sound[d] = static_cast<uint8_t>(base[d] + drums_.variant[d] * 0x14);
     }
+    // (f10_0558 / f10_05b4: a sound's address, GETADDR.)
     ctx_.platform.withFm([&base](ArtechFmDriver& d) {
         for (int drum = 0; drum < 5; ++drum)
             for (int j = 0; j < 3; ++j) d.poke(d.soundAddress(static_cast<uint16_t>(j * 0x14 + base[drum])), static_cast<uint8_t>(drum));
@@ -403,7 +406,7 @@ int RockBach::drumClinic() {
                 setColours(colours((lightStep + 0xB) * 16, 6), 0x60);
             }
         };
-        if ((w[27].flags & Widget::kPressed) && swap) {
+        if ((w[27].flags & Widget::kPressed) && swap) {  // f06_1ca8
             nextLights();
             swapGroups();
             swap = false;

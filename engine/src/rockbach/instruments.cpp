@@ -184,7 +184,7 @@ int RockBach::instrumentRoom() {
         }
         if (r >= 0 && r <= 15) {
             ctx_.platform.stopWav();  // f48_0000
-            page = page + 1 >= 2 ? 0 : page + 1;  // (the page turns too, as in the original)
+            page = page + 1 >= 2 ? 0 : page + 1;  // f08_07d6: the page turns too, as in the original
             showInstrument(r, text, page, true);
             instrument = r;
         }

@@ -24,7 +24,7 @@ void RockBach::harmonyCommand(const std::vector<uint8_t>& bytes) {
     // f11_04ee: the bytes over sound B, which is then started.
     if (!options_.music) return;
     ctx_.platform.withFm([&bytes](ArtechFmDriver& d) {
-        const uint16_t to = d.soundAddress(0xB);
+        const uint16_t to = d.soundAddress(0xB);  // f11_0528 / f11_0584 (GETADDR)
         for (size_t k = 0; k < bytes.size(); ++k) d.poke(static_cast<uint16_t>(to + k), bytes[k]);
         d.sendSound(0xB);
     });

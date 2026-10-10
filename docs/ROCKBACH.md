@@ -180,3 +180,64 @@ The song player lives in the driver's sound table (ADLIB2's, for example):
   - **Random numbers:** every choice takes the C library's `rand()` (`f36_0ec2`: `seed = seed * 343FDh + 269EC3h`, `(seed >> 16) & 7FFFh`), its seed at `DS:3088` from 1; `srand` (`g36_0eab`) is never called, and `WINMSKIP.EXE` and the port's `--level` both skip the intro (whose roll, `f05_04d8`, would draw first). Its callers: the Studio's sign (`f04_0824`), the intro's roll, the colour chips (`f16_217c`, `f17_20f2`), the video player (`f18_*`), the Music Library's quill (`f30_1780`). The port's `rbRand()` is the same generator (it had used `std::mt19937`). Compared draw for draw (`tools/testing/rbrng.py`: the seed followed by `memwatch.py`, the port's `EDISON_RNGLOG`): in `studio-edit` every seed the original showed is in the one sequence from 1, its bursts as the port's (the sign's single draws, the 14 and 15 of the makers, the pairs after), 123 draws against 121 at the end (the sign's flashes in time); in `library` the quill's pause draws the port's first five, in order, 0.2 s apart. `studio-edit`'s front room and "What do you want to do?" went from 237 and 249 pixels to 0; no other scenario changed. (`WINMSKIP.EXE`'s data segment moves as an activity loads, and in the library again some seconds in: `rbrng.py --delay`, or peeks, which find it again each time.)
 - **Timers:** the library's countdowns tick in timer slot 9, so the games' own periodic timers use slots 5-8.
 - **Sounds:** `f27_020e` plays `<CD>\RB\<name>.wav` by id (`DS:278C`, id - `0x6000`), else `<name>.wav` in the game's folder (the player's own); longer than 64 KB plays nothing.
+
+### The audit: functions the port doesn't cite
+
+What `tools/testing/deadscan.py rockbach` leaves (the game's own code,
+segments 1-35), and why. The rest is cited where the port does it: the
+driver timers (`setDriver`), the sound-address helpers of segments 9-12
+and 20 (`GETADDR`), the pattern files, the scroll bar's segment 23, the
+Sound FX settings and file calls, and segment 28's helpers in
+`artech/game.cpp` (`f28_0000` drawLogo, `f28_011a` drawOpaque, `f28_0212`
+fill, `f28_02e4` bmfill_poly, `f28_030a` drawScaledCentred, `f28_04e4`
+text, `f28_05f8` saveArea, `f28_06d0` restoreArea: MALL's segment 6).
+
+- **Windows' side** (segment 1), which the platform layer replaces:
+  `f01_0000` (WinMain: the message loop, `PeekMessage`, a quit on
+  `WM_QUIT`), `f01_00f6` (the window class and a 640 x 400 window, centred),
+  `f01_027c` (empty, on the way out), `f01_028e` (the idle call: `f33_0422`,
+  the whole game, unless the window is iconic and inactive), `f01_0330`
+  (the window procedure, `RegisterClass`'s `01:032E`: keys to `g45_0000`,
+  the mouse to `g47_00aa`, `WM_ACTIVATEAPP` into `[6562]`, the palette
+  realised, MCI and wave notifications, the system menu's items), its
+  `WM_SIZE` and `WM_COMMAND` handlers `f01_0664` (empty) and `f01_0690`
+  (`GetMenu`, then nothing). Unused: `f01_02d0` (an About box's dialog
+  procedure: no `DialogBox` calls it) and `f01_0676` (returns 0).
+- **Timer callbacks nothing installs** (each sets a flag or counts; the
+  installed ones are `g03_1770`, `06:1B82`, `07:1824`/`183A`/`1868`,
+  `08:0016`/`088C`, `g25_0000`, `f02_0000`-`f02_0058`): `f03_175a`
+  (`[8E1E]`), `f03_1790` (`[52A6]`), `f06_1bbe` (`[8CA2]`), `f06_1bd4`
+  (`[8B4A]`), `f06_1bea` (`[8E14]`), `f07_1856`, `f07_1884` (empty),
+  `f15_1c04` (`[8BCC]`), `f18_00b4` (`[86E2]`, `[86F4]`), `f18_03e2`
+  (`[86F4]`), `f18_226e` (`[674C]`), `f29_1796` (`[86FA]` + 1), `f29_17ac`
+  (empty), `f30_0b82` (`[8E1F]`); and the counters of `[8E36]`:
+  `f06_0000`, `f07_1032`, `f08_0000`, `f15_1bee`, `f17_20dc`, `f24_041c`,
+  `f26_1ec6`, `f29_0db0`, `f30_0b6c`. (`f06_0000` and `f08_0000` show as
+  reached only by deadscan's near-pointer rule: a `push 0` is an immediate
+  equal to their offset. So are `f27_0000` and `f32_0000`.)
+- **Empty functions the game calls** (no effect): `f16_2158`, `f16_216a`
+  (by the song maker and the three video makers), `f29_17be`, `f29_17d0`
+  (by Sound FX, after a load and elsewhere), and, never called, `f32_0000`,
+  `f32_0012`, `f32_0024`, `f32_0036`, `f32_005e`, `f33_034e`.
+- **Errors that don't happen**: `f33_0360` shows an "Application Error"
+  box (`f37_0000`) and quits; `f04_0d52` calls it only for a name longer
+  than 0x40 (the game asks for 10 or 18 letters), and `f27_0000` (open a
+  file or report "Error on opening file") is never called.
+- **No effect**: `f33_0116` frees the font's memory (`[8D0A]`) on the way
+  out; `f13_114e` also clears `[52A9]`, which nothing reads.
+- **Never called**:
+  - `f04_0f1e`: "Enter the name of your friend" in Edison's bubble at
+    (136, 36), then a name (`f04_0d52`), upper-cased.
+  - `f11_015c`: Harmony Hall's instruments: `INSTALL_PATCH` of each part's
+    patches (`DS:1720`) on its channels.
+  - `f12_01ca`: the Music Library's volume: `AC channel volume` for each of
+    the piece's channels, through sound `F` (`f12_02f6`).
+  - `f15_1c1a`: colours 1-9 turned a step.
+  - `f24_1a3c`: a question on hallway widgets 5 and 6 (yes 1, no 0).
+  - `f23_0024`: a scroll bar's record replaced in the list.
+  - `g28_03ea`: segment 28's recolour (MALL's `f06_16d8`, `g37_265a`).
+  - `f13_1270`: the loaded file's rate (`[69F0]`).
+  - `f27_050e`, `f27_0536`: `_splitpath` (`f36_0ef6`) and `_makepath`
+    (`f36_104a`) wrappers; `f31_00de`, `f31_0102` (`_llseek`), `f31_018a`
+    (`tell`, `f36_0b7c`).
+  - `f02_04b2`, `f02_05e6`: the `DIRECTDRUMOUT` and `PLAYINS` wrappers.
