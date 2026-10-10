@@ -183,7 +183,7 @@ void Science::roomHole(Object& o) {
         return;
     case 21:  // f45_021c
         if (to == 35) {
-            // Only with every target hit, or in one shot.
+            // Only with every target hit (f03_0014), or in one shot.
             if (targetsHit_ >= targets_ || shots_ <= 1) {
                 go();
                 return;
@@ -579,7 +579,7 @@ void Science::roomHole(Object& o) {
         return;
     case 70:  // f54_0be7
         if (to == 32) {
-            if (targetsHit_ >= targets_) go();
+            if (targetsHit_ >= targets_) go();  // f03_0014
             else spitBall(o, 0);
             return;
         }

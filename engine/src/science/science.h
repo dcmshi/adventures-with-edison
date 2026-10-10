@@ -14,7 +14,8 @@ namespace edison {
 struct Drawable;  // table.cpp
 
 // The Wild Science Arcade (WMAIN.EXE): see docs/SCIENCE.md. So far the
-// title and the story; the lab and the arcade's rooms come next.
+// title and the story; the lab and the arcade's rooms come next. It is
+// also the player (the game object, [26D6], which f31_001a returns).
 class Science : public ArtechGame {
 public:
     struct Options {
@@ -336,10 +337,11 @@ private:
     // --- the ball's physics (physics.cpp) ---
     struct Face {
         const Box* box = nullptr;
-        int type = 0;  // 0 none (the stand-in at DS:2950), 1 top, 2-5 sides
+        int type = 0;  // 0 none (the stand-in at DS:2950, made at start-up by f34_0ef4), 1 top, 2-5 sides
         bool operator==(const Face& o) const { return box == o.box && type == o.type; }
     };
-    // A kind of ball (f33_0003 at start-up: DS:286C Ice ... DS:292A Magic;
+    // A kind of ball (f33_0003 at start-up, from the initialiser f33_02ab:
+    // DS:286C Ice ... DS:292A Magic;
     // the mass from f07_05bf).
     struct BallKind {
         int32_t bounceNum, bounceDen;  // +1, +5
