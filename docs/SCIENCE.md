@@ -508,7 +508,8 @@ the file streams; the high scores' lists in 19 and 21 derive from them).
     so the first tick's redraw puts the ball and its shadow on. Ported
     (`tableCovered_`); the port had shown the writing, the target and
     both boxes. Checked (`scenario.py game-won`'s rest, bonus and lesson
-    shots: 0, 5 and 5 pixels, from 8141, 1565 and 85).
+    shots: 0 pixels each, from 8141, 1565 and 85; the last 5 were the
+    power knob's column, below).
 - **The redraw at rest**: besides the objects, the score (`+F35`, a long,
   `ltoa`) in the yellow box `1425` at (480, 8), the text at (+17h, +3) in
   colour 10; " shots: n" (`DS:2040`, `+F39`) in the same box at (58, 8),
@@ -547,10 +548,10 @@ the file streams; the high scores' lists in 19 and 21 derive from them).
 - The ball's shadow (`f13_01ce`, with the linked object's `+60` set and
   `[14E0]` clear): `1040` at the ball's centre, the radius less one lower,
   before the ball.
-- With these, room 1 at rest matches the original within the view but
-  for 5 pixels (on one of the ramp's grid lines); outside it the panel's
-  controls and the side columns (the player's `+A4`, `+AA`, `+AC`) aren't
-  ported yet.
+- With these, room 1 at rest matches the original pixel for pixel, the
+  panel's controls and boxes too (`scenario.py rest-1`; the side columns,
+  the player's `+A4`, `+AA`, `+AC`, masked for their random ball frames).
+  (The 5 pixels once noted here on one of the ramp's grid lines are gone.)
 
 ## Playing a room (ported: `play.cpp`, `panel.cpp`)
 
@@ -743,8 +744,8 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   addresses: the player object DS:5FFC, its room +AE; the room's gravity
   +EFF / +F03 (longs), friction +F07, power +F0F, shots +F39, its ball
   +F77 (the ball's +0: the motion part, sphere at +2; +2: the core,
-  velocity +62). Not yet: other balls (`f08_0d3e`, with the room's
-  solid objects), the push (`+4C`).
+  velocity +62). Not followed: other balls (`f08_0d3e`, with the room's
+  solid objects) and the push (`+4C`), which no comparison has needed.
 
 ## The room's tick, the objects on screen (ported: `play.cpp`, `table.cpp`)
 
@@ -1575,9 +1576,12 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   the counter (`fifty_`, slot 0, before the countdowns' 9).
 - **What the scenarios still show** (`scenario.py`, with frames every
   10 ms near the moving shots): the lessons, the game over and the game
-  won pixel for pixel, but for a column of 5 pixels at the power knob's
-  left edge (423, 303-307) after the shot in room 65, which the original
-  shows and the port doesn't (not explained). Three things are the
+  won pixel for pixel. (The last difference, a column of 5 pixels at the
+  power knob's left edge, (423, 303-307): a slider's release, the last
+  branch of `f30_306a`, marks the control's whole area, its `+12`, and
+  the knob at the top of the slope overhangs its frame's rectangle,
+  `+1A`, which each step marks, by that column; so it shows on the
+  display only from the release. The port had only let go.) Three things are the
   original's own timing, from run to run: the framed boxes' picture and
   the side Edison comes in from to put up a sign (Borland's rand(), whose
   calls follow the columns' redraws: `SCI_DIALOGPIC`, `SCI_RUNNERSIDE`

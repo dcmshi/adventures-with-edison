@@ -500,8 +500,13 @@ bool Science::sliderClick(Control c, const Mouse& m) {
         setSlider(c, v);
         return true;
     }
-    captured_ = Control::None;  // f32_00cf
+    // A release lets go (f32_00cf) and marks the control's whole area (its
+    // +12, as f30_1879 tests): the knob at the top of its slope overhangs
+    // its frame's rectangle, which a step marks, by a column on the left.
+    captured_ = Control::None;
     sliderRepeats_ = 0;
+    markPanel(c == Control::Gravity ? Rect{0, 300, 0xAE, 100}
+              : c == Control::Friction ? Rect{0xAE, 300, 0x68, 100} : Rect{0x18A, 300, 0x6A, 100});
     return true;
 }
 

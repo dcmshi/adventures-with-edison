@@ -138,6 +138,8 @@ def lesson_keys():
 
 
 SCENARIOS = {
+    # Room 1 at rest: the view, the panel's controls and boxes.
+    "rest-1": {"room": 1, "events": [], "shots": [(1.0, "rest"), (2.0, "rest2")], "length": 3},
     "hole-lab": hole((280, 156)),
     "hole-play": hole((260, 148)),
     "hole-level1": hole((332, 148)),
