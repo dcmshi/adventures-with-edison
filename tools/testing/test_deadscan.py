@@ -24,6 +24,9 @@ KNOWN = [
     ("mystery", "f01_02d0", "unreferenced", None),
     # Only its own jumps to its g labels: they don't count.
     ("mystery", "f25_084a", "unreferenced", None),
+    # A timer callback's neighbour: the offset 0x226 of an lcall beside the
+    # "seg s05" push isn't a pointer (the real one is s05:03DE).
+    ("mystery", "f05_01a0", "unreferenced", None),
     # A far pointer in data as a segment relocation (73:0735) with its
     # offset the word before it.
     ("mystery", "f08_0334", "table only", None),

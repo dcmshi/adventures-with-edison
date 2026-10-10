@@ -69,6 +69,16 @@ def starts(funcs):
     return out
 
 
+def operands(line):
+    """An instruction's immediates that could be pointers: none of a call's
+    or a jump's (their target is named; lcall's segment and offset aren't
+    data)."""
+    code = line.split(";", 1)[0]
+    if re.search(r"\b(l?call|j[a-z]+|ljmp)\b", code):
+        return []
+    return IMM.findall(code)
+
+
 def references(key, funcs):
     """{name: {(referrer or None, how)}}: None for data and exports."""
     exe = next(g[2] for g in P.GAMES if g[0] == key)
@@ -100,13 +110,15 @@ def references(key, funcs):
         if m:
             seg = int(m.group(1))
             for near in lines[max(0, i - 3):i + 4]:
-                for v in IMM.findall(near.split(";", 1)[0]):
-                    # (Beside a segment, an offset: a start, or inside.)
-                    name = begin.get((seg, int(v, 0))) or find(seg, int(v, 0))
+                for v in operands(near):
+                    # (Beside a segment, an offset: a function's start or
+                    # its prologue; inside one matched the offsets of calls
+                    # next to the push, Mystery's audit found.)
+                    name = begin.get((seg, int(v, 0)))
                     if name:
                         add(name, current, "far pointer")
         if here is not None:
-            for v in IMM.findall(code):
+            for v in operands(line):
                 name = begin.get((here, int(v, 0)))
                 if name:
                     add(name, current, "near pointer")
