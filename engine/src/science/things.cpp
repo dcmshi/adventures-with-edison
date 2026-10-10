@@ -34,8 +34,12 @@ void Science::thingsBuilt() {
             // every 10 ticks, f32_0e7f, only on a 256-colour display.)
             const int a = o.args[0];
             const int half = static_cast<uint16_t>(a + a) >> 2;
+            const int g = heightUnder(o.x, o.y);
+            o.field[0] = o.x, o.field[1] = o.y, o.field[2] = g, o.field[3] = a;
+            o.coreBox[0] = o.x, o.coreBox[1] = o.y, o.coreBox[2] = g;  // (f08_0384 with 3)
+            o.coreBox[3] = o.coreBox[4] = o.coreBox[5] = 6;
             Object::HotSpot s;
-            s.x = o.x, s.y = o.y, s.z = heightUnder(o.x, o.y);
+            s.x = o.x, s.y = o.y, s.z = g;
             s.full = static_cast<int>(static_cast<int32_t>(borlandRand()) * (a - half) / 0x8000) + half;
             o.hotSpots.assign(1, s);
             o.hotGrowing = true;
@@ -115,8 +119,10 @@ void Science::thingsBuilt() {
             // radius a (f07_0ed0); its level (f05_1e60: 0-4 by a above 7, 9,
             // 12, 16), its mass 3 level + 3; its strength (f05_1902): the
             // level's of DS:728 (70, 210, 420, 700, 980: made at start-up
-            // with [27B0] still 30) times [27B2] times b, over [27B0]; its
-            // type Iron (+52 28DE, f08_077f).
+            // with [27B0] still 30, f05_29ff) times [27B2] times b, over
+            // [27B0], set through its pole's +1C (f05_0244: kept within
+            // +-7FFFh, which no magnet nears); its type Iron (+52 28DE,
+            // f08_077f).
             const int a = static_cast<int8_t>(o.args[0]), pole = o.args[1];
             o.level = a > 16 ? 4 : a > 12 ? 3 : a > 9 ? 2 : a > 7 ? 1 : 0;
             static const int32_t kStrength[5] = {70, 210, 420, 700, 980};
@@ -139,8 +145,8 @@ void Science::thingsBuilt() {
             // motion part's, f07_0ed0, made after the core: the core box's
             // centre a unit lower) radius a - 1 (its own box made with a -
             // 1); then, with a height, its centre at d + half its core's
-            // height (its +8). Level, strength, mass and type as type 4's
-            // (f05_1749).
+            // height (its +8). Level, strength (DS:728, f05_29ff; set by
+            // f05_0244), mass and type as type 4's (f05_1749).
             const int a = static_cast<int8_t>(o.args[0]), pole = o.args[1], wall = o.args[2], height = o.args[3];
             o.level = a > 16 ? 4 : a > 12 ? 3 : a > 9 ? 2 : a > 7 ? 1 : 0;
             static const int32_t kStrength[5] = {70, 210, 420, 700, 980};
@@ -189,14 +195,19 @@ bool Science::thingBox(const Object& o, int box[6]) const {
         return true;
     }
     if (o.type == 4 || o.type == 5 || o.type == 16) {
-        // A magnet's (and a block's) follows its sphere (f07_04d5).
+        // A magnet's (and a block's) follows its sphere (f07_04d5); put
+        // somewhere (f08_056e), a magnet's place is its box part's
+        // (f05_1f58 → f07_11c5; types 15 and 6, which never move, the same
+        // through f05_24f4, f05_2900).
         const Ball& b = o.body;
         box[3] = box[4] = box[5] = 2 * b.r;
         box[0] = b.cx - b.r, box[1] = b.cy - b.r, box[2] = b.cz - b.r + 1;
         return true;
     }
     if (o.type == 13) {
-        // f02_0530: a 26 cube at (x, y, the ground under it).
+        // f02_0530: a 26 cube at (x, y, the ground under it). (Its place,
+        // f02_0bac → f07_11c5, as for the electromagnet's, f02_04fb: neither
+        // is ever moved.)
         box[0] = o.x, box[1] = o.y, box[2] = heightUnder(o.x, o.y);
         box[3] = box[4] = box[5] = 26;
         return true;
@@ -208,7 +219,8 @@ bool Science::thingBox(const Object& o, int box[6]) const {
         return true;
     }
     if (o.type == 7) {
-        // f04_00ba: a 34 cube at (x, y, b), b -1 the face's under it.
+        // f04_00ba: a 34 cube at (x, y, b), b -1 the face's under it. (Its
+        // place, f04_0305, does nothing: a switch stays put.)
         box[0] = o.x, box[1] = o.y, box[2] = o.args[1] == -1 ? heightUnder(o.x, o.y) : o.args[1];
         box[3] = box[4] = box[5] = 0x22;
         return true;
@@ -282,7 +294,8 @@ void Science::switchTurn(Object& o, int on) {
     // f04_0321 (kinds 0-2; no room starts a RETRY on): the switch set
     // (f04_008e), then its power's +0C with on or off. Sound 6026 when
     // switched off, and on unless the power's +10 says '\r' (type 6's,
-    // f05_29f2; 12's and 13's say 2). Type 6's +0C (f05_29c1) sounds 6027
+    // f05_29f2; 12's and 13's say 2, f02_0296 and f02_0866: their kinds,
+    // the +48 of their bodies too). Type 6's +0C (f05_29c1) sounds 6027
     // when switched on; then its power part set (+26: its field, f05_2933,
     // and its picture) and redrawn.
     switchSet(o, on);
@@ -375,8 +388,9 @@ void Science::hotGrow(Object& o) {
     // f02_1481: each spot (the list in order, new ones too) not yet full a
     // unit bigger and marked (f13_16f9); then, with at most 4 spots and
     // its radius above 5, at rand() * r / 8000h above r * 16 / 20 a new
-    // one off it (f02_0e4a). All full, the field stops growing (+16).
-    const int field[4] = {o.x, o.y, heightUnder(o.x, o.y), o.args[0]};
+    // one off it (f02_0e4a, by the field's sphere, +2). All full, the
+    // field stops growing (+16).
+    const int* field = o.field;
     size_t full = 0;
     for (size_t i = 0; i < o.hotSpots.size(); ++i) {
         if (static_cast<uint16_t>(o.hotSpots[i].full) <= static_cast<uint16_t>(o.hotSpots[i].r)) {
@@ -404,7 +418,8 @@ void Science::thingTick(Object& o) {
         // The hot field's step (f02_1627): growing, every 6 room ticks
         // ([FFE]) its spots grow (f02_1481). Then the player's ball on the
         // ground (+5E) and not breaking (+7C): its foot (its centre less its
-        // radius in z) within the field (radius 1 each, f11_1732) and
+        // radius in z) within the field (its sphere, +2; radius 1 each,
+        // f11_1732) and
         // within a spot's radius so far, it's heated with 2000 (f07_030e):
         // broken, whatever its type (sound 6028; Ice melting).
         if (o.hotGrowing && roomTicks_ % 6 == 0) hotGrow(o);
@@ -415,7 +430,7 @@ void Science::thingTick(Object& o) {
             const int16_t reach = static_cast<int16_t>(r + 1);
             return static_cast<int32_t>(dx) * dx + static_cast<int32_t>(dy) * dy + static_cast<int32_t>(dz) * dz <= static_cast<int32_t>(reach) * reach;
         };
-        if (!meets(o.x, o.y, heightUnder(o.x, o.y), o.args[0])) return;
+        if (!meets(o.field[0], o.field[1], o.field[2], o.field[3])) return;
         for (const Object::HotSpot& s : o.hotSpots) {
             if (!meets(s.x, s.y, s.z, s.r)) continue;
             ball_.state = 1, ball_.heated = true;
@@ -425,7 +440,9 @@ void Science::thingTick(Object& o) {
         return;
     }
     if (o.type == 4) {
-        // A loose magnet's step (its core's +00: f05_1f76 → f08_1a42).
+        // A loose magnet's step (its core's +00: f05_1f76 → f07_12bb, the
+        // box part's, → f08_1a42). Types 5, 15 and 6 don't move: their
+        // steps do nothing (f05_2229, f05_26db, f05_28f8).
         ballStep(o.body);
         return;
     }
@@ -503,6 +520,7 @@ void Science::thingTick(Object& o) {
         else viewDirty_ = true;
         return;
     }
+    // (Kinds 0 and 1's step, f04_03a3, does nothing.)
     if (o.type == 7 && o.args[3] == 2) {
         // Kind 2's step (f04_08e1): every 30 room ticks ([FFE]) the next of
         // e's 16 bits; set, it's shown (+1C, f08_04b3), else hidden (+18,
@@ -523,7 +541,27 @@ void Science::thingTick(Object& o) {
 
 bool Science::thingClick(Object& o, const Mouse& m) {
     // The room's mouse (f27_2d15): the first object whose rectangle has the
-    // point, its core's +08; one that takes it ends there.
+    // point, its core's +08; one that takes it ends there. The others take
+    // none: the electromagnet (f02_04f1), the fan (f02_0ba2), the targets
+    // (f03_0851; the smiley's f03_0d64, the suckhole's f02_0e36), the
+    // magnets (f05_08f3 through f05_1531, f05_1f91, f05_2239, f05_26e3,
+    // f05_29b7), the ball (f06_0308; type 3's f06_074e), its target ring
+    // (f06_0997) and shadow (f07_15a6); a loose ball (f07_034e) drags only
+    // in room 0 (f31_0373), which can't be entered; a block (f07_18f3)
+    // only with c, which no room gives.
+    if (o.type == 14) {
+        // The hot field's core (a 6 cube, its rectangle the one f27_1518
+        // kept as it was made) takes the generic +08 (f08_07c6): a press
+        // ([27AC] clear) takes the mouse for the room ([27AE] its +60, the
+        // core its +186), so it isn't aimed; held, it's dragged (thingDrag).
+        const int* b = o.coreBox;
+        const Rect r = objectRect(b[0], b[1], b[2], b[3], b[4], b[5]);
+        if (m.x < r.x || m.x >= r.x + r.w || m.y < r.y || m.y >= r.y + r.h) return false;
+        if (!m.click || captured_ != Control::None) return false;
+        captured_ = Control::Room;
+        roomHolder_ = static_cast<int>(&o - table_.objects.data());
+        return true;
+    }
     if (o.type != 7) return false;
     int b[6];
     thingBox(o, b);
@@ -531,12 +569,68 @@ bool Science::thingClick(Object& o, const Mouse& m) {
     if (m.x < r.x || m.x >= r.x + r.w || m.y < r.y || m.y >= r.y + r.h) return false;
     // f04_04bf: kinds 1 and 2 take no clicks.
     if (o.args[3] == 1 || o.args[3] == 2) return false;
-    // f04_03ab: a press switches it over (its method 3), and is taken.
+    // f04_03ab (RETRY's through f04_06c8): a press switches it over (its
+    // method 3), and is taken.
     if (!m.click) return false;
     const int on = o.state ? 0 : 1;
     if (o.args[3] == 0) switchTurn(o, on);
     else retry(o, on);
     return true;
+}
+
+void Science::thingDrag(Object& o, const Mouse& m) {
+    // f08_07c6 with the mouse taken ([27AC], the room's +186 this object):
+    // the button up lets go (f32_00cf); held, the object is moved under
+    // the pointer. From its sphere's centre (its +4C) on the screen
+    // (f25_0813), the pointer's point at the sphere's height (f25_08fc):
+    // on the face under the sphere (f27_0903) it's put there (f08_056e);
+    // else, the sphere on a top (the face's +2 1), the line from the one
+    // to the other is halved (f25_08fc at each middle, kept on the face
+    // or not) till both ends are within 1 on each axis, and it's put at
+    // the end on the face. (Only the hot field's core comes here.)
+    if (!m.held) {
+        captured_ = Control::None;
+        roomHolder_ = -1;
+        return;
+    }
+    int* s = o.field;
+    const Face f0 = faceUnder(s[0], s[1]);
+    const auto [sx, sy] = project(s[0], s[1], s[2]);
+    std::pair<int, int> p = unproject(m.x, m.y, s[2]);
+    if (!(faceUnder(p.first, p.second) == f0)) {
+        if (f0.type != 1) return;
+        int a[2] = {sx, sy}, b[2] = {m.x, m.y};
+        for (;;) {
+            const int mid[2] = {static_cast<int16_t>(a[0] + b[0]) / 2, static_cast<int16_t>(a[1] + b[1]) / 2};
+            const std::pair<int, int> w = unproject(mid[0], mid[1], s[2]);
+            int* to = faceUnder(w.first, w.second) == f0 ? a : b;
+            to[0] = mid[0], to[1] = mid[1];
+            if (std::abs(b[0] - a[0]) <= 1 && std::abs(b[1] - a[1]) <= 1) break;
+        }
+        p = unproject(a[0], a[1], s[2]);
+    }
+    const int px = p.first, py = p.second;
+    // f08_056e (height 0): stopped (its +40: nothing moves it); sound 6026
+    // for a move of more than 15 (dx << 12 over the cosine of the move's
+    // heading, f87_0804, f86_106d: |dy| when dx or the cosine is 0); its
+    // place (+3C, f07_11c5): the sphere's centre at (x, y), its radius
+    // above the ground there, the core's box centred on it (z a unit up).
+    const int16_t dx = static_cast<int16_t>(s[0] - px), dy = static_cast<int16_t>(s[1] - py);
+    if (dx != 0 || dy != 0) {
+        int32_t len = std::abs(static_cast<int>(dy));
+        if (dx != 0) {
+            const int c = libCos4096(libAtan2(dx, dy));
+            if (c != 0) len = (static_cast<int32_t>(dx) << 12) / c;
+        }
+        if (len > 15) sound(0x6026);
+    }
+    const bool moved = s[0] != px || s[1] != py;
+    s[0] = px, s[1] = py, s[2] = static_cast<int16_t>(heightUnder(px, py) + s[3]);
+    int* box = o.coreBox;
+    box[0] = static_cast<int16_t>(s[0] - (box[3] >> 1));
+    box[1] = static_cast<int16_t>(s[1] - (box[4] >> 1));
+    box[2] = static_cast<int16_t>(s[2] - (box[5] >> 1) + 1);
+    if (moved && std::getenv("SCI_DEBUG")) logLine("hot field dragged to " + std::to_string(s[0]) + "," + std::to_string(s[1]) + "," + std::to_string(s[2]));
 }
 
 void Science::retry(Object& o, int on) {
@@ -547,7 +641,7 @@ void Science::retry(Object& o, int on) {
     if (!columns_[0].ballOut || !columns_[1].ballOut) return;
     switchSet(o, on);
     leftBalls_ = o.savedBalls[0], rightBalls_ = o.savedBalls[1];
-    totalScore_ = o.savedScore, score_ = o.savedScore;
+    totalScore_ = o.savedScore, score_ = o.savedScore;  // [BD8] (f06_02e8)
     completionBonus_ = 0;
     exitRoom_ = currentRoom_;
 }
@@ -565,6 +659,7 @@ bool Science::contactOf(Object& o, Contact& c) {
         // A point target (a suckhole and type 11 too: its target part's, f02_0dfb): its
         // box's centre a unit lower, radius its kind's size (f03_002c's f07_1082); soft
         // while live. (A suckhole's spark: soft and no points, so nothing.)
+        // Its +2C does nothing (f03_01b7).
         const int g = heightUnder(o.x, o.y);
         c.s[0] = o.x + o.size, c.s[1] = o.y + o.size, c.s[2] = g + o.size - 1, c.s[3] = o.size;
         c.ratio = o.live ? 1 : 0;
@@ -595,8 +690,10 @@ bool Science::contactOf(Object& o, Contact& c) {
         return true;
     }
     if (o.type == 4 || o.type == 5 || o.type == 15 || o.type == 6) {
-        // A magnet: its mass 3 level + 3; a loose one's velocity takes the
-        // change (types 5, 15 and 6's +2C do nothing).
+        // A magnet: its sphere (its +4C: f05_1f3d → f07_11b1; types 15 and
+        // 6 through f05_250f, f05_291b; type 2's f05_14dd → f07_04c1), its
+        // mass 3 level + 3; a loose one's velocity takes the change (types
+        // 5, 15 and 6's +2C do nothing: f05_2231, f05_2527, f05_28f0).
         const Ball& b = o.body;
         c.s[0] = b.cx, c.s[1] = b.cy, c.s[2] = b.cz, c.s[3] = b.r;
         c.ratio = b.mass;
@@ -604,24 +701,27 @@ bool Science::contactOf(Object& o, Contact& c) {
         return true;
     }
     if (o.type == 13) {
-        // The fan: solid (+34 / +38 25); its sphere (f07_0ed0) at its box's
-        // centre a unit lower, radius 13. It doesn't move.
+        // The fan: solid (+34 / +38 25); its sphere (f07_0ed0; its +4C
+        // f02_0bc8 → f07_11b1) at its box's centre a unit lower, radius 13.
+        // It doesn't move (its +2C, f02_08e1, does nothing).
         c.s[0] = o.x + 13, c.s[1] = o.y + 13, c.s[2] = heightUnder(o.x, o.y) + 12, c.s[3] = 13;
         c.ratio = 25;
         return true;
     }
     if (o.type == 12) {
         // The electromagnet: soft (+34 / +38 1); its sphere (f02_00c2's
-        // end, f10_1582) radius 13 at its box's centre in x and y, resting
-        // on the ground there.
+        // end, f10_1582; its +4C f02_0517 → f07_11b1) radius 13 at its
+        // box's centre in x and y, resting on the ground there. (Its +2C,
+        // f02_03f3, does nothing.)
         c.s[0] = o.x + 22, c.s[1] = o.y + 1, c.s[2] = heightUnder(o.x + 22, o.y + 1) + 13, c.s[3] = 13;
         c.ratio = 1;
         return true;
     }
     if (o.type == 7) {
-        // A switch: its sphere at its box's centre a unit lower, radius 10
-        // (f04_01a1's f10_1523); the bullseyes (kinds 1 and 2) 20, the lever
-        // and RETRY 0. It doesn't move (its +2C does nothing).
+        // A switch: its sphere (its +4C, f04_030d: the one at its +8) at
+        // its box's centre a unit lower, radius 10 (f04_01a1's f10_1523);
+        // the bullseyes (kinds 1 and 2) 20, the lever and RETRY 0. It
+        // doesn't move (its +2C, f04_007c, does nothing).
         int b[6];
         thingBox(o, b);
         c.s[0] = b[0] + (b[3] >> 1), c.s[1] = b[1] + (b[4] >> 1), c.s[2] = b[2] + (b[5] >> 1) - 1, c.s[3] = 10;

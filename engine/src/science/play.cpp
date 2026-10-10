@@ -426,6 +426,12 @@ void Science::keyEvent(int key) {
 void Science::mouseEvent(const Mouse& m) {
     // f31_241a: to whoever has the mouse ([27AC]); else the room if it's in
     // the view, the panel, the columns.
+    if (captured_ == Control::Room) {
+        // The room ([27AE]): f27_2d15 to its +186, the object that took it.
+        if (roomHolder_ >= 0 && roomHolder_ < static_cast<int>(table_.objects.size())) thingDrag(table_.objects[static_cast<size_t>(roomHolder_)], m);
+        else captured_ = Control::None;
+        return;
+    }
     if (captured_ == Control::Gravity || captured_ == Control::Friction || captured_ == Control::Power) {
         sliderClick(captured_, m);
         return;
@@ -633,7 +639,9 @@ void Science::setBallType(int type) {
     // f30_2574: Magic (5) goes back to Ice; the ball told (its +8); the
     // name in the box; sound 6007.
     panel_.ballType = type == 5 ? 0 : type;
-    ball_.kind = panel_.ballType;  // f07_05bf (its mass, its record)
+    // f07_05bf (its mass, its record), the ball's +44: f06_001a, which also
+    // keeps its rolling frames' table at [BDE] (see docs/SCIENCE.md).
+    ball_.kind = panel_.ballType;
     sound(0x6007);
     markButton(Control::BallType);
     viewDirty_ = true;  // the ball's look (f07_04d5)

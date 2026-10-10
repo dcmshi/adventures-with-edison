@@ -313,7 +313,12 @@ struct Drawable {
     bool marks = true;
     // Not hidden (its core's +60: else not drawn, its rectangle empty,
     // f08_0469); and of a class that isn't redrawn when its rectangle
-    // stays (f27_16ae: +48 6, types 4 and 5; 8, type 2).
+    // stays (f27_16ae: +48 6, types 4 and 5, f05_1f33; 8, type 2,
+    // f05_14d3). The others' kinds: the type-3 ball 9 (f06_0557), types 15
+    // and 6 7 and 13 (f05_26d1, f05_29f2), 12 and 13 2 (f02_0296,
+    // f02_0866), a loose ball 1 (f07_0438), the shadow and the suckhole 4
+    // (f07_159c, f02_0db8), the box parts' 2 (f07_11a7: blocks, targets,
+    // the target ring, the hot field).
     bool shown = true, steady = false;
 };
 
@@ -558,9 +563,10 @@ void Science::listDrawables(std::vector<Drawable>& list, const Rect& redraw) {
             ball.draw = [this] {
                 const Ball& b = ball_;
                 if (b.hidden) return;
-                // f13_01ce: not breaking, its shadow first (1040, the radius
-                // less one below the centre: while the shadow object, its
-                // +16, is hidden (its +60), and not [14E0]); then the ball in
+                // f13_01ce (f06_032d; type 3's f06_0676): not breaking, its
+                // shadow first (1040, the radius less one below the centre:
+                // while the shadow object, its +16, is hidden (its +60), and
+                // not [14E0]); then the ball in
                 // its type's rolling frames (f07_04d5: DS:1348 Ice, 1330
                 // Stone, 1300 Rubber, 1378 Iron, 1318 Glass, 1360 Magic).
                 const auto [bx, by] = objectCentre(b.cx - b.r, b.cy - b.r, b.cz - b.r, 2 * b.r + 1, 2 * b.r + 1, 2 * b.r + 1);
@@ -677,6 +683,19 @@ std::pair<int, int> Science::project(int x, int y, int h) const {
     const int across = static_cast<int>(static_cast<int64_t>(y) * t.cos * 5 / (10LL * 0x7FFF));
     const int up = static_cast<int>(static_cast<int64_t>(y) * t.sin * 5 / (10LL * 0x7FFF));
     return {across + x + t.view.x + t.scrollX, t.bottom - (up + h) + t.scrollY};
+}
+
+std::pair<int, int> Science::unproject(int x, int y, int h) const {
+    // f25_08fc: the point at height h seen at (x, y) on the screen: depth
+    // (the view's bottom less y, the scroll taken off, less h) * [1F58] *
+    // 7FFFh / (the sine * [1F56]); across x less the scroll and the view's
+    // left, less depth * the cosine * [1F56] / ([1F58] * 7FFFh), in words.
+    const Table& t = table_;
+    const int16_t sx = static_cast<int16_t>(static_cast<int16_t>(x - t.scrollX) - t.view.x);
+    const int16_t sy = static_cast<int16_t>(static_cast<int16_t>(t.bottom - static_cast<int16_t>(y - t.scrollY)) - h);
+    const int16_t d = static_cast<int16_t>(static_cast<int32_t>(sy) * 10 * 0x7FFF / (static_cast<int32_t>(t.sin) * 5));
+    const int16_t across = static_cast<int16_t>(static_cast<int32_t>(d) * t.cos * 5 / (10 * 0x7FFF));
+    return {static_cast<int16_t>(sx - across), d};
 }
 
 void Science::hiddenSides(Box& box) const {
@@ -1305,16 +1324,20 @@ void Science::enterRoom(int room) {
             ball_.startX = o.x, ball_.startY = o.y;
             ball_.self = static_cast<int>(i);
             // Type 3 (f61_09bd → f06_0348) has a magnetic part (f05_11c1):
-            // strength 200 * [27B2] / ([27B0] * 2) (f61_09bd).
+            // strength 200 * [27B2] / ([27B0] * 2) (f61_09bd), set by its
+            // +1C (f06_068e → f05_0244: within +-7FFFh; its +24, the
+            // strength in eighths of that, is read by nothing).
             ball_.magnetic = o.type == 3;
             ball_.strengthNum = 200L * kTimerK, ball_.strengthDen = kTimerRate * 2L;
+            // The target (f06_0877) made from the ball (f06_0784): its box
+            // (x, y, the ball's bottom, 20, 20, 10).
             targetX_ = o.x + 10, targetY_ = o.y + 10;
             targetMoved_ = false;
             ballMoving_ = false, shadowShown_ = false;
             lastCentre_[0] = ball_.cx, lastCentre_[1] = ball_.cy, lastCentre_[2] = ball_.cz;
             for (int i = 0; i < 3; ++i) shadowSeen_[i] = lastCentre_[i];
         }
-    captured_ = Control::None;
+    captured_ = Control::None, roomHolder_ = -1;
     ballTypePressed_ = shootPressed_ = false;
     roomBusy_ = false, exitRoom_ = 0, exitHole_ = -1;
     // The builder's settings; the targets counted ([30A]); each drawable's
@@ -1322,7 +1345,7 @@ void Science::enterRoom(int room) {
     // suckhole two, its own and its spark's).
     roomConfig(room);
     roomObjects(room);
-    targetsHit_ = targets_ = 0;
+    targetsHit_ = targets_ = 0;  // f03_0000 (from f27_03da)
     fuseBusy_ = false;  // (f02_0d35, the last room's suckhole gone)
     int made = 0;
     for (Object& o : table_.objects) {
