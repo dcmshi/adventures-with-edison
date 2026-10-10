@@ -94,11 +94,11 @@ void Science::thingsBuilt() {
         }
         if (o.type == 0) {
             // Another ball (f07_0000, the balls' own class): a its radius,
-            // resting on the ground at (x, y) (f10_1582); its type the
-            // core's own (+52 28B8: Rubber), so Rubber's frames (+20 1300,
-            // breaking +22 1390); its mass 10 (+34 / +38); no shadow object
-            // (+16 0: it draws none); its roll a frame every r * r / 16 of
-            // squared move.
+            // resting on the ground at (x, y) (f11_1582: its centre r
+            // above); its type the core's own (+52 28B8: Rubber), so
+            // Rubber's frames (+20 1300, breaking +22 1390); its mass 10
+            // (+34 / +38); no shadow object (+16 0: it draws none); its roll
+            // a frame every r * r / 16 of squared move.
             Ball& b = o.body;
             b = Ball{};
             b.r = o.args[0];
@@ -523,7 +523,8 @@ void Science::thingTick(Object& o) {
 
 bool Science::thingClick(Object& o, const Mouse& m) {
     // The room's mouse (f27_2d15): the first object whose rectangle has the
-    // point, its core's +08; one that takes it ends there.
+    // point, its core's +08; one that takes it ends there. (Only switches
+    // take it here: a hole's +08 is f28_1597, nothing.)
     if (o.type != 7) return false;
     int b[6];
     thingBox(o, b);
@@ -612,7 +613,7 @@ bool Science::contactOf(Object& o, Contact& c) {
     }
     if (o.type == 12) {
         // The electromagnet: soft (+34 / +38 1); its sphere (f02_00c2's
-        // end, f10_1582) radius 13 at its box's centre in x and y, resting
+        // end, f11_1582) radius 13 at its box's centre in x and y, resting
         // on the ground there.
         c.s[0] = o.x + 22, c.s[1] = o.y + 1, c.s[2] = heightUnder(o.x + 22, o.y + 1) + 13, c.s[3] = 13;
         c.ratio = 1;

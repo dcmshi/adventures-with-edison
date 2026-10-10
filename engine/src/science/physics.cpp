@@ -98,8 +98,8 @@ void Science::libCross(const int16_t a[3], const int16_t b[3], int16_t out[3]) c
 // --- the faces ----------------------------------------------------------------------
 
 Science::Face Science::faceUnder(int x, int y) const {
-    // f27_0903 (f12_4284, f12_443b): the deepest box whose bottom has the
-    // point, the face of it there.
+    // f27_0903 (f12_44c8: f12_4284, f12_443b): the deepest box whose
+    // bottom has the point, the face of it there.
     const Box* box = &table_.root;
     for (bool deeper = true; deeper;) {
         deeper = false;

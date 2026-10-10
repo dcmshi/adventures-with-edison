@@ -493,7 +493,7 @@ bool Science::sliderClick(Control c, const Mouse& m) {
         (void)x0;
         const Bitmap& frame = ctx_.bitmap(frame0);
         const int index = (value - min) * (9 - 1) / (max - min);
-        const int line = frame.height - index * frame.height / 9 + 299 - 1;  // f30_2fdf
+        const int line = frame.height - index * frame.height / 9 + 299 - 1;  // f30_2fdf (30:2fdf)
         int v = value;
         if (m.y < line - 2) ++sliderRepeats_, ++v, sound(0x602A);
         else if (m.y > line + 2) ++sliderRepeats_, --v, sound(0x6029);
@@ -511,7 +511,7 @@ bool Science::sliderClick(Control c, const Mouse& m) {
 }
 
 void Science::setSlider(Control c, int value) {
-    // f30_3339: kept in the range, then the kind's own (+28): gravity
+    // f30_3339: kept in the range (f30_2f9d), then the kind's own (+28): gravity
     // (f30_39fc: the room's gravity, f27_108d; its box -value / 4.0),
     // friction (f30_3bb2: the room's +F07), power (f30_3739: the shot's
     // speed, f27_26e3). The physics isn't ported yet: only the values.
@@ -519,7 +519,9 @@ void Science::setSlider(Control c, int value) {
     else if (c == Control::Friction) panel_.friction = std::clamp(value, 0, 16);
     else panel_.power = std::clamp(value, 0, 16);
     applyPanelPhysics();
-    // f29_0313: its sprite's rectangle (its first frame's size) and its box.
+    // f29_0313: its sprite's rectangle (its first frame's size) and its box
+    // (its +36, f30_2055; the number set, f30_2c9e, gravity's with tenths
+    // f30_2d43: the box joined with the text's extent).
     const uint16_t frame0 = c == Control::Gravity ? 0x1188 : c == Control::Friction ? 0x1191 : 0x119A;
     const int x0 = c == Control::Gravity ? 0x50 : c == Control::Friction ? 0xC0 : 0x1A8;
     const Bitmap& f = ctx_.bitmap(frame0);
@@ -631,7 +633,7 @@ bool Science::buttonClick(Control c, const Mouse& m) {
 
 void Science::setBallType(int type) {
     // f30_2574: Magic (5) goes back to Ice; the ball told (its +8); the
-    // name in the box; sound 6007.
+    // name in the box (f30_2de8); sound 6007.
     panel_.ballType = type == 5 ? 0 : type;
     ball_.kind = panel_.ballType;  // f07_05bf (its mass, its record)
     sound(0x6007);

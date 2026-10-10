@@ -217,7 +217,9 @@ int Science::lesson(int n) {
         select(1);
     };
     auto tick = [&] {
-        // The game's ticks, 50 a second (f32_0777(50)).
+        // The game's ticks, 50 a second (f32_0777(50)); the lesson's
+        // (f15_0acb → f29_05fe: each object's tick, then what changed
+        // redrawn: the area's draw, f29_04ca, the objects over it).
         const uint64_t ticks = (ctx_.platform.milliseconds() - start) / 20;
         bool changed = false;
         for (int i = 0; i < 2; ++i) {
@@ -243,6 +245,8 @@ int Science::lesson(int n) {
             ctx_.displayPalette[i] = base[0x70 + static_cast<int>((static_cast<uint64_t>(i - 0x70) + steps) % 16)];
     };
     tick();
+    // A press (f15_0ae4 → f29_068c: the object that has the mouse, else
+    // the first whose rectangle has the point, its +08).
     // Lessons 5-8's professor (f15_0bde, its +08 g15_0cb7): pressed, he
     // takes the mouse ([27AC], [27AE]) and his animation becomes 13BE, 3
     // frames over 25 ticks; at the button's release, 13BB, 3 over 50 again
@@ -280,7 +284,9 @@ int Science::lesson(int n) {
     };
     uint16_t pending = l.firstSound;
     for (const Step& step : l.steps) {
-        // f15_0a70 / g15_0a1d: the last bubble goes, the new one comes.
+        // f15_0a70 / g15_0a1d: the last bubble goes, the new one comes (out
+        // of the lesson's area, f29_0281, and into it, f29_0231: its
+        // rectangle queued, f29_02d7).
         current = &step;
         currentText = textResource(step.text);
         compose();

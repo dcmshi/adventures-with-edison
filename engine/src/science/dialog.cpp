@@ -319,7 +319,8 @@ void Science::dialogClose(Dialog& d) {
     // f24_1f26: event 5 to the player (its method 4, f31_27de) for the
     // frame and for the stand: the room's redraw there (method 3) and
     // every control's. (Screen 2 under the face is then put back, under
-    // what was redrawn: nothing shows it.)
+    // what was redrawn: nothing shows it.) Its +3E: closed once (its
+    // destructor, f24_1eaa, closes one still open).
     if (d.closed) return;
     d.closed = true;
     if (dialogNoRedraw_) return;  // [275C]: while event 9 builds a room

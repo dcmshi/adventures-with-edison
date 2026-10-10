@@ -57,9 +57,9 @@ void Science::drawKnob(int kind, int value) {
 }
 
 void Science::valueBox(int x, int y, int w, int h, const std::string& text) {
-    // f30_1af3 (a box's draw, f30_2e8b): the box (+5B: its rectangle and
-    // the text's, f14_180e, joined) in colour 0, the text at its corner a
-    // pixel right in colour 16, then in colour 23 (font 103).
+    // f30_1af3 (30:1af3; a box's draw, f30_2e8b): the box (+5B: its
+    // rectangle and the text's, f14_180e, joined) in colour 0, the text at
+    // its corner a pixel right in colour 16, then in colour 23 (font 103).
     fill(x, y, std::max(w, font_->width(text)), std::max(h, font_->height()), 0);
     textAt(x + 1, y, text, 0x16);
     textAt(x, y, text, 0x23);
@@ -70,7 +70,8 @@ void Science::drawPanel(const Rect* changed) {
     // it, or what its controls marked changed, f29_0313): screen 3 to
     // screen 2 over it, its controls in the order they were added
     // (f30_13e4), the walking figure (off the screen at rest), and the area
-    // to the display.
+    // to the display. The panel's area (its gamearea's, f29_00a9: within
+    // the screen) is all under the view.
     const Rect whole{0, table_.view.y + table_.view.h, Screen::kWidth, Screen::kHeight - (table_.view.y + table_.view.h)};
     const Rect area = changed ? intersect(*changed, whole) : whole;
     if (area.w <= 0 || area.h <= 0) return;
@@ -78,7 +79,8 @@ void Science::drawPanel(const Rect* changed) {
     select(2);
     setPolygonClip(area.x, area.y, area.w, area.h);
     const PanelState& p = panel_;
-    // Gravity: its knob, its box (f30_39fc: -value / 4.0 as "%c%d.%d").
+    // Gravity: its knob, its box (f30_39fc: -value / 4.0, a box of a
+    // number with tenths, f30_2b45 / f30_2d43, as "%c%d.%d": f30_1c59).
     drawKnob(0, p.gravity);
     {
         const int tenths = -p.gravity * 10 / 4;
@@ -88,7 +90,8 @@ void Science::drawPanel(const Rect* changed) {
     }
     drawKnob(1, p.friction);
     valueBox(200, 0x172, 0x20, 0x10, std::to_string(p.friction));
-    // The ball type (f30_244e: DS:22D2, the first when down) and its name (DS:22E2).
+    // The ball type (f30_244e: DS:22D2, the first when down; a button's
+    // draw, f30_2a22) and its name (DS:22E2: a box of text, f30_2be0).
     panelSprite(0x124, 0x150, ballTypePressed_ ? 0x11BE : 0x11BF);
     valueBox(0x134, 0x140, 0x4C, 0x11, dataString(static_cast<uint16_t>(0x22E2 + 10 * p.ballType)));
     drawKnob(2, p.power);
@@ -96,8 +99,8 @@ void Science::drawPanel(const Rect* changed) {
     // The shoot button (f30_2730: DS:231E, the first when down).
     panelSprite(0x1F0, 0x13B, shootPressed_ ? 0x11C0 : 0x11C1);
     // Locked controls' signs (drawn with each, +2C): a slider's 134C at its
-    // frame's middle a pixel right (f30_20ec), the ball type's 134D 6 right
-    // and 4 down of its middle (f30_25fd).
+    // frame's middle a pixel right (f30_20ec, 30:20e9), the ball type's
+    // 134D 6 right and 4 down of its middle (f30_25fd).
     for (int c = 0; c < 4; ++c) {
         if (!p.sign[c]) continue;
         if (c == 2) {
@@ -111,8 +114,9 @@ void Science::drawPanel(const Rect* changed) {
             panelSprite(k.x + f.width / 2 + 1 - sign.width / 2, k.y + f.height / 2 - sign.height / 2, 0x134C);
         }
     }
-    // Edison (f30_1120): his frame (131C on) on the bottom of his 96 x 104
-    // rectangle round his middle (its last row; drawn by f14_12e9 → f72_02cd).
+    // Edison (f30_1120, 30:1120): his frame (131C on) on the bottom of his
+    // 96 x 104 rectangle (f30_0bc1) round his middle (f30_0b1c, 30:0b1c:
+    // its last row; drawn by f14_12e9 → f72_02cd).
     if (runner_.flags != 0) {
         const Bitmap& b = ctx_.bitmap(static_cast<uint16_t>(0x131C + std::max(runner_.frame, 0)));
         const int top = runner_.y - 52 + 104 - 1 - b.height;
@@ -178,6 +182,7 @@ void Science::lockControls() {
     // ball type, power) for Edison to sign (f30_1569: from the right, the
     // list backwards).
     runner_ = Runner{};
+    // Each control made unlocked, without its sign (f30_1ed1).
     // f30_0910: he starts off the panel on a random side, at its middle's
     // height + 4 (the panel (0, 286, 640, 114)).
     bool right = static_cast<long>(borlandRand()) * 2 / 0x8000 == 0;
@@ -198,8 +203,8 @@ void Science::lockControls() {
 }
 
 void Science::runnerMode(int mode) {
-    // f30_0c6e: stopped (and the controls free again), running (1), putting
-    // a sign up (2) or carrying it (3), facing his way.
+    // f30_0c6e (30:0c6e): stopped (and the controls free again), running
+    // (1), putting a sign up (2) or carrying it (3), facing his way.
     Runner& r = runner_;
     r.pending = false;
     const bool left = r.dx < 1;
@@ -214,13 +219,13 @@ void Science::runnerMode(int mode) {
 }
 
 void Science::runnerTick() {
-    // f30_1430: the walking figure's tick (f30_0d7c), then the next control
-    // to sign, if he's free (f30_148f: he stops 48 to its right, coming
-    // from there, else 48 to its left).
+    // f30_1430: the walking figure's tick (f30_0d7c, 30:0d7c), then the
+    // next control to sign, if he's free (f30_148f: he stops 48 to its
+    // right, coming from there, else 48 to its left).
     Runner& r = runner_;
     if (std::getenv("SCI_RUNNER"))  // (testing: his state, for tracecmp.py)
         logLine("runner t" + std::to_string(runnerTicks_) + " x " + std::to_string(r.x) + " f " + std::to_string(r.frame) + " per " + std::to_string(r.period) + " dx " + std::to_string(r.dx) + " tgt " + std::to_string(r.target) + " fl " + std::to_string(r.flags) + " pend " + std::to_string(r.pending));
-    const Rect before{r.x - 48, r.y - 52, 96, 104};
+    const Rect before{r.x - 48, r.y - 52, 96, 104};  // f30_0b1c
     if (++runnerTicks_ % r.period == 0) {
         bool moved = true;
         if (r.flags == 0) {
@@ -229,7 +234,8 @@ void Science::runnerTick() {
         } else if (r.flags & 1) {
             if (r.pending) runnerMode(r.flags);
             if ((r.dx < 0 && r.x <= r.target) || (r.dx > 0 && r.x >= r.target)) {
-                // +44: arrived (f30_152c: a mode change; with 2, the sign).
+                // +44: arrived (f30_152c: a mode change; with 2, the sign;
+                // first the base's, f30_1096 (30:1096): +144 set).
                 // A place off the panel (left of it, or at its right edge
                 // and on) only stops his frames (f30_0c6e with 0): the
                 // sign, if one's still to go up, then goes up at once
@@ -266,6 +272,7 @@ void Science::runnerTick() {
         panelBusy_ = true;
         const int c = r.queue[r.done];
         r.current = c;
+        // f30_10fd → f30_10ad: the place (+148), the way (17 a step), +15E 3.
         const Rect a = controlArea(c);
         const int right = a.x + a.w - 1;
         r.target = r.x > right + 48 ? right + 48 : a.x - 48;

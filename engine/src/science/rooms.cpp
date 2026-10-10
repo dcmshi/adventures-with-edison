@@ -41,7 +41,7 @@ int Science::askButtons(int face, uint16_t message, uint16_t firstLine, uint16_t
     d.face = face, d.style = 0, d.lines = 2, d.message = message, d.firstLine = firstLine;
     dialogOpen(d);
     if (narration >= 0x6100) this->narration(narration, false);
-    return dialogRun(d);
+    return dialogRun(d);  // the button chosen (f24_1804: its +28)
 }
 
 std::string Science::askCode(int face, uint16_t message, uint16_t narration) {
@@ -53,7 +53,7 @@ std::string Science::askCode(int face, uint16_t message, uint16_t narration) {
     dialogOpen(d);
     if (narration >= 0x6100) this->narration(narration, false);
     dialogRun(d);
-    return d.text;
+    return d.text;  // f24_1804: its +40
 }
 
 bool Science::sameCode(const std::string& typed, const char* code) {
@@ -1288,9 +1288,10 @@ void Science::putBodyAt(Ball& b, int x, int y, int h) {
 }
 
 Science::Object* Science::holeTo(int room) {
-    // f27_09dc: the room's object (a hole) whose +C is `room`.
+    // f27_09dc: the room's object whose class says 10 (its +48: f28_062f,
+    // a door or a pulling hole) and whose +C is `room`.
     for (Object& o : table_.objects)
-        if (o.type == 8 && o.args[0] == room) return &o;
+        if (isHole(o) && o.args[0] == room) return &o;
     return nullptr;
 }
 

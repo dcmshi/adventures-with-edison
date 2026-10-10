@@ -1871,3 +1871,91 @@ The port's equivalent is `--game science --room 1`.
   `f50_0af6` (48). Not needed: the port keeps one room's state and
   replaces it. (The others also stop the room's colour cycles,
   `f32_0f77`: `roomCycles` clears them.)
+
+### The scan: segments 11-13, 24-30
+
+What the port leaves out of these segments, and why (the rest is cited
+in `engine/src/science`):
+
+- **Data, not code**: Borland's RTTI records after the classes' code,
+  which `nedis.py` takes for functions: `f12_469a` (sortableArray),
+  `f12_46da` (sortableHard), `f12_4819` (sorter), `f25_0c8c` (surface),
+  `f25_0d04` (plateau), `f26_03c7` (magsurf), `f26_0457` (sonysurf),
+  `f26_04c1` (magnetList), `f26_0545` (sonysurf::sonyobjList), `f26_0595`
+  (sonysurf::plateauSortNO), `f26_05e7` (perspNodes, Bitfield),
+  `f28_1c09` (door), `f30_3e9f` (lever), `f30_3f91` (button), `f30_41c9`
+  (EdisonArea), `f30_42c7` (ballArea).
+- **Destructors** (the port's objects go with the room, nothing to free
+  or undo on the screen): the boxes' `f12_07c1` and their looks'
+  `f12_0141`; the sorters' `f12_01de`, `f12_472a`; `f25_0ccc`; the
+  rooms' `f27_092b` (sonysurf), `f26_0063` (magsurf) and their lists'
+  `f27_0000`, `f27_00a9`, `f27_0108`, `f26_0507`; the holes' `f28_1c51`
+  (door), `f28_1897` (suckHole); the areas' `f29_01d2` (gamearea, with
+  `f29_0000` its objects' and `f29_0306` letting the mouse go), `f30_134f`
+  (frontPanel), `f30_420f` (EdisonArea), `f30_430b` (ballArea); the
+  controls' `f30_2013`, `f30_3d69`, `f30_3de9`, `f30_3e67`, `f30_3edf`,
+  `f30_3f59`, `f30_3fd3`, `f30_404b`, `f30_40c7`.
+- **Segment 11's other vectors and rectangles, never called**: `f11_013e`
+  (a cross product, unscaled), `f11_0784` (a rectangle grown to a point),
+  `f11_0dc4` (two boxes meet), `f11_1117` (two boxes' union), `f11_12ed`
+  (a box within another, for `f25_0bae`, also uncalled), `f11_143a`,
+  `f11_15f3` (its prologue `11:15f0`) / `f11_16d9` (a point moved by a vector).
+  `f11_17e8` is a start-up initialiser: the empty rectangle at
+  `[1146]`-`[114C]` (what `f27_1409` returns for a box it can't take) and
+  the vectors after it zeroed, as the port's are.
+- **Removing a box from a room** (the room's method 2, `f27_1409`, which
+  nothing calls: the rooms' shapes only grow): `f25_0664` (the camera's
+  part), `f12_3fb8` (out of its parent's list), `f27_13ba` (its prologue `27:13b7`)
+  (its children first, `f12_3a6a` the nth), `f27_190a` (its drawable, the
+  last moved into its place). Likewise `f27_1971`, an object's drawable
+  taken out by `f27_160c`, which only `f26_0137` calls (a magnet taken out
+  of the magnets' room) and nothing calls that: objects stay in a room's
+  list while it's played.
+- **The room's list of its boxes** (`+194`) is kept sorted by the boxes'
+  extents (`f27_01a5` → `f25_027a`, as each is added by `f27_12b6`), but
+  it only counts them (24 at most) and serves the removal above: its order
+  shows nowhere. The port keeps the boxes in their tree.
+- **Dragging** (`f08_07c6`, an object's generic press) is the only user
+  of `f25_08fc` (a screen point to the table at a height) and `f12_453b`
+  (the height under a point): no room has a draggable object (type 16's
+  `c` is 0 in rooms 95 and 96; type 0 drags only in room 0, which the
+  game never enters).
+- **Never called** (no reference, nor in any class's table): `f12_0e76`,
+  `f12_1a8b` (a face's corners in 3D), `f12_4145` (a box without
+  children), `f12_43da` (a face by its type), `f12_4586`; `f24_02ba` (a
+  dialog box built another way); `f25_022f`, `f25_0256` (comparisons of
+  two extents), `f25_0489`, `f25_04e5`, `f25_0555` (thunks to the room's
+  method 1), `f25_0724` (to `f12_39b5`), `f25_073d` (the view set),
+  `f25_0bae`, `f25_0be6`; `f27_021e` (a rectangle written to a file),
+  `f27_08c0` (`+F87` by the shots: `f38_0003` reads it itself),
+  `f27_1074` (the angle's sine and cosine again, `f25_07cb`), `f27_2662`
+  (the panel's power stepped), `f27_2791` (`+F0F`), `f27_2c89`,
+  `f30_1baf`, `f30_1d4c` (a number drawn in a box), `f27_3322`;
+  `f28_063c` (a hole's `+8` set); `f30_2f80` (a lever's `+48` / `+4A`).
+- **Methods no object of the game uses**: the box part's draw `f13_04a3`
+  (nothing) and the hot field's `f13_1868` (`f13_0000`, the outline drawn
+  only with `[12E6]`, for debugging); a hole's velocity set `f28_0ccd`
+  (nothing: it doesn't move); the base area's before-draw `f29_05d4`
+  (screen 2, the clip: every area of the game has its own draw or its
+  own) and key `f29_0809`; the base lever's draw `f30_3406` (each kind
+  has its own: `f30_391b`, `f30_3c42`, `f30_3527`); `f26_01db`, an empty
+  method of the magnets' room (from `f05_0155`); `g30_1858` (a control's
+  area copied from screen 3 to the display; its last three bytes are
+  `f30_1879`'s prologue).
+- **Keys on the panel**: the panel's key (`f30_1abb`) goes to the control
+  that took the focus (`+19E`, set by `f30_1879` when a control's `+0C`
+  takes the press: a slider's), and a slider's (`f30_32a9`) steps it on
+  the arrows (scan codes 48h up, 50h down) or sends it to its ends (49h
+  PgUp, 51h PgDn). But the player (`f31_1d70`) gives keys to the room
+  whenever there is one (`+AE`), and only without one to the panel
+  (`+A4`): in play, never.
+- **The scorer** (`f30_21e8`, `f30_22c4`, `f30_230e`, `f30_23a9`): a
+  control showing the score on the panel, kept at `[0BDC]`; nothing makes
+  one (the score is the room's box at `+F35`).
+- **Refused boxes** (ported, `table.cpp`): `f12_3e0d` makes no box whose
+  bottom is empty within its parent's top, or overlaps the bottom of a
+  child the parent already has (`f12_416c`); it returns the stand-in
+  (`DS:116E`, empty), and what the file has under it is read into the
+  stand-in and refused too. No room's shape has such a box (checked over
+  `S0.SRF`-`S110.SRF`); the port had made the overlapping ones and put an
+  empty one's children under its parent.
