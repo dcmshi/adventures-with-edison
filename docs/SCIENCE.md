@@ -515,7 +515,7 @@ the file streams; the high scores' lists in 19 and 21 derive from them).
   colour 10; " shots: n" (`DS:2040`, `+F39`) in the same box at (58, 8),
   text at (+3, +3); the five impact marks (`+F65`, `1163` + state) only
   after shots. The final copy from screen 3 is keyed on the destination
-  (`f14_0c88` → `f65_0294`: screen 3's pixel only where screen 2 is still
+  (`f14_0c88` → `f14_0b93` → `f67_1072`: screen 3's pixel only where screen 2 is still
   colour 0), unlike `f14_0c4f`'s (source-keyed).
 - **Objects on screen**: an object's box (x, y, z, w, d, h; at its core
   `+6E`) has its near bottom corner and far top corner projected
@@ -1167,7 +1167,7 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   part at `+0` (sphere `+2`), its power part at `+0C` (`f04_0000`, table
   `260`: `+0C` the plain `f04_008e`, `+10` says 2, so its switch sounds
   6026), its core at `+20` (`f02_0000`: a box 44 wide, 2 deep, 52 high at
-  (x, y, the ground); mass 1, soft). Its sphere (`f10_1582`) radius 13 at
+  (x, y, the ground); mass 1, soft). Its sphere (`f11_1582`) radius 13 at
   the box's centre in x and y, resting on the ground there (centre 13 up).
   `+16` the head's drop, `+18` the box's height less 12 (40), `+1A` `a`,
   `+1C` the way (1 down), `+1E` the frame since a catch (-1), the core's

@@ -20,9 +20,15 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
 - `python tools/testing/check.py [unit regress retrace smoke] [--jobs N]`:
   every check below, each timed and limited (a step still running at its
   limit is reported HUNG), PASS or FAIL each, exit 1 if any failed; about
-  10 s. Run it before a commit. `--jobs 1` plays the scenarios one at a
-  time (a few minutes) when the machine is busy: starved runs hang or are
-  killed ("image file is truncated").
+  10 s, the scenarios about 2.5 minutes all at once. Run it before a commit.
+  A step's line has its count ("100% tests passed out of 3", "scenarios:
+  15 PASS"); a failed one shows the lines saying what (FAIL, HUNG, WORSE,
+  a traceback, scenario.py's last line naming each one not passing) and
+  keeps all its output in `build/scratch/check/STEP.log`. A scenario run
+  may take three times its length and a minute, more with dense frames
+  (writing a frame every 10 ms is slow with the others at once); a killed
+  run's frames aren't compared. `--jobs 1` plays the scenarios one at a
+  time when the machine is busy (ComfyUI).
   `smoke`: the aim search finds room 22's suckhole, room 96's greeting box
   shows in the heartbeat when unanswered and is skipped with
   `SCI_SKIPDIALOGS`.

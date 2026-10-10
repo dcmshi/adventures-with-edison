@@ -582,6 +582,40 @@ private:
 
 }  // namespace
 
+static const char kUsage[] =
+    "  edison [CD DSK3 folder] [-O] [-A]\n"
+    "    -O  skip the opening (as the original's -O)\n"
+    "    -A  no FM music (as the original's -A)\n"
+    "    --game mystery   start Mystery at the Museums directly\n"
+    "    --game rockbach  start Rock and Bach Studio directly (--level N: straight to hallway spot N)\n"
+    "    --game science   start the Wild Science Arcade directly (--room 501: the lab; 505-510: a lesson; 1-110: a room's table, still)\n"
+    "    --level N        (with --game mystery) skip setup and play level N (0-7)\n"
+    "    --puzzle K       (with --game mystery) play only puzzle K (0-15), at difficulty --level;\n"
+    "                     16 is the bonus maze, 17 the winning end of a game, 18 the losing one,\n"
+    "                     19 the winning end after the final quiz, 20 the custom level editor\n"
+    "    --save DIR       where the games keep high scores and players (default: save)\n"
+    "  For testing without a person at the keyboard:\n"
+    "    --capture DIR MS    save the display to DIR/NNNNN.bmp every MS milliseconds\n"
+    "    --capture-dense FROM TO MS   every MS milliseconds instead from FROM till TO\n"
+    "                        (repeatable: an animation frame by frame)\n"
+    "    --click T X Y       click at game coordinates X, Y at T milliseconds (repeatable)\n"
+    "    --rclick T X Y      the same with the right button\n"
+    "    --move T X Y        move the mouse to X, Y at T milliseconds (its button up)\n"
+    "    --drag T X0 Y0 X1 Y1 MS   press at X0, Y0 at T, move to X1, Y1 over MS, release\n"
+    "    --type T TEXT       type TEXT at T milliseconds ('|' is Enter; repeatable)\n"
+    "    --press T TEXT      the same as key presses (letters, digits, '|'), Caps Lock\n"
+    "                        on: the characters from the keys and Shift alone\n"
+    "    --key T NAME MS     press key NAME (esc, kp5, left, right, up, down, shift) at T and\n"
+    "                        hold it MS milliseconds\n"
+    "    --quit-after MS     close after MS milliseconds\n"
+    "    --hidden            no window shown, nothing drawn but the captures, the sound\n"
+    "                        muted (test runs in the background)\n"
+    "    --volume N          the sound's volume, 0-100 (default 100; 0 with --hidden)\n"
+    "    --virtual-clock     time is 1 ms per event pump, not the wall clock (the\n"
+    "                        times above, the captures and the game's ticks the\n"
+    "                        same on every run, however busy the machine; a\n"
+    "                        sample plays as long as its length says)\n";
+
 int main(int argc, char** argv) {
     edison::Launcher::Options options;
     options.cdDir = "original/cd/DSK3";
@@ -656,7 +690,14 @@ int main(int argc, char** argv) {
             startGame = argv[++i];
         } else if (a == "-O" || a == "-o") options.skipOpening = true;
         else if (a == "-A" || a == "-a") options.music = false;
-        else options.cdDir = a;
+        else if (a == "--help" || a == "-h" || a == "-?" || a == "/?") {
+            std::fputs(kUsage, stdout);
+            return 0;
+        } else if (a.size() > 1 && a[0] == '-') {
+            // Not taken as the folder ("cannot open --x/SHELL.D01").
+            std::fprintf(stderr, "edison: unknown option %s (or its arguments missing); --help lists them\n", a.c_str());
+            return 2;
+        } else options.cdDir = a;
     }
 
     auto platform = std::make_unique<SdlPlatform>();

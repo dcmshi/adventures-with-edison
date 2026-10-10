@@ -32,7 +32,7 @@ def typed(t, text):
 
 
 # Keys held by name: the original's virtual-key codes, the port's --key names.
-VKEYS = {"shift": 16, "esc": 27}
+VKEYS = {"shift": 16, "esc": 27, "left": 37, "up": 38, "right": 39, "down": 40}
 
 
 def key(t, name, seconds=0.08):
@@ -164,6 +164,18 @@ SCENARIOS = {
     "game-won": game_won(),
     "game-won-shift": game_won_shift(),
     "lesson-keys": lesson_keys(),
+    # Room 5's hot field dragged by its core (f08_07c6: the puddle's middle):
+    # the press takes the mouse, no aim (no target ring at 2.5 s in either),
+    # then a shot through where it was. The puddle's size and the fountains'
+    # spray come from rand (the original's differ from run to run): the
+    # known counts are theirs (about 800-2400 pixels).
+    "field-drag": {"room": 5, "events": [drag(2.0, 422, 197, 500, 205, 1.0), *shoot(5.0, 422, 197)],
+                   "shots": every(1.5, 9, 0.25), "masks": COLUMNS, "length": 10},
+    # The POWER lever pressed, then the arrow keys (f30_32a9: they'd move it
+    # if the panel got them; f31_1d70 sends keys to the room while there is one).
+    "slider-keys": {"room": 1, "events": [click(2.0, 445, 325), key(2.5, "up"), key(3.0, "up"),
+                                          key(3.5, "right"), key(4.0, "down")],
+                    "shots": every(1.5, 5, 0.5), "masks": COLUMNS, "length": 6},
 }
 for s in SCENARIOS.values():
     s.setdefault("masks", COLUMNS)

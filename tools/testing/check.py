@@ -10,6 +10,7 @@ Usage: check.py [unit] [regress] [retrace] [scenario] [smoke] [--jobs N]
   (default: all steps; --jobs N: the scenarios N at a time, 1 when the
   machine is busy, its limit stretched to match)"""
 import math
+import re
 import subprocess
 import sys
 import time
@@ -61,11 +62,36 @@ def smoke():
 
 
 def scenario(jobs):
-    """scenario.py, jobs at a time (0: all), about 60 s a round."""
+    """scenario.py, jobs at a time (0: all), about 60 s a round. (Each run
+    has its own limit, scenario.py's play_port, the dense ones' minutes:
+    this one only catches scenario.py itself stuck.)"""
     if not jobs:
-        return command([sys.executable, str(HERE / "scenario.py")], 180)
+        return command([sys.executable, str(HERE / "scenario.py")], 900)
     rounds = math.ceil(len(SCENARIOS) / jobs)
-    return command([sys.executable, str(HERE / "scenario.py"), "--jobs", str(jobs)], max(180, 60 * rounds))
+    return command([sys.executable, str(HERE / "scenario.py"), "--jobs", str(jobs)], max(900, 120 * rounds))
+
+
+# The lines of a failed step's output worth showing: verdicts other than a
+# pass, hangs, worse shots, errors, and the summaries.
+NOTABLE = re.compile(r"FAIL|HUNG|WORSE|REPORT|no port frame|Traceback|Error|error|^scenarios: |^\s*\d+% tests passed|tests failed")
+
+
+# A step's count, shown on its line: ctest's and scenario.py's summaries.
+COUNT = re.compile(r"^\s*(\d+% tests passed.*|scenarios: .*)$", re.M)
+
+
+def counted(output):
+    m = COUNT.findall(output)
+    return f"; {m[-1].strip()}" if m else ""
+
+
+def notable(output, most=40):
+    lines = output.strip().splitlines()
+    picked = [l for l in lines if NOTABLE.search(l)]
+    # A traceback's last line says what it was.
+    if any("Traceback" in l for l in lines) and lines and lines[-1] not in picked:
+        picked.append(lines[-1])
+    return (picked or lines[-15:])[-most:]
 
 
 JOBS = 0
@@ -94,10 +120,14 @@ def main():
             continue
         start = time.monotonic()
         ok, output = STEPS[name]()
-        say(f"{name}: {'PASS' if ok else 'FAIL'} ({time.monotonic() - start:.0f} s)")
+        OUT.mkdir(parents=True, exist_ok=True)
+        log = OUT / f"{name}.log"
+        log.write_text(output, encoding="utf-8", errors="replace")
+        say(f"{name}: {'PASS' if ok else 'FAIL'} ({time.monotonic() - start:.0f} s{counted(output)})")
         if not ok:
-            for line in output.strip().splitlines()[-15:]:
+            for line in notable(output):
                 say("    " + line)
+            say(f"    (all of it: {log.relative_to(ROOT)})")
             failed.append(name)
     say("check: PASS" if not failed else f"check: FAIL ({' '.join(failed)})")
     return 1 if failed else 0

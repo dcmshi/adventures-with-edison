@@ -83,7 +83,16 @@ def play_port(exe, name, s):
             shutil.copy2(src, save / f.lower())
     args = ["--game", "science", "--room", str(s["room"]), "--save", str(save), "--capture", str(d), "100",
             *port_args(s), "--quit-after", str(int((s["length"] + 1) * 1000))]
-    return run_game(exe, args, d / "run.log", env=s.get("env"))
+    # Its time: a frame saved every 100 ms (every 10 ms around the dense
+    # shots) makes a run slower than its virtual clock when others share the
+    # machine, so three times its length and a minute (testlib's length + 20
+    # killed the lessons and hole-level1 at three jobs), and a quarter of a
+    # second for each dense frame (with every scenario at once the hole runs
+    # took over 100 s for 4 s of dense frames).
+    times = dict((n, t) for t, n in s["shots"])
+    dense = {ms for n in s.get("dense", ()) for ms in range(int((times[n] - 1) * 100), int((times[n] + 1) * 100))}
+    limit = 3 * (s["length"] + 1) + 60 + len(dense) // 4
+    return run_game(exe, args, d / "run.log", env=s.get("env"), limit=limit)
 
 
 # --- the original ----------------------------------------------------------------
@@ -175,6 +184,16 @@ def compare(name, s, window):
     return out
 
 
+def summary(verdicts):
+    """The last line: "scenarios: 12 PASS, 1 FAIL (game-won), 2 HUNG (...)"."""
+    parts = []
+    for v in ("PASS", "FAIL", "HUNG", "REPORT"):
+        names = [n for n, w in verdicts.items() if w == v]
+        if names:
+            parts.append(f"{len(names)} {v}" + (f" ({', '.join(names)})" if v != "PASS" else ""))
+    return "scenarios: " + (", ".join(parts) or "none run")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("names", nargs="*")
@@ -202,12 +221,18 @@ def main():
             play_orig(n, SCENARIOS[n])
     exe = edison(OUT)
     fail = False
+    verdicts = {}
     jobs = [(n, lambda n=n: play_port(exe, n, SCENARIOS[n])) for n in names]
+    hung = set()
     for n, run in parallel(jobs, opts.jobs or None):
         if run.hung:
             say(run.hung_report(n))
+            hung.add(n)
+            verdicts[n] = "HUNG"
             fail = True
     for n in names:
+        if n in hung:
+            continue  # (its last frame may be half written)
         result = compare(n, SCENARIOS[n], opts.window)
         mine = known.get(n, {})
         lines, bad = [], False
@@ -230,10 +255,12 @@ def main():
         if opts.accept:
             known[n] = mine
         verdict = "FAIL" if bad else ("PASS" if mine else "REPORT")
+        verdicts[n] = verdict
         say(f"{n}: {verdict}")
         for line in lines:
             say(line)
         fail |= bad
+    say(summary(verdicts))
     if opts.accept:
         KNOWN.write_text(json.dumps(known, indent=1, sort_keys=True) + "\n")
         say(f"known counts kept in {KNOWN.relative_to(ROOT)}")
