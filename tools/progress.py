@@ -138,13 +138,32 @@ def shared_game(line):
     return "mystery"
 
 
+GAME_LABEL = re.compile(r"\b(MALL|WINMAIN|WMAIN|Rock)\b")
+
+
+def shared_parts(line):
+    """[(game, text)]: a shared line split at each game's label, so one
+    naming two games' functions ("MALL f06_120c, WINMAIN f28_0000") counts
+    each for its own; what comes before any label goes with the line's
+    game (shared_game)."""
+    cuts = list(GAME_LABEL.finditer(line))
+    if len(cuts) < 2:
+        return [(shared_game(line), line)]
+    parts = [(shared_game(line), line[:cuts[0].start()])]
+    for i, m in enumerate(cuts):
+        end = cuts[i + 1].start() if i + 1 < len(cuts) else len(line)
+        parts.append((shared_game(m.group(1)), line[m.start():end]))
+    return parts
+
+
 def source_lines(files):
     """{game: [lines]} for the port's source, from (path, line) pairs."""
     out = {g[0]: [] for g in GAMES}
     for path, line in files:
         p = path.replace("\\", "/")
         if p.startswith(SHARED + "/"):
-            out[shared_game(line)].append(line)
+            for game, part in shared_parts(line):
+                out[game].append(part)
             continue
         for key, _, _, src, _, _ in GAMES:
             if p.startswith(src + "/"):
