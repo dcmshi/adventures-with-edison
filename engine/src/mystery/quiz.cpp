@@ -240,7 +240,7 @@ bool Mystery::questionPeriod(int level, bool asPuzzle) {
     Panels::Panel helpButton;  // f06_2436
     helpButton.x = 0x218, helpButton.y = 0xF8, helpButton.w = 0x50, helpButton.h = 0x16;
     helpButton.buttons = {{0, 0, 0x50, 0x16}};
-    helpButton.onPress = [&](int k) {
+    helpButton.onPress = [&](int k) {  // g06_0024 ([B75A])
         if (k >= 0) helpWanted = true;
     };
     panels_.add(helpButton);

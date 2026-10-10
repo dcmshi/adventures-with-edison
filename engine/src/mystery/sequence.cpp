@@ -250,7 +250,7 @@ bool Mystery::whatComesNext(int level) {
     Panels::Panel helpButton;  // f06_2436
     helpButton.x = 0x26, helpButton.y = 0x15F, helpButton.w = 0x44, helpButton.h = 0x1C;
     helpButton.buttons = {{0, 0, 0x44, 0x1C}};
-    helpButton.onPress = [&](int k) {
+    helpButton.onPress = [&](int k) {  // g06_0024 ([B75A])
         if (k >= 0) helpWanted = true;
     };
     panels_.add(helpButton);

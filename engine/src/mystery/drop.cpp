@@ -342,7 +342,7 @@ bool Mystery::droppingSquares(int level) {
     Panels::Panel helpButton;  // f06_2436
     helpButton.x = 8, helpButton.y = 0xA3, helpButton.w = 0x55, helpButton.h = 0x4D;
     helpButton.buttons = {{0, 0, 0x55, 0x4D}};
-    helpButton.onPress = [&](int k) {
+    helpButton.onPress = [&](int k) {  // g06_0024 ([B75A])
         if (k >= 0) helpWanted = true;
     };
     panels_.add(helpButton);
