@@ -9,7 +9,7 @@
 
 namespace edison {
 
-void ArtechGame::drawLogo(int x, int y, uint16_t id) {  // MALL f06_120c
+void ArtechGame::drawLogo(int x, int y, uint16_t id) {  // MALL f06_120c, WINMAIN f28_0000
     const Bitmap& bmp = ctx_.bitmap(id);
     x = std::max(0, std::min(x, Screen::kWidth - bmp.width));
     y = std::max(0, std::min(y, Screen::kHeight - bmp.height));
@@ -42,6 +42,7 @@ void ArtechGame::fillPolygon(const std::vector<std::pair<int, int>>& pts, uint8_
 }
 
 void ArtechGame::fillPolygonWith(const std::vector<std::pair<int, int>>& pts, uint16_t bitmap) {
+    // WINMAIN f28_02e4 (bmfill_poly, f37_2fae).
     const Bitmap& bmp = ctx_.bitmap(bitmap);
     if (bmp.width <= 0 || bmp.height <= 0 || current_ == 1) return;
     Screen& s = ctx_.screens[current_];
@@ -224,7 +225,7 @@ void ArtechGame::frame(int x, int y, int w, int h, uint8_t colour) {
     displayLine(x, y + h, x + w, y + h, colour);
 }
 
-void ArtechGame::fill(int x, int y, int w, int h, uint8_t colour) {  // MALL f06_17c8
+void ArtechGame::fill(int x, int y, int w, int h, uint8_t colour) {  // MALL f06_17c8, WINMAIN f28_0212
     if (x + w >= Screen::kWidth) w = Screen::kWidth - x - 1;
     if (y + h >= Screen::kHeight) h = Screen::kHeight - y - 1;
     x = std::max(x, 0);
@@ -236,7 +237,7 @@ void ArtechGame::fill(int x, int y, int w, int h, uint8_t colour) {  // MALL f06
     });
 }
 
-void ArtechGame::text(int x, int y, const std::string& s, int colour) {  // MALL f06_15b8
+void ArtechGame::text(int x, int y, const std::string& s, int colour) {  // MALL f06_15b8, WINMAIN f28_04e4
     colour = std::clamp(colour, 0, 255);
     x = std::max(x, 0);
     y = std::max(y, 0);
@@ -264,7 +265,7 @@ void ArtechGame::duplicateArea(int src, int dst, int sx, int sy, int w, int h, i
         }
 }
 
-int ArtechGame::saveArea(int x, int y, int w, int h) {
+int ArtechGame::saveArea(int x, int y, int w, int h) {  // MALL f06_1424, WINMAIN f28_05f8
     if (x + w >= Screen::kWidth) w = Screen::kWidth - x - 1;
     if (y + h >= Screen::kHeight) h = Screen::kHeight - y - 1;
     x = std::max(x, 0);
@@ -282,7 +283,7 @@ void ArtechGame::restoreArea(int handle, bool onlyCurrent) {
     auto it = saved_.find(handle);
     if (it == saved_.end()) return;
     const SavedArea& a = it->second;
-    // f06_14fc: onto the display through screen 3, or onto the current
+    // f06_14fc (WINMAIN f28_06d0): onto the display through screen 3, or onto the current
     // screen when that isn't the display.
     for (int s : current_ == 1 && !onlyCurrent ? std::vector<int>{3, 1} : std::vector<int>{current_}) {
         Screen& scr = ctx_.screens[s];
@@ -334,7 +335,7 @@ void ArtechGame::spinCountdown(int tenths) {
     while (ctx_.countdown[0] != 0) ctx_.spin();
 }
 
-void ArtechGame::drawOpaque(int x, int y, uint16_t id) {  // MALL f06_1326
+void ArtechGame::drawOpaque(int x, int y, uint16_t id) {  // MALL f06_1326, WINMAIN f28_011a
     const Bitmap& bmp = ctx_.bitmap(id);
     if (x + bmp.width > Screen::kWidth) x = Screen::kWidth - bmp.width - 1;
     if (y + bmp.height > Screen::kHeight) y = Screen::kHeight - bmp.height - 1;
@@ -421,7 +422,7 @@ void ArtechGame::drawCentred(int x, int y, uint16_t id) {
 }
 
 void ArtechGame::drawScaledCentred(int x, int y, int scaleX, int scaleY, uint16_t id) {
-    // f06_189a: a sprite scaled (256 = 1:1) about its centre, colour 0 clear:
+    // f06_189a (WINMAIN f28_030a): a sprite scaled (256 = 1:1) about its centre, colour 0 clear:
     // f40_03d2 → f41_0330 (32-bit code, WMAIN's f73_0324 again): (w *
     // scale) / 256 wide, each pixel the source's at a 16.16 step of 256 /
     // scale on each axis.

@@ -81,6 +81,7 @@ void RockBach::pieceTempo(int t) {
     const int tempo = (t - 0xBC) * (0xFF - base) / 0x43 + base;
     const std::vector<uint8_t> bytes = {0x09, 0x00, 0xA6, static_cast<uint8_t>(tempo), 0x88};
     ctx_.platform.withFm([&bytes](ArtechFmDriver& d) {
+        // f12_02f6: the bytes over the sound (f12_0330 / f12_038c: its address).
         const uint16_t to = d.soundAddress(0xF);
         for (size_t k = 0; k < bytes.size(); ++k) d.poke(static_cast<uint16_t>(to + k), bytes[k]);
         d.sendSound(0xF);
@@ -295,7 +296,7 @@ void RockBach::choosePiece(int widget, int c, bool viaScreen2) {
     for (int i = 1; i <= 6; ++i) setColours({ctx_.displayPalette[0]}, i);
     libraryStopped();
     setColours({ctx_.displayPalette[7]}, widget - 10);
-    int block = n;
+    int block = n;  // f30_0e9a: counted over the composers before, in the box 23EE
     for (int k = 0; k < c; ++k) block += data_[0x2B28 + k];
     textBox(library_.words, TextBox{block, false, 0x23EE, 0, 0xC, 0x13E, 0x11A, 0x4E, 0xC, 0x13E, 0}, viaScreen2);
     if (n >= 0 && n < 5) pieceChoose(c, n);

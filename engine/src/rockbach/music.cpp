@@ -36,6 +36,7 @@ void RockBach::musicPlay(int from) {
     if (!options_.music) return;
     const uint8_t tempo = tempo_;
     ctx_.platform.withFm([from, tempo](ArtechFmDriver& d) {
+        // (f20_0478 / f20_04d4: a sound's address, GETADDR.)
         d.pokeWord(d.soundAddress(0x71), static_cast<uint16_t>(d.soundAddress(0x72) + from * 0x18));
         d.poke(static_cast<uint16_t>(d.soundAddress(6) + 1), tempo);
         d.poke(d.getVar(), static_cast<uint8_t>(from));
