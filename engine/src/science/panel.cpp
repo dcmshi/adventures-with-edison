@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 
 #include "artech/context.h"
 
@@ -179,7 +180,9 @@ void Science::lockControls() {
     runner_ = Runner{};
     // f30_0910: he starts off the panel on a random side, at its middle's
     // height + 4 (the panel (0, 286, 640, 114)).
-    const bool right = static_cast<long>(borlandRand()) * 2 / 0x8000 == 0;
+    bool right = static_cast<long>(borlandRand()) * 2 / 0x8000 == 0;
+    // (Testing: SCI_RUNNERSIDE=left or right, as the original's rand may have.)
+    if (const char* side = std::getenv("SCI_RUNNERSIDE")) right = std::strcmp(side, "left") != 0;
     runner_.x = right ? 640 - 1 + 80 : -60;
     runner_.dx = right ? -17 : 17;
     for (int c = 0; c < 4; ++c) panel_.sign[c] = false;

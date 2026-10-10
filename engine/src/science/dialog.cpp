@@ -162,8 +162,8 @@ void Science::dialogOpen(Dialog& d) {
 void Science::dialogWait(int ticks) {
     // f32_07aa: a busy wait on the 50 Hz counter (no messages handled:
     // clicks and keys stay queued).
-    const uint64_t end = ctx_.platform.milliseconds() + static_cast<uint64_t>(ticks) * 20;
-    while (ctx_.platform.milliseconds() < end) ctx_.pump();
+    const uint32_t end = fifty_ + static_cast<uint32_t>(ticks);
+    while (static_cast<int32_t>(fifty_ - end) < 0) ctx_.pump();
 }
 
 void Science::dialogTick(Dialog& d) {

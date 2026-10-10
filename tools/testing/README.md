@@ -62,6 +62,8 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
   lessons 6-10 from room 61; the game over in room 32 and won from room
   65, and won again with Shift for the clicks; lesson 6 by its keys),
   each a timeline of presses, drags, moves, keys held and typing from a table
+  (a scenario's `env` sets the port's switches; its `dense` shots get the
+  port's frames every 10 ms within 1 s, `--capture-dense`)
   room, played in the port and (with `--orig`, one at a time, its save
   files put back after) in the original; each of the original's shots
   against the port's nearest frame within 1.5 s, the columns masked, no
@@ -110,6 +112,12 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
   Caps Lock on, `--press`: the characters from the keys and Shift alone) and
   `keyhold` (a key held by name, `shift` too: `otvdm.ps1`'s `keydown` /
   `keyup` with its virtual-key code, the port's `--key`).
+- `mmrng.py NAME... [--compare-only]`: Mystery's random numbers against
+  the original's in mmcompare.py's scenarios: the generator's six words
+  (`DS:7638`) followed by `memwatch.py` in the original and logged by the
+  port (`EDISON_RNGLOG`, with each stir's end), each state placed in the
+  generator's one sequence; both sides' draws at rest must be the same
+  count (`play05d0`: 787 each).
 - `mmmaze.py [--port-only | --compare-only]`: the bonus maze's wanderers
   pass by pass (its loop is unpaced in the original, so its shots can't
   be matched in time): `allfound` in the port at a pass a millisecond
@@ -179,7 +187,8 @@ lab, high scores, credits), for what follows without a measured shot; `SCI_GAMET
 ticks, which the original counts from its start: the targets' and other
 animations' phases) at n, as read from the original (`memwatch.py`
 `t=d:ffe`); `SCI_DIALOGPIC=k` gives the
-framed boxes picture `1359` + k (the original picks one at random); `SCI_AIMSEARCH=to,power,x0,x1,y0,y1,step`
+framed boxes picture `1359` + k (the original picks one at random); `SCI_RUNNERSIDE=left|right` the side
+Edison comes in from to put up a sign (a random pick too); `SCI_AIMSEARCH=to,power,x0,x1,y0,y1,step`
 plays every aim of the grid (screen points, power -1 the room's own) from
 the room as built, without drawing, and logs those whose ball a hole
 leading to room `to` takes ("aim x,y power p: hole to at tick t"; a

@@ -495,6 +495,20 @@ the file streams; the high scores' lists in 19 and 21 derive from them).
   the display; then event 5, the player's method 4 (`f31_27de`): the
   room's redraw of the whole screen, then the panel's controls (`+A4`,
   `+A8`, `+AA`, `+AC`, their method `+40`).
+  - **Room 65** has a case of its own there (`f31_0783`, room 41h):
+    screen 3 to screen 2, `10EA` (486 x 128, plain floor) at (54, 158)
+    and `1135` (one pixel of colour 0) at (540, 158) on screen 2 through
+    `f14_1179`, screen 2 to the display, and no event 5. So its floor's
+    writing, "THE HOLE IS RIGHT ABOVE HERE" (`10EB`, drawn on screen 3 by
+    its method 4, `f53_0981`), stays hidden but where something moving
+    is redrawn (the changed areas compose screen 3 under the objects: the
+    rolling ball uncovers bits of it), and the score and shots boxes come
+    on only as they change (the score's box partly: its changed area is
+    the number's). The objects' kept rectangles start empty (`f27_16ae`),
+    so the first tick's redraw puts the ball and its shadow on. Ported
+    (`tableCovered_`); the port had shown the writing, the target and
+    both boxes. Checked (`scenario.py game-won`'s rest, bonus and lesson
+    shots: 0, 5 and 5 pixels, from 8141, 1565 and 85).
 - **The redraw at rest**: besides the objects, the score (`+F35`, a long,
   `ltoa`) in the yellow box `1425` at (480, 8), the text at (+17h, +3) in
   colour 10; " shots: n" (`DS:2040`, `+F39`) in the same box at (58, 8),
@@ -1549,6 +1563,30 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   (`scenario.py lesson-keys`: lesson 6's lines gone on by Shift and "a",
   then Esc: room 50). Esc in a table does nothing (the room's key method
   takes only r); the port had left the arcade on it.
+- **The 50 Hz counter** (`[12F8:0002]`, with `+4` and the flag `+0`:
+  `f37_0000`) is a periodic callback of the library's timer (segment 77,
+  linked in: a 13 ms tick, each slot's rate summed till 76), registered by
+  `f32_0777(50)` at the title and again by each room (`f27_03da`), which
+  starts its sum from 0. A new callback takes the highest free slot
+  (`f77_01ef`): the countdowns (`DS:95F2`, 10 Hz) in 8 (9 without the
+  AdLib's 72 Hz), the counter in 7, so in each tick it steps before
+  them. `f32_07aa(n)` waits till it has gone n on, so its first step may
+  come at once. The port had waited n x 20 ms from the call; it now runs
+  the counter (`fifty_`, slot 0, before the countdowns' 9).
+- **What the scenarios still show** (`scenario.py`, with frames every
+  10 ms near the moving shots): the lessons, the game over and the game
+  won pixel for pixel, but for a column of 5 pixels at the power knob's
+  left edge (423, 303-307) after the shot in room 65, which the original
+  shows and the port doesn't (not explained). Three things are the
+  original's own timing, from run to run: the framed boxes' picture and
+  the side Edison comes in from to put up a sign (Borland's rand(), whose
+  calls follow the columns' redraws: `SCI_DIALOGPIC`, `SCI_RUNNERSIDE`
+  give the port the original's last pick); the lab's burner and bubbles,
+  whose last frame comes from the count of their 7-step waits within each
+  walking frame's countdown (`[1D40]`, 18 or 19 by memwatch: the two
+  timer slots' phases, set by the time each room took to build); and
+  room 21's targets rising and Edison walking (`[FFE]` from the program's
+  start).
 - **The shadow under a ball put back**: `f13_01ce` draws it only while the
   shadow object is hidden and `[14E0]` clear. `f27_287d` (spit mode 2: a
   wrong warp code) shows the ball through its motion part's `+18`

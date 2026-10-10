@@ -59,7 +59,9 @@ POWER16 = drag(0.0, 445, 325, 445, 250, 2.5)
 
 def hole(aim):
     """Room 1: a shot at a hole, then shots every half second."""
-    return {"room": 1, "events": shoot(1.0, *aim), "shots": every(2.5, 12, 0.5), "length": 13}
+    # (The ball rolling into the hole: its shots dense.)
+    return {"room": 1, "events": shoot(1.0, *aim), "shots": every(2.5, 12, 0.5), "length": 13,
+            "dense": ["t025", "t030", "t035"]}
 
 
 def lesson(n):
@@ -79,7 +81,14 @@ def lesson(n):
         t += 3.0
     shots.append((t + 1.0, "end"))
     # (The end is the next table: its columns masked, as everywhere.)
-    return {"room": 61, "events": events, "shots": shots, "length": t + 3}
+    s = {"room": 61, "events": events, "shots": shots, "length": t + 3,
+         "dense": [n for _, n in shots if n in ("egg", "end")]}
+    if n == 9:
+        # Room 50's greeting box: its picture is one of five by rand()
+        # (f24_193e), whose calls in the original change from run to run
+        # (the columns' redraws): the port takes the one its last run drew.
+        s["env"] = {"SCI_DIALOGPIC": "4"}
+    return s
 
 
 def game_over():
@@ -99,7 +108,7 @@ def game_won():
     (MORE four times), the game won and the high scores."""
     events = [POWER16, *shoot(3.0, 224, 160), click(11.2, 320, 150)]
     events += [click(t, 550, 380) for t in (15.3, 17.3, 19.3, 21.3)]
-    return {"room": 65, "events": events, "shots": [(11.1, "bonus"), (15.2, "lesson"), (25.5, "hs")],
+    return {"room": 65, "events": events, "shots": [(2.5, "rest"), (11.1, "bonus"), (15.2, "lesson"), (25.5, "hs")],
             "length": 27}
 
 
@@ -122,7 +131,10 @@ def lesson_keys():
     events = [drag(3.0, 445, 325, 445, 250, 2.5), *shoot(6.0, 306, 176), key(13.0, "shift"), typed(16.0, "a"),
               key(19.0, "esc")]
     shots = [(12.0, "s1"), (14.0, "s2"), (17.0, "s3"), (21.0, "end"), (23.0, "end2")]
-    return {"room": 61, "events": events, "shots": shots, "length": 25}
+    # (Room 50's Edison comes in from a random side to put up the sign
+    # (f30_0910, rand()): from the left in the original's last run.)
+    return {"room": 61, "events": events, "shots": shots, "length": 25, "env": {"SCI_RUNNERSIDE": "left"},
+            "dense": ["end"]}
 
 
 SCENARIOS = {

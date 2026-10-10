@@ -15,7 +15,8 @@ Usage: scenario.py [NAME ...] [--orig] [--accept] [--list] [--window MS] [--jobs
   --jobs    how many port runs at once (default: all; 1 when the machine
             is busy, as runs starved of time hang or are killed)
 Each shot is matched to the port frame with the fewest differing pixels
-(tolerance 24, the scenario's masks left out) within the window, and fails
+(tolerance 24, the scenario's masks left out) within the window (frames
+every 10 ms within 1 s of a scenario's "dense" shots), and fails
 when that is more than its known count. A scenario's first run (no known
 counts) only reports.
 
@@ -50,6 +51,11 @@ def run_folder():
 
 def port_args(s):
     args = []
+    # Shots of something moving (Edison's walks, his blink): a frame every
+    # 10 ms within 1 s of them, as 100 ms can fall between the original's.
+    times = dict((n, t) for t, n in s["shots"])
+    for n in s.get("dense", ()):
+        args += ["--capture-dense", int((times[n] - 1) * 1000), int((times[n] + 1) * 1000), 10]
     for e in s["events"]:
         ms, kind = int(e[0] * 1000), e[1]
         if kind == "click":
@@ -77,7 +83,7 @@ def play_port(exe, name, s):
             shutil.copy2(src, save / f.lower())
     args = ["--game", "science", "--room", str(s["room"]), "--save", str(save), "--capture", str(d), "100",
             *port_args(s), "--quit-after", str(int((s["length"] + 1) * 1000))]
-    return run_game(exe, args, d / "run.log")
+    return run_game(exe, args, d / "run.log", env=s.get("env"))
 
 
 # --- the original ----------------------------------------------------------------

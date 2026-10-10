@@ -1231,6 +1231,7 @@ void Science::noteChanges() {
     listDrawables(list, table_.view);
     const bool fresh = seenTable_ != tableSerial_;
     std::map<std::pair<const void*, int>, Seen> now;
+    std::vector<Rect> first;  // a covered room's: each shown one's, its kept one empty
     for (const Drawable& d : list) {
         if (d.table) continue;
         Seen& s = now[{d.id, d.part}];
@@ -1240,7 +1241,10 @@ void Science::noteChanges() {
             d.draw();
             recording_ = nullptr;
         }
-        if (fresh) continue;
+        if (fresh) {
+            if (tableCovered_ && d.shown) first.push_back(s.rect);
+            continue;
+        }
         const auto was = seen_.find({d.id, d.part});
         const Seen old = was != seen_.end() ? was->second : Seen{};
         const bool same = old.rect.x == s.rect.x && old.rect.y == s.rect.y && old.rect.w == s.rect.w && old.rect.h == s.rect.h;
@@ -1258,6 +1262,7 @@ void Science::noteChanges() {
             if (crackStage_[i] != seenCracks_[i]) queueArea(crackRect_[i]);
     }
     if (fresh) areas_.clear();
+    for (const Rect& r : first) queueArea(r);
     seen_ = std::move(now), seenTable_ = tableSerial_;
     seenScore_ = score_, seenShots_ = shots_;
     std::copy(std::begin(crackStage_), std::end(crackStage_), seenCracks_);
@@ -1279,6 +1284,7 @@ void Science::enterRoom(int room) {
     roomEnded_ = false, roomEndFlag_ = false, levelBonus_ = 0, bonusBalls_ = 0;
     std::fill(std::begin(roomVar_), std::end(roomVar_), 0);
     exitNextTick_ = 0;
+    startFifty();  // f32_0777(f32_076c(): 50), its count going on
     // (SCI_GAMETICKS=n: [27B4] from n, as read from the original.)
     if (const char* t = std::getenv("SCI_GAMETICKS")) gameTicks_ = std::atoi(t);
     currentRoom_ = room;
@@ -1369,11 +1375,30 @@ void Science::enterRoom(int room) {
     drawTable();
     roomPictures(room);
     roomArrival(room);
-    toDisplay(3);
+    // f31_0783 then puts screen 3 on the display and sends event 5 (below),
+    // but for room 65 (41h): screen 3 to screen 2, 10EA over the floor's
+    // writing (1135, a pixel of colour 0, at 21C, 9E), screen 2 to the
+    // display, and no event 5. The writing (10EB, on screen 3) then shows
+    // only where something moving is redrawn, and the score and shots
+    // boxes once they change.
+    // (The objects' rectangles, kept empty till then, are queued at their
+    // first redraw, so they come on at the first tick: tableCovered_.)
+    const bool covered = room == 65;
+    tableCovered_ = covered;
+    if (covered) {
+        viewDirty_ = true;
+        copyArea(3, 2, 0, 0, Screen::kWidth, Screen::kHeight);
+        select(2);
+        panelSprite(0x36, 0x9E, 0x10EA);
+        panelSprite(0x21C, 0x9E, 0x1135);
+        toDisplay(2);
+    } else {
+        toDisplay(3);
+    }
     // Then the look (f19_06bc) and the arcade's music (31:19B5, f32_135d(25)),
     // before event 5.
     fmSound(0x25);
-    redrawTable({0, 0, Screen::kWidth, Screen::kHeight});
+    if (!covered) redrawTable({0, 0, Screen::kWidth, Screen::kHeight});
     // The player's objects (f31_27de: +A4 the panel, +AA and +AC the
     // columns, their method +40); the columns keep the player's counts
     // (+BA, +BC: 7 and 0 for a new game, f31_1b48).

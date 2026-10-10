@@ -64,7 +64,14 @@ int random(int n) {
 }
 
 void stirRandom() {
-    for (int k = random(200); k > 0; --k) rand16();
+    const int n = random(200);
+    for (int k = n; k > 0; --k) rand16();
+    if (rngLog) {  // (and the state after the stir: -1, its count)
+        std::fprintf(rngLog, "-1 %d", n);
+        for (uint16_t w : state) std::fprintf(rngLog, " %04x", w);
+        std::fprintf(rngLog, "\n");
+        std::fflush(rngLog);
+    }
 }
 
 }  // namespace edison

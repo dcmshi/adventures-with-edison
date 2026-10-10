@@ -45,7 +45,8 @@ private:
     void waitNarration();                           // while [92BC]
     // A wait of `ticks` 50ths of a second (f32_07aa, the 50 Hz counter
     // [12F8:0002] that f32_0777(50) starts); a click or key ends it.
-    bool waitTicks(int ticks, bool interruptible = true, int* key = nullptr);  // key: the one that ended it
+    bool waitTicks(int ticks, bool interruptible = true, int* key = nullptr);
+    void startFifty();                              // f32_0777(50)  // key: the one that ended it
     void soundsOver();                              // f36_004e: the story's S
     bool escapePressed();                           // bit 1 of the keys held (DS:9560)
 
@@ -282,6 +283,8 @@ private:
     };
     std::map<std::pair<const void*, int>, Seen> seen_;
     int seenTable_ = -1, seenScore_ = 0, seenShots_ = 0, seenCracks_[5] = {};
+    bool tableCovered_ = false;
+    uint32_t fifty_ = 0;  // the 50 Hz counter ([12F8:0002], f32_0777)  // room 65: no event 5, so the objects come on as changes
     std::vector<int>* recording_ = nullptr;         // the sprites a drawable would draw
     void queueArea(const Rect& area);               // f29_0313
     void redrawAreas();                             // f29_0380

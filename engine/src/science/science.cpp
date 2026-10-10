@@ -47,6 +47,7 @@ void Science::run() {
     // f62_0020 builds the game object (f31_0025 over f32_0319); with
     // [26CE] set the title and the story run first.
     ctx_.startTimer();
+    startFifty();
     if (options_.music) ctx_.platform.setFmDriver(options_.cdDir + "/SADLIB.DLL");
     select(1);
     const int start = options_.startRoom;
@@ -254,11 +255,19 @@ void Science::waitNarration() {
     while (ctx_.platform.wavPlaying()) ctx_.pump();
 }
 
+void Science::startFifty() {
+    // f32_0777(50): the 50 Hz counter ([12F8:0002]) in timer slot 0, so on
+    // the library's 13 ms ticks (13 or 26 ms apart); set again by each
+    // room (f27_03da), its sum starting from 0 there.
+    ctx_.timer.setPeriodic(0, 50, [this] { ++fifty_; });
+}
+
 bool Science::waitTicks(int ticks, bool interruptible, int* key) {
-    // [9558] (a key) and [6EC5] (a button) end it.
-    const uint64_t end = ctx_.platform.milliseconds() + static_cast<uint64_t>(ticks) * 20;
+    // [9558] (a key) and [6EC5] (a button) end it. Till the counter has
+    // gone `ticks` on from where it is: the first step may come at once.
+    const uint32_t end = fifty_ + static_cast<uint32_t>(ticks);
     int x, y;
-    while (ctx_.platform.milliseconds() < end) {
+    while (static_cast<int32_t>(fifty_ - end) < 0) {
         ctx_.pump();
         if (!interruptible) continue;
         if (ctx_.platform.takeClick(&x, &y)) return true;
