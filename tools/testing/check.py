@@ -6,13 +6,17 @@ the game over and won), and smoke tests of the testing switches (the aim
 search, the dialogs skipped, the heartbeat). PASS or FAIL for each; exits 1
 if any failed. About 40 s.
 
-Usage: check.py [unit] [regress] [retrace] [scenario] [smoke] (default: all)"""
+Usage: check.py [unit] [regress] [retrace] [scenario] [smoke] [--jobs N]
+  (default: all steps; --jobs N: the scenarios N at a time, 1 when the
+  machine is busy, its limit stretched to match)"""
+import math
 import subprocess
 import sys
 import time
 from pathlib import Path
 
 import aimsearch
+from scenarios import SCENARIOS
 from testlib import ROOT, SCRATCH, edison, run_game, say
 
 HERE = Path(__file__).parent
@@ -56,17 +60,32 @@ def smoke():
     return ok, "\n".join(lines)
 
 
+def scenario(jobs):
+    """scenario.py, jobs at a time (0: all), about 60 s a round."""
+    if not jobs:
+        return command([sys.executable, str(HERE / "scenario.py")], 180)
+    rounds = math.ceil(len(SCENARIOS) / jobs)
+    return command([sys.executable, str(HERE / "scenario.py"), "--jobs", str(jobs)], max(180, 60 * rounds))
+
+
+JOBS = 0
 STEPS = {
     "unit": lambda: command(["ctest", "--output-on-failure"], 120, cwd=ROOT / "build"),
     "regress": lambda: command([sys.executable, str(HERE / "regress.py")], 60),
     "retrace": lambda: command([sys.executable, str(HERE / "retrace.py")], 120),
-    "scenario": lambda: command([sys.executable, str(HERE / "scenario.py")], 180),
+    "scenario": lambda: scenario(JOBS),
     "smoke": smoke,
 }
 
 
 def main():
-    steps = sys.argv[1:] or list(STEPS)
+    global JOBS
+    args = sys.argv[1:]
+    if "--jobs" in args:
+        i = args.index("--jobs")
+        JOBS = int(args[i + 1])
+        del args[i:i + 2]
+    steps = args or list(STEPS)
     failed = []
     for name in steps:
         if name not in STEPS:

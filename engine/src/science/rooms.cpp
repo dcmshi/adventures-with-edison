@@ -724,13 +724,11 @@ void Science::roomEnd() {
         d.face = 0, d.style = 0, d.message = 0x206;
         d.strings = lines, d.lines = count, d.highlight = highlight, d.balls = bonusBalls_;
         dialogOpen(d);
-        // A key or a click.
+        // A key (any: [9558]) or a click.
         clearInput();
-        int x, y;
-        while (ctx_.platform.takeClick(&x, &y)) {}
         for (;;) {
             ctx_.pump();
-            if (ctx_.platform.takeClick(&x, &y) || ctx_.platform.takeKey() != 0) break;
+            if (anyInput()) break;
         }
         clearInput();
     }

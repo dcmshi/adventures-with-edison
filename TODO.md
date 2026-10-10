@@ -26,7 +26,7 @@ What's left is checking it against the original:
 - [x] The p05 clock (`p05d0`, `p05d3`): Dropping Squares' second against its column's step is set by the calls its setup takes, which change from run to run in the original (shot every 50 ms: once the step with the second, as the port's, once 0.37 s before). `mmcompare.py` matches its clock apart (`apart`): pixel for pixel.
 - [x] Concentration's learned facts cleared each game (`f19_0000`): compared over two games (`mmcompare.py factsclear`), pixel for pixel. (`mall_skip.py`'s SKIP had kept the data segment's zeros for its record, a saved game at level 0, and converted Edison's colours again in each setup: now a new player's record, the colours only in the first setup.)
 - [x] The library (segments 31-60), scanned function by function (`docs/MYSTERY.md`'s "The library"): 174 of 285 functions reached, each read against the port. Ported: any key ends a wait (`keysany`), typing by Shift alone, Caps Lock not read (`setupcaps`; the keyboard's own layout kept, not the tables' US one), the floor's and the editor's paths by the library's polygon spans (`factsclear`).
-- [ ] Wild Science's waits (`science/`) take a key with a character (`takeKey`); WMAIN's handler (`f71_0187`, the same as MALL's) sets "a key came" (`[9558]`) for any key: compare and use `takeKeyDown` where it reads that.
+- [x] Wild Science's waits end on any key, as WMAIN's `[9558]` (`f71_0187`, the same handler as MALL's): the title, the boxes, the bonus box, the story, the credits, the high scores (`scenario.py game-won-shift`); the lessons take keys (`g15_0b28`: Esc ends one, any other key is MORE; `lesson-keys`); Esc no longer leaves the arcade (the original's tables ignore it).
 
 ## Rock and Bach
 

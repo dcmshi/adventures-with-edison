@@ -47,7 +47,8 @@ int Science::playRoom(int room) {
     uint64_t next = ctx_.platform.milliseconds() + 20;
     for (;;) {
         ctx_.pump();
-        if (escapePressed()) return -1;
+        // (Esc does nothing in a table: the player passes it to the room,
+        // whose key method, f27_31fb, takes only r. q leaves.)
         if (exitRoom_) return exitRoom_;
         // f32_09a0: an event when the button is down or was pressed since
         // the last ([6EC5]), or the mouse moved, or (with it up) the last
@@ -66,6 +67,9 @@ int Science::playRoom(int room) {
             mouseEvent(m);
             last = m;
         }
+        // f32_09a0 takes "a key came" ([9558]) each pass: a key without a
+        // character (Shift) is an event 8 that nothing answers.
+        ctx_.platform.takeKeyDown();
         if (const int key = ctx_.platform.takeKey()) keyEvent(key);
         heartbeat("room " + std::to_string(currentRoom_) + " tick " + std::to_string(timerTicks_) +
                   (hasBall_ ? " ball " + std::to_string(ball_.cx) + "," + std::to_string(ball_.cy) + "," + std::to_string(ball_.cz) : ""));
@@ -391,8 +395,13 @@ void Science::keyEvent(int key) {
     case 'S': {
         // (f36_0000 till a key, twice.)
         int keys[2];
+        // Any key down counts ([9558]): one without a character is 0.
         for (int& k : keys)
-            while ((k = ctx_.platform.takeKey()) == 0) ctx_.pump();
+            for (bool down = false; !down;) {
+                ctx_.pump();
+                k = ctx_.platform.takeKey();
+                down = ctx_.platform.takeKeyDown() || k != 0;
+            }
         if (keys[0] < '0' || keys[0] > '9' || keys[1] < '0' || keys[1] > '9') return;
         int room = (keys[0] - '0') * 10 + (keys[1] - '0');
         if (room < 1 || room > 110) room = 1;

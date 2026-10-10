@@ -163,8 +163,14 @@ std::string Science::enterName(int x, int y, int maxLength, int width, int colou
     for (;;) {
         const int area = saveArea(x, y, width + 0x14, 0x14);
         textAt(x, y, name + "|", colour);
+        // Any key down ([9558]) goes round; one without a character
+        // ([955C] 0: Shift) types nothing.
         int key = 0;
-        while ((key = ctx_.platform.takeKey()) == 0) ctx_.pump();
+        for (bool down = false; !down;) {
+            ctx_.pump();
+            key = ctx_.platform.takeKey();
+            down = ctx_.platform.takeKeyDown() || key != 0;
+        }
         restoreArea(area);
         if (key == Platform::kEnter) break;
         if (key == Platform::kBackspace) {
@@ -378,11 +384,10 @@ void Science::highScores() {
     }
     sound(0x6013);
     toDisplay(2);
-    int x, yy;
-    ctx_.platform.takeClick(&x, &yy), ctx_.platform.takeKey();
+    clearInput();
     for (;;) {
         ctx_.pump();
-        if (ctx_.platform.takeClick(&x, &yy) || ctx_.platform.takeKey() != 0) break;
+        if (anyInput()) break;  // [9558] (any key) or [6EC5]
     }
     clearDisplay();
     select(1);
@@ -400,11 +405,10 @@ void Science::credits() {
     applyLook();
     sound(0x6013);
     toDisplay(2);
-    int x, y;
-    ctx_.platform.takeClick(&x, &y), ctx_.platform.takeKey();
+    clearInput();
     for (;;) {
         ctx_.pump();
-        if (ctx_.platform.takeClick(&x, &y) || ctx_.platform.takeKey() != 0) break;
+        if (anyInput()) break;  // [9558] (any key) or [6EC5]
     }
     select(1);
 }

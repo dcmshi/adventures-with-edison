@@ -1527,6 +1527,28 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   place, then 300 points off (`f06_0208`); other keys nothing. Checked
   against the original in room 1 (a shot, then `r`): the same, the ball
   without the shadow under it at the end.
+- **Any key** (the library's handler, `f71_0187`, the same as MALL's and
+  WINMAIN's): each `WM_KEYDOWN` and `WM_SYSKEYDOWN` sets "a key came"
+  (`[9558]`) and the key's character (`[955C]`, 0 for Shift, Ctrl, Alt
+  or F1). Every wait that reads `[9558]` ends on any key: the title
+  (`f32_0319`), the boxes (`f24_193e`: y, or Y with several buttons, is
+  the second button, any other key the first), the room's bonus box
+  (`f38_020f`), the story's pages (`f38_0718`), the credits (`f38_0eb9`)
+  and the high scores (`f40_0000`); the name (`g19_0003`) and S's two
+  digits (`g31_1d73`) take a key without a character as none (S then
+  goes nowhere). The play loop (`f32_09a0`) takes it each pass, an event
+  8 that nothing answers. Ported (`Platform::takeKeyDown`); the port had
+  counted only keys with a character. Checked against the original
+  (`scenario.py game-won-shift`: Shift alone closes the bonus box, goes
+  on in lesson 10 and closes the high scores, as the clicks do).
+- **The lessons' keys** (event 8 to the lesson, after the player's p, q,
+  m, s and S): the lesson's key method (`g15_0b28`, its class's `+0C`)
+  ends the lesson on Esc (scan code 1: `+48`, `g15_0939`, event 9 to its
+  room; none in lesson 10) and takes any other key as MORE (`+44`, the
+  script's next step). The port had taken only a click on MORE. Checked
+  (`scenario.py lesson-keys`: lesson 6's lines gone on by Shift and "a",
+  then Esc: room 50). Esc in a table does nothing (the room's key method
+  takes only r); the port had left the arcade on it.
 - **The shadow under a ball put back**: `f13_01ce` draws it only while the
   shadow object is hidden and `[14E0]` clear. `f27_287d` (spit mode 2: a
   wrong warp code) shows the ball through its motion part's `+18`

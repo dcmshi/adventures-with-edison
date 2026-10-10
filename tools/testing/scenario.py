@@ -2,7 +2,7 @@
 presses, drags, moves and typing, the moments to take shots) in the port and
 compares each of the original's shots with the port's nearest frame.
 
-Usage: scenario.py [NAME ...] [--orig] [--accept] [--list] [--window MS]
+Usage: scenario.py [NAME ...] [--orig] [--accept] [--list] [--window MS] [--jobs N]
   NAME      scenarios to play (default: all; a prefix picks several: lesson)
   --orig    run the original first (under winevdm, one at a time, about a
             minute each), else the shots of its last run are used; both sides
@@ -12,6 +12,8 @@ Usage: scenario.py [NAME ...] [--orig] [--accept] [--list] [--window MS]
   --list    the scenarios
   --window  how far (ms) from a shot's time to look for the port's frame
             (default 1500: the two sides' timelines start a little apart)
+  --jobs    how many port runs at once (default: all; 1 when the machine
+            is busy, as runs starved of time hang or are killed)
 Each shot is matched to the port frame with the fewest differing pixels
 (tolerance 24, the scenario's masks left out) within the window, and fails
 when that is more than its known count. A scenario's first run (no known
@@ -32,7 +34,7 @@ from pathlib import Path
 
 from PIL import Image, ImageChops, ImageDraw
 
-from scenarios import SCENARIOS
+from scenarios import SCENARIOS, VKEYS
 from testlib import ROOT, SCRATCH, edison, parallel, run_game, say
 
 OUT = SCRATCH / "scenario"
@@ -58,6 +60,8 @@ def port_args(s):
             args += ["--move", ms, e[2], e[3]]
         elif kind == "type":
             args += ["--type", ms, e[2]]
+        elif kind == "key":
+            args += ["--key", ms, e[2], int(e[3] * 1000)]
     return [str(a) for a in args]
 
 
@@ -98,6 +102,9 @@ def orig_script(s):
             lines.append(f"move {e[2]} {e[3]}")
         elif e[1] == "type":
             lines.append(f"type {e[2]}")
+        elif e[1] == "key":
+            lines += [f"keydown {VKEYS[e[2]]}", f"wait {e[3]:.2f}", f"keyup {VKEYS[e[2]]}"]
+            now += e[3]
     return lines + ["wait 2"]
 
 
@@ -169,6 +176,7 @@ def main():
     ap.add_argument("--accept", action="store_true")
     ap.add_argument("--list", action="store_true")
     ap.add_argument("--window", type=int, default=1500)
+    ap.add_argument("--jobs", type=int, default=0)
     opts = ap.parse_args()
     if opts.list:
         for n, s in SCENARIOS.items():
@@ -188,7 +196,8 @@ def main():
             play_orig(n, SCENARIOS[n])
     exe = edison(OUT)
     fail = False
-    for n, run in parallel([(n, lambda n=n: play_port(exe, n, SCENARIOS[n])) for n in names]):
+    jobs = [(n, lambda n=n: play_port(exe, n, SCENARIOS[n])) for n in names]
+    for n, run in parallel(jobs, opts.jobs or None):
         if run.hung:
             say(run.hung_report(n))
             fail = True

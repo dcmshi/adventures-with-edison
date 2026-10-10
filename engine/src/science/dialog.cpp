@@ -219,7 +219,8 @@ int Science::dialogRun(Dialog& d) {
     int x, y;
     while (ctx_.platform.takeClick(&x, &y)) {}
     bool held = false, pressed = false;  // [6EC4], [6EC5]
-    int key = 0;                         // [9558] / [955C]
+    bool came = false;                   // [9558]: a key went down, any (Shift too)
+    int key = 0;                         // [955C]: its character, 0 for none
     int mx = 0, my = 0;
     auto message = [&] {
         // f36_0000: one message. (Testing: a heartbeat while it waits.)
@@ -235,11 +236,12 @@ int Science::dialogRun(Dialog& d) {
             held = true, pressed = true, mx = cx, my = cy;
             return;
         }
-        if (const int k = ctx_.platform.takeKey()) key = k;
+        const int k = ctx_.platform.takeKey();
+        if (ctx_.platform.takeKeyDown() || k) came = true, key = k;
     };
     if (!d.typed) {
         if (d.lines == 0) {
-            while (!key && !pressed) {
+            while (!came && !pressed) {
                 message();
                 dialogTick(d);
             }
@@ -247,7 +249,7 @@ int Science::dialogRun(Dialog& d) {
             int i = 0;
             bool done = false;
             for (;;) {
-                if (key) break;
+                if (came) break;
                 if (std::getenv("SCI_DEBUG")) logLine("dialog pass " + std::to_string(i) + (held ? " held" : ""));
                 if (held) {
                     if (inside(dialogLine(d, i), mx, my)) {
@@ -271,7 +273,7 @@ int Science::dialogRun(Dialog& d) {
             }
             if (!done) {
                 // A key: y (or Y with several buttons) is the second, any
-                // other the first.
+                // other the first (Shift alone too).
                 d.result = key == 'y' || (key == 'Y' && !d.single) ? 1 : 0;
                 dialogPress(d, d.result);
                 dialogWait(0x1E);

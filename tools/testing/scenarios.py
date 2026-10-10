@@ -31,6 +31,15 @@ def typed(t, text):
     return (t, "type", text)
 
 
+# Keys held by name: the original's virtual-key codes, the port's --key names.
+VKEYS = {"shift": 16, "esc": 27}
+
+
+def key(t, name, seconds=0.08):
+    """A key held (no character: Shift)."""
+    return (t, "key", name, seconds)
+
+
 def shoot(t, x, y):
     """Aim at (x, y) (the mouse moved off after), then SHOOT a second on."""
     return [click(t, x, y), move(t + 0.18, x + 4, y), click(t + 1.0, 540, 340), move(t + 1.13, 544, 340)]
@@ -94,6 +103,28 @@ def game_won():
             "length": 27}
 
 
+def game_won_shift():
+    """game_won with Shift alone where a key or click ends a wait ([9558]
+    is set for any key down): the bonus box (f38_020f), the lesson's first
+    MORE (f24_193e: a key other than y is the first button), and the high
+    scores (f40_0000), closed."""
+    events = [POWER16, *shoot(3.0, 224, 160), key(11.2, "shift")]
+    events += [key(15.3, "shift")] + [click(t, 550, 380) for t in (17.3, 19.3, 21.3)] + [key(26.0, "shift")]
+    return {"room": 65, "events": events,
+            "shots": [(11.1, "bonus"), (12.0, "bonus2"), (15.2, "lesson"), (16.2, "more"), (25.5, "hs"), (27.5, "closed")],
+            "length": 29}
+
+
+def lesson_keys():
+    """Lesson 6 from room 61, its lines gone on by keys (the lesson's key
+    method, g15_0b28): Shift alone, then "a" (MORE, +44), then Esc (its
+    end, +48: room 50)."""
+    events = [drag(3.0, 445, 325, 445, 250, 2.5), *shoot(6.0, 306, 176), key(13.0, "shift"), typed(16.0, "a"),
+              key(19.0, "esc")]
+    shots = [(12.0, "s1"), (14.0, "s2"), (17.0, "s3"), (21.0, "end"), (23.0, "end2")]
+    return {"room": 61, "events": events, "shots": shots, "length": 25}
+
+
 SCENARIOS = {
     "hole-lab": hole((280, 156)),
     "hole-play": hole((260, 148)),
@@ -101,6 +132,8 @@ SCENARIOS = {
     **{f"lesson-{n}": lesson(n) for n in range(6, 11)},
     "game-over": game_over(),
     "game-won": game_won(),
+    "game-won-shift": game_won_shift(),
+    "lesson-keys": lesson_keys(),
 }
 for s in SCENARIOS.values():
     s.setdefault("masks", COLUMNS)

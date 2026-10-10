@@ -260,6 +260,24 @@ int Science::lesson(int n) {
         const Bitmap& b = ctx_.bitmap(static_cast<uint16_t>(anims[0].sprite + std::max(shown[0], 0)));
         return x >= anims[0].x && y >= anims[0].y && x < anims[0].x + b.width && y < anims[0].y + b.height;
     };
+    // A key (event 8, f32_09a0) goes to the player first (f31_1d70: p, q,
+    // m, s, S), then to the lesson (its +0C, g15_0b28): Esc (scan code 1)
+    // ends it (+48, g15_0939: event 9 to its room, none in lesson 10),
+    // any other, Shift alone too, is MORE (+44, the script's next step).
+    enum { kNone, kMore, kEnd } byKey = kNone;
+    exitRoom_ = 0;
+    auto keys = [&] {
+        const int k = ctx_.platform.takeKey();
+        if (!ctx_.platform.takeKeyDown() && !k) return;
+        if (k == 'p' || k == 'P' || k == 'q' || k == 'Q' || k == 'm' || k == 'M' || k == 's' || k == 'S') {
+            keyEvent(k);
+            compose();
+        } else if (k == Platform::kEscape) {
+            if (l.nextRoom >= 0) byKey = kEnd;
+        } else {
+            byKey = kMore;
+        }
+    };
     uint16_t pending = l.firstSound;
     for (const Step& step : l.steps) {
         // f15_0a70 / g15_0a1d: the last bubble goes, the new one comes.
@@ -273,6 +291,19 @@ int Science::lesson(int n) {
             ctx_.pump();
             tick();
             turn();
+            keys();
+            if (exitRoom_) {
+                ctx_.platform.stopWav();
+                return exitRoom_;
+            }
+            if (byKey == kEnd) {
+                ctx_.platform.stopWav();
+                return l.nextRoom;
+            }
+            if (byKey == kMore) {
+                byKey = kNone;
+                break;
+            }
             int mx, my;
             bool down = false;
             ctx_.platform.mouse(&mx, &my, &down);

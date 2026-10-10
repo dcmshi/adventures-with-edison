@@ -17,10 +17,12 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
   `otvdm.ps1 volume N` while it runs; Windows keeps the level for
   `otvdmw.exe`).
 - `EDISON_LOG` appends: remove the file before a run whose log is read.
-- `python tools/testing/check.py [unit regress retrace smoke]`: every
-  check below, each timed and limited (a step still running at its limit
-  is reported HUNG), PASS or FAIL each, exit 1 if any failed; about 10 s.
-  Run it before a commit.
+- `python tools/testing/check.py [unit regress retrace smoke] [--jobs N]`:
+  every check below, each timed and limited (a step still running at its
+  limit is reported HUNG), PASS or FAIL each, exit 1 if any failed; about
+  10 s. Run it before a commit. `--jobs 1` plays the scenarios one at a
+  time (a few minutes) when the machine is busy: starved runs hang or are
+  killed ("image file is truncated").
   `smoke`: the aim search finds room 22's suckhole, room 96's greeting box
   shows in the heartbeat when unanswered and is skipped with
   `SCI_SKIPDIALOGS`.
@@ -55,10 +57,11 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
   with `otvdm.ps1 run`; not in the repository): every frame exact, the
   two whole screens no worse than their known counts. `E=path` tests
   another build (also for `retrace.py`).
-- `scenario.py [NAME...] [--orig] [--accept] [--list]`: the scenarios of
+- `scenario.py [NAME...] [--orig] [--accept] [--list] [--jobs N]`: the scenarios of
   `scenarios.py` (room 1's holes to the lab, the play room and Level 1;
   lessons 6-10 from room 61; the game over in room 32 and won from room
-  65), each a timeline of presses, drags, moves and typing from a table
+  65, and won again with Shift for the clicks; lesson 6 by its keys),
+  each a timeline of presses, drags, moves, keys held and typing from a table
   room, played in the port and (with `--orig`, one at a time, its save
   files put back after) in the original; each of the original's shots
   against the port's nearest frame within 1.5 s, the columns masked, no

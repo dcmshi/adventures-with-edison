@@ -145,7 +145,7 @@ void Science::arcade(int room) {
                 const int n = room - 500;
                 room = lesson(n);
                 quietScore_ = true;  // f15_08b7, the lesson's end: [171C]
-                if (n == 10) {
+                if (n == 10 && !exitRoom_) {  // (not left by a key: q, m, S)
                     // Its last step (15:29C5): the game's won ([26CC]),
                     // then f31_06c0: the game recorded (f40_068b: room
                     // 65's level and screen), the high scores (f40_0000),
@@ -262,7 +262,8 @@ bool Science::waitTicks(int ticks, bool interruptible, int* key) {
         ctx_.pump();
         if (!interruptible) continue;
         if (ctx_.platform.takeClick(&x, &y)) return true;
-        if (const int k = ctx_.platform.takeKey(); k != 0) {
+        const int k = ctx_.platform.takeKey();
+        if (ctx_.platform.takeKeyDown() || k != 0) {  // any key, Shift too
             if (key) *key = k;
             return true;
         }
@@ -293,10 +294,9 @@ void Science::title() {
     fmSound(0x0D);
     showScreen(0x2000, 1);
     ctx_.countdown[0] = 0x82;  // DS:95F2
-    int x, y;
     while (ctx_.countdown[0] > 0) {
         ctx_.pump();
-        if (ctx_.platform.takeClick(&x, &y) || ctx_.platform.takeKey() != 0) break;
+        if (anyInput()) break;  // [9558] (any key) or [6EC5]
     }
     clearDisplay();
     // Picture 2002 onto screen 2 (the lab's first backdrop).
