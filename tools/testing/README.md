@@ -147,6 +147,15 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
   offset matches a function's label or the 1-3 prologue bytes before it
   (an exported callback's entry); in Mystery's and Rock and Bach's data a
   far pointer is a segment relocation with the offset in the word before.
+- `ghidrarefs.py [GAME ...] [--all]`: deadscan.py against Ghidra's own
+  references, a second reading of the code: any function deadscan finds
+  dead that Ghidra sees referred to from live code is a disagreement
+  (exit 1). The lists come from the Ghidra projects (`extracted/ghidra/proj`,
+  `tools/ghidra/decompile.sh`) by `tools/ghidra/ExportRefs.java`:
+  `analyzeHeadless extracted/ghidra/proj NAME -process -noanalysis
+  -readOnly -scriptPath tools/ghidra -postScript ExportRefs.java
+  extracted/ghidra/NAME.refs.txt` for mall, winmain and wmain. In
+  `check.py smoke` when the lists are there.
 - `mmmaze.py [--port-only | --compare-only]`: the bonus maze's wanderers
   pass by pass (its loop is unpaced in the original, so its shots can't
   be matched in time): `allfound` in the port at a pass a millisecond

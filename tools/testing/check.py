@@ -62,6 +62,14 @@ def smoke():
     hit, output = command([sys.executable, str(HERE / "test_deadscan.py")], 60)
     lines.append(output.strip())
     ok &= hit
+    # ...and no function it finds dead that Ghidra sees called from live
+    # code (ghidrarefs.py; needs ExportRefs.java's lists, else skipped).
+    if all((ROOT / "extracted" / "ghidra" / f"{n}.refs.txt").exists() for n in ("mall", "winmain", "wmain")):
+        hit, output = command([sys.executable, str(HERE / "ghidrarefs.py")], 120)
+        lines.append(output.strip())
+        ok &= hit
+    else:
+        lines.append("ghidrarefs: skipped (no extracted/ghidra/*.refs.txt: tools/ghidra/ExportRefs.java)")
     return ok, "\n".join(lines)
 
 

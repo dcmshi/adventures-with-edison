@@ -106,20 +106,34 @@ def references(key, funcs):
             add(find(int(m.group(1)), int(m.group(2), 16)), current, how)
         for m in FAR.finditer(line):
             add(find(int(m.group(1)), int(m.group(2), 16)), current, "far pointer")
+        # A near call nedis leaves as a number (push cs; call 0: a far call
+        # made by hand, Wild Science's 29:0209 to f29_0000).
+        m = re.search(r"\b(call|jmp) (0x[0-9a-f]+|[0-9]+)\s*$", code)
+        if m and here is not None:
+            add(begin.get((here, int(m.group(2), 0))) or find(here, int(m.group(2), 0)), current, m.group(1))
         m = SEG.search(line)
         if m:
+            # The segment's own instruction has its selector; the offset is
+            # the nearest other instruction with an immediate: after a
+            # pushed segment (a far pointer is pushed segment first), before
+            # a stored one (mov [x], offset; mov [x+2], segment). Taking
+            # every one within three lines paired the segment with others'
+            # numbers (Rock and Bach's audit). It matches a function's
+            # start or prologue, not a place inside.
             seg = int(m.group(1))
-            for near in lines[max(0, i - 3):i + 4]:
-                for v in operands(near):
-                    # (Beside a segment, an offset: a function's start or
-                    # its prologue; inside one matched the offsets of calls
-                    # next to the push, Mystery's audit found.)
-                    name = begin.get((seg, int(v, 0)))
+            pushed = re.search(r"\bpush\b", code)
+            for j in ((i + 1, i - 1, i + 2, i - 2, i + 3, i - 3) if pushed else (i - 1, i + 1, i - 2, i + 2, i - 3, i + 3)):
+                vals = operands(lines[j]) if 0 <= j < len(lines) and SITE.match(lines[j]) else []
+                if vals:
+                    name = begin.get((seg, int(vals[-1], 0)))
                     if name:
                         add(name, current, "far pointer")
+                    break
         if here is not None:
             for v in operands(line):
-                name = begin.get((here, int(v, 0)))
+                # (0 is too common a number to be taken for a pointer: the
+                # push 0s had "reached" functions at offset 0.)
+                name = begin.get((here, int(v, 0))) if int(v, 0) else None
                 if name:
                     add(name, current, "near pointer")
     ne = NEFile(str(EXE_DIR / exe))

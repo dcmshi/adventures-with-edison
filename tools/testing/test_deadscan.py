@@ -30,6 +30,11 @@ KNOWN = [
     # A far pointer in data as a segment relocation (73:0735) with its
     # offset the word before it.
     ("mystery", "f08_0334", "table only", None),
+    # A pushed far pointer: segment then offset (06:2202 push 0x1f4a ; seg
+    # s06, then push 0x1b82), not the push 0 before it.
+    ("rockbach", "f06_0000", "unreferenced", None),
+    # A near call nedis leaves as a number (29:0208 push cs; call 0).
+    ("science", "f29_0000", "reached", "f29_01d2"),
     # Wild Science's vtables: far-pointer relocations in segment 103.
     ("science", "f39_1135", "table only", None),
     # Borland's new, called from the constructors.
