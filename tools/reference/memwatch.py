@@ -40,6 +40,7 @@ Only reads; the game isn't touched.
 import argparse
 import ctypes
 import ctypes.wintypes as wt
+import os
 import re
 import struct
 import sys
@@ -82,6 +83,11 @@ kernel32.Process32NextW.argtypes = [wt.HANDLE, ctypes.POINTER(PROCESSENTRY32W)]
 
 
 def find_processes(name="otvdmw.exe"):
+    # A worker's (otvdm.ps1's OTVDM_WORKER): only its own game, the one
+    # whose id otvdm.ps1 wrote to EDISON_RUN's otvdm.pid.
+    if os.environ.get("OTVDM_WORKER") and os.environ.get("EDISON_RUN"):
+        pid = Path(os.environ["EDISON_RUN"]) / "otvdm.pid"
+        return [int(pid.read_text())] if pid.exists() else []
     snap = kernel32.CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)
     entry = PROCESSENTRY32W()
     entry.dwSize = ctypes.sizeof(entry)

@@ -101,5 +101,16 @@ def python(script, *args):
     return r.stdout
 
 
+def no_window():
+    """subprocess's creationflags for pwsh (otvdm.ps1): with no console of
+    our own (a run started from an editor or an agent), a console program
+    gets a new window, which comes to the front; with one, it shares ours
+    (and its output)."""
+    if os.name != "nt":
+        return 0
+    import ctypes
+    return 0 if ctypes.windll.kernel32.GetConsoleWindow() else subprocess.CREATE_NO_WINDOW
+
+
 def say(*parts):
     print(*parts, flush=True)

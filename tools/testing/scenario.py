@@ -2,7 +2,7 @@
 presses, drags, moves and typing, the moments to take shots) in the port and
 compares each of the original's shots with the port's nearest frame.
 
-Usage: scenario.py [NAME ...] [--orig] [--accept] [--list] [--window MS] [--jobs N]
+Usage: scenario.py [NAME ...] [--orig] [--accept] [--list] [--window MS] [--jobs N] [--orig-jobs N]
   NAME      scenarios to play (default: all; a prefix picks several: lesson)
   --orig    run the original first (under winevdm, one at a time, about a
             minute each), else the shots of its last run are used; both sides
@@ -14,6 +14,8 @@ Usage: scenario.py [NAME ...] [--orig] [--accept] [--list] [--window MS] [--jobs
             (default 1500: the two sides' timelines start a little apart)
   --jobs    how many port runs at once (default: all; 1 when the machine
             is busy, as runs starved of time hang or are killed)
+  --orig-jobs  how many runs of the original at once with --orig
+            (default 1; workers.py: each its own game folder and tile)
 Each shot is matched to the port frame with the fewest differing pixels
 (tolerance 24, the scenario's masks left out) within the window (frames
 every 10 ms within 1 s of a scenario's "dense" shots), and fails
@@ -37,6 +39,7 @@ from PIL import Image, ImageChops, ImageDraw
 
 from scenarios import SCENARIOS, VKEYS
 from testlib import ROOT, SCRATCH, edison, parallel, run_game, say
+import workers as W
 
 OUT = SCRATCH / "scenario"
 KNOWN = OUT / "known.json"
@@ -123,26 +126,30 @@ def orig_script(s):
     return lines + ["wait 2"]
 
 
-def play_orig(name, s):
+def play_orig(name, s, env=None):
+    """origrun.py plays the scenario; ENV a worker's (workers.py: its own
+    game folder), else this process's."""
     d = OUT / name / "orig"
     shutil.rmtree(d, ignore_errors=True)
-    backup = OUT / "saves"
+    run = Path(env["EDISON_RUN"]) if env else run_folder()
+    backup = OUT / f"saves{env['OTVDM_WORKER'] if env else ''}"
     backup.mkdir(parents=True, exist_ok=True)
     kept = []
     for f in SAVES:
-        if (run_folder() / f).exists():
-            shutil.copy2(run_folder() / f, backup / f)
+        if (run / f).exists():
+            shutil.copy2(run / f, backup / f)
             kept.append(f)
     try:
         subprocess.run([sys.executable, str(Path(__file__).parent / "origrun.py"), str(d), str(s["room"]),
                         "--watch", "0", "--", *orig_script(s)],
-                       cwd=Path(__file__).parent, timeout=s["length"] + 120)
+                       cwd=Path(__file__).parent, timeout=s["length"] + 120, env=env,
+                       capture_output=env is not None)
     except subprocess.TimeoutExpired:
         say(f"{name}: the original HUNG")
     finally:
         # The game writes its high scores and look: put the files back.
         for f in kept:
-            shutil.copy2(backup / f, run_folder() / f)
+            shutil.copy2(backup / f, run / f)
 
 
 # --- comparing -------------------------------------------------------------------
@@ -202,6 +209,7 @@ def main():
     ap.add_argument("--list", action="store_true")
     ap.add_argument("--window", type=int, default=1500)
     ap.add_argument("--jobs", type=int, default=0)
+    ap.add_argument("--orig-jobs", type=int, default=1)
     opts = ap.parse_args()
     if opts.list:
         for n, s in SCENARIOS.items():
@@ -216,9 +224,14 @@ def main():
 
     if opts.orig:
         os.environ.setdefault("OTVDM", "D:/tools/otvdm/otvdm-v0.9.0/otvdmw.exe")
-        for n in names:
-            say(f"{n}: the original")
-            play_orig(n, SCENARIOS[n])
+        if opts.orig_jobs > 1:
+            # Side by side (workers.py), each in its own copy of the game folder.
+            for n, k, _ in W.deal(names, opts.orig_jobs, lambda n, k, env: play_orig(n, SCENARIOS[n], env)):
+                say(f"{n}: the original (worker {k})")
+        else:
+            for n in names:
+                say(f"{n}: the original")
+                play_orig(n, SCENARIOS[n])
     exe = edison(OUT)
     fail = False
     verdicts = {}

@@ -22,7 +22,7 @@ import sys
 import time
 from pathlib import Path
 
-from testlib import REFERENCE, ROOT, say
+from testlib import REFERENCE, ROOT, no_window, say
 
 BALL = "[[5ffc+ae]+f77]"
 
@@ -30,9 +30,11 @@ BALL = "[[5ffc+ae]+f77]"
 def ps1(*args, limit=30, wait=True):
     cmd = ["pwsh", "-NoProfile", "-File", str(REFERENCE / "otvdm.ps1"), *map(str, args)]
     if not wait:
-        return subprocess.Popen(cmd, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        return subprocess.Popen(cmd, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                                creationflags=no_window())
     try:
-        return subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=limit)
+        return subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=limit,
+                              creationflags=no_window())
     except subprocess.TimeoutExpired:
         say(f"otvdm.ps1 {args[0]}: HUNG (killed after {limit} s)")
         return None

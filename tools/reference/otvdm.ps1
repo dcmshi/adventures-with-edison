@@ -42,6 +42,14 @@
 #
 # `start` needs winevdm's otvdmw.exe ($env:OTVDM, or on the PATH) and a
 # folder with the game files and the WinG DLLs ($env:EDISON_RUN).
+#
+# Runs side by side: OTVDM_WORKER=N (0, 1, ...) makes this script's game
+# the one whose process id `start` wrote to EDISON_RUN's otvdm.pid (each
+# worker its own EDISON_RUN, a copy of the game folder), so start, stop,
+# shots and input leave the other workers' games alone; the window is put
+# in slot N of a grid of 640 x 480 tiles (five across, two down on a
+# 3440 x 1440 screen), so shots, copied from the screen, don't overlap.
+# Without it, there's one game: any otvdmw.exe is it.
 param([Parameter(Mandatory)][string]$Command, [string]$Arg, [string]$Arg2, [string]$Arg3)
 
 $otvdm = if ($env:OTVDM) { $env:OTVDM } else { (Get-Command otvdmw.exe -ErrorAction SilentlyContinue).Source }
@@ -67,6 +75,9 @@ public static class W {
   [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int c);
   [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr h, IntPtr after, int x, int y, int cx, int cy, uint f);
   [DllImport("kernel32.dll")] public static extern uint SetThreadExecutionState(uint f);
+  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+  [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr h);
   public static List<IntPtr> All() { var l = new List<IntPtr>(); EnumWindows((h, p) => { l.Add(h); return true; }, IntPtr.Zero); return l; }
   public static string Cls(IntPtr h) { var s = new StringBuilder(256); GetClassName(h, s, 256); return s.ToString(); }
   public static string Text(IntPtr h) { var s = new StringBuilder(256); GetWindowText(h, s, 256); return s.ToString(); }
@@ -74,7 +85,15 @@ public static class W {
 }
 "@
 
-function Game { Get-Process otvdmw -ErrorAction SilentlyContinue }
+$worker = if ($env:OTVDM_WORKER) { [int]$env:OTVDM_WORKER } else { -1 }
+$pidFile = if ($runDir) { Join-Path $runDir "otvdm.pid" } else { $null }
+
+function Game {
+    if ($worker -lt 0) { return Get-Process otvdmw -ErrorAction SilentlyContinue }
+    if (-not ($pidFile -and (Test-Path $pidFile))) { return $null }
+    $id = [int](Get-Content $pidFile -Raw)
+    Get-Process -Id $id -ErrorAction SilentlyContinue | Where-Object { $_.ProcessName -eq "otvdmw" }
+}
 
 # The game's volume in the Windows mixer (Core Audio: its process's audio
 # sessions on the default output). A session only exists once the game has
@@ -145,7 +164,9 @@ function GameWindows { $ids = @(Game | ForEach-Object Id); [W]::All() | Where-Ob
 function Dialogs { GameWindows | Where-Object { [W]::Cls($_) -eq "#32770" } }
 
 function Enable-DisabledWindows {
-    $gameIds = @(Game | ForEach-Object Id)
+    # (Every game's windows left alone, the other workers' too: a game's
+    # own window is disabled under its dialog.)
+    $gameIds = @(Get-Process otvdmw -ErrorAction SilentlyContinue | ForEach-Object Id)
     foreach ($h in [W]::All()) {
         # conpty's PseudoConsoleWindow, UWP frames and DWM's listener are disabled normally
         if ([W]::IsWindowVisible($h) -and -not [W]::IsWindowEnabled($h) -and $gameIds -notcontains [W]::Pid($h) -and
@@ -162,18 +183,34 @@ function Enable-DisabledWindows {
 # copy its rectangle from the screen, aren't covered). OTVDM_FULLSCREEN=1
 # keeps the backdrop.
 function Windowed {
-    for ($i = 0; $i -lt 40; $i++) {
+    for ($i = 0; $i -lt $(if ($worker -ge 0) { 200 } else { 40 }); $i++) {
         $back = @(GameWindows | Where-Object { [W]::Cls($_) -like "*BackDrop*" })
+        # A worker's at once: it covers the whole screen, the other workers'
+        # tiles too, for the seconds the game takes to open its window.
+        if ($worker -ge 0) { foreach ($b in $back) { [W]::ShowWindow($b, 0) | Out-Null } }
         $main = MainWindow
-        if ($main -and $back.Count) {
+        if ($main -and ($back.Count -or $worker -ge 0)) {
             foreach ($b in $back) { [W]::ShowWindow($b, 0) | Out-Null }               # SW_HIDE
             [W]::SetWindowPos($main, [IntPtr](-1), 0, 0, 0, 0, 0x13) | Out-Null       # HWND_TOPMOST, no move/size/activate
             Write-Output "windowed (backdrop hidden, game on top)"
+            Tile
             return
         }
-        Start-Sleep -Milliseconds 250
+        Start-Sleep -Milliseconds $(if ($worker -ge 0) { 50 } else { 250 })
     }
     Write-Output "no backdrop window found (left as it is)"
+    Tile
+}
+
+# A worker's window in its own tile (a frame's room each way round the
+# 640 x 480 client).
+function Tile {
+    if ($worker -lt 0) { return }
+    $main = MainWindow
+    if (-not $main) { return }
+    $x, $y = (($worker % 5) * 688), ([Math]::Floor($worker / 5) * 720)
+    [W]::SetWindowPos($main, [IntPtr](-1), $x, $y, 0, 0, 0x11) | Out-Null           # HWND_TOPMOST, no size/activate
+    Write-Output "worker $worker's tile at $x,$y"
 }
 
 function MainWindow { GameWindows | Where-Object { [W]::Cls($_) -ne "#32770" -and [W]::Cls($_) -notlike "*BackDrop*" } | Select-Object -First 1 }
@@ -246,7 +283,21 @@ function StopGame {
     $how = if (Game) { Game | Stop-Process -Force; "had to force-kill" } else { "closed" }
     Start-Sleep -Milliseconds 300
     Enable-DisabledWindows
+    Refocus
     $how
+}
+
+# The window that was in front when the game started (start keeps it in
+# EDISON_RUN's otvdm.fg): given the foreground back once the game has
+# closed, so Windows doesn't bring up whichever window is next (a
+# terminal, often). Not another game's (a worker's).
+function Refocus {
+    $fg = if ($runDir) { Join-Path $runDir "otvdm.fg" } else { $null }
+    if (-not ($fg -and (Test-Path $fg))) { return }
+    $h = [IntPtr][int64](Get-Content $fg -Raw)
+    Remove-Item $fg -ErrorAction SilentlyContinue
+    $games = @(Get-Process otvdmw -ErrorAction SilentlyContinue | ForEach-Object Id)
+    if ([W]::IsWindow($h) -and $games -notcontains [W]::Pid($h)) { [W]::SetForegroundWindow($h) | Out-Null }
 }
 
 function StartGame($exe) {
@@ -255,6 +306,12 @@ function StartGame($exe) {
     # A run left over from an interrupted test (or a crash) first: two at
     # once confuse the shots, the input and memwatch.
     if (Game) { Write-Output "a run was left over: $(StopGame)" }
+    if ($worker -ge 0) { Remove-Item $pidFile -ErrorAction SilentlyContinue }
+    $front = [W]::GetForegroundWindow()
+    $games = @(Get-Process otvdmw -ErrorAction SilentlyContinue | ForEach-Object Id)
+    if ($front -ne [IntPtr]::Zero -and $games -notcontains [W]::Pid($front)) {
+        Set-Content (Join-Path $runDir "otvdm.fg") ([int64]$front)
+    }
     if ($env:OTVDM_LOG) {
         # winevdm's own output (its crash report: tools/testing/coverage.py's
         # tripwires) kept in a file, by a hidden cmd started through the
@@ -263,9 +320,20 @@ function StartGame($exe) {
         # (origrun.py's), which then stayed open as long as the game ran,
         # and "start" never returned.
         $line = '/c ""{0}" "{1}" > "{2}" 2> "{3}""' -f $otvdm, $exe, $env:OTVDM_LOG, "$($env:OTVDM_LOG).err"
-        Start-Process -FilePath "cmd.exe" -ArgumentList $line -WorkingDirectory $runDir -WindowStyle Hidden
+        $p = Start-Process -FilePath "cmd.exe" -ArgumentList $line -WorkingDirectory $runDir -WindowStyle Hidden -PassThru
+        if ($worker -ge 0) {
+            # The game: cmd's child.
+            $id = $null
+            for ($i = 0; $i -lt 50 -and -not $id; $i++) {
+                $id = (Get-CimInstance Win32_Process -Filter "ParentProcessId=$($p.Id) AND Name='otvdmw.exe'").ProcessId
+                if (-not $id) { Start-Sleep -Milliseconds 100 }
+            }
+            if (-not $id) { throw "worker $($worker): winevdm didn't start" }
+            Set-Content $pidFile $id
+        }
     } else {
-        Start-Process -FilePath $otvdm -ArgumentList $exe -WorkingDirectory $runDir
+        $p = Start-Process -FilePath $otvdm -ArgumentList $exe -WorkingDirectory $runDir -PassThru
+        if ($worker -ge 0) { Set-Content $pidFile $p.Id }
     }
     Write-Output "started $exe"
     # The guard: while the game runs, any window its dialogs disabled (the
@@ -333,7 +401,12 @@ switch ($Command) {
     "guard" {
         # (Started by start: polls till the game has gone.)
         for ($i = 0; $i -lt 50 -and -not (Game); $i++) { Start-Sleep -Milliseconds 200 }
-        while (Game) { Enable-DisabledWindows | Out-Null; Start-Sleep -Milliseconds 300 }
+        while (Game) {
+            Enable-DisabledWindows | Out-Null
+            # (A worker's backdrop, if the game shows it again.)
+            if ($worker -ge 0) { GameWindows | Where-Object { [W]::Cls($_) -like "*BackDrop*" } | ForEach-Object { [W]::ShowWindow($_, 0) | Out-Null } }
+            Start-Sleep -Milliseconds 300
+        }
         Enable-DisabledWindows | Out-Null
     }
     "dialogs" { Dialogs | ForEach-Object { Write-Output "'$([W]::Text($_))'" } }

@@ -36,7 +36,7 @@ from pathlib import Path
 
 from PIL import Image, ImageChops
 
-from testlib import REFERENCE, ROOT, SCRATCH, edison
+from testlib import REFERENCE, ROOT, SCRATCH, edison, no_window
 
 OUT = SCRATCH / "mmcompare"
 START = 13.0  # seconds from MALLSKIP.EXE's start to its level pick, its speech over
@@ -726,23 +726,23 @@ for _s in SCENARIOS.values():
         _s["apart"] = [DROP_CLOCK]
 
 
-def memwatch(d, watch=None, peek=None, seconds=0.0):
+def memwatch(d, watch=None, peek=None, seconds=0.0, env=None):
     """memwatch.py on the original while otvdm.ps1 plays (a thread): the
     expressions watched to D/watch.txt, or peeked once PEEK = (seconds
     after the level's click, expressions) to D/peek.txt."""
-    exe = str(run_folder() / "MALLSKIP.EXE")
+    exe = str((Path(env["EDISON_RUN"]) if env else run_folder()) / "MALLSKIP.EXE")
     tool = [sys.executable, str(REFERENCE / "memwatch.py")]
 
     def run():
         if peek:
             time.sleep(START + peek[0])
-            out = subprocess.run(tool + ["peek", exe, *peek[1]], capture_output=True, text=True)
+            out = subprocess.run(tool + ["peek", exe, *peek[1]], capture_output=True, text=True, env=env)
             (d / "peek.txt").write_text(out.stdout + out.stderr)
             return
         time.sleep(START / 2)  # the game started
         for _ in range(10):  # until memwatch finds it
             w = subprocess.run(tool + ["watch", exe, "--every", "1", "--for", str(seconds), "--out",
-                                       str(d / "watch.txt"), *watch], capture_output=True, text=True)
+                                       str(d / "watch.txt"), *watch], capture_output=True, text=True, env=env)
             if w.returncode == 0:
                 return
             time.sleep(1)
@@ -752,13 +752,14 @@ def memwatch(d, watch=None, peek=None, seconds=0.0):
     return t
 
 
-def play_orig(name, s, watch=None, peek=None):
+def play_orig(name, s, watch=None, peek=None, env=None):
     """MALLSKIP.EXE written for the scenario, then otvdm.ps1 runs it and
-    the timeline; the save files put back after."""
+    the timeline; the save files put back after. ENV: a worker's
+    (workers.py: its own game folder), else this process's."""
     d = OUT / name / "orig"
     shutil.rmtree(d, ignore_errors=True)
     d.mkdir(parents=True)
-    run = run_folder()
+    run = Path(env["EDISON_RUN"]) if env else run_folder()
     skip = [sys.executable, str(REFERENCE / "mall_skip.py")]
     if "puzzle" in s:
         skip += ["--puzzle", str(s["puzzle"])]
@@ -772,10 +773,10 @@ def play_orig(name, s, watch=None, peek=None):
         skip.append("--found")
     if s.get("setup"):  # from the title: MALLFREE.EXE (free_mouse.py), nothing skipped
         exe = "MALLFREE.EXE"
-        subprocess.run([sys.executable, str(REFERENCE / "free_mouse.py")], check=True, stdout=subprocess.DEVNULL)
+        subprocess.run([sys.executable, str(REFERENCE / "free_mouse.py")], check=True, stdout=subprocess.DEVNULL, env=env)
     else:
         exe = "MALLSKIP.EXE"
-        subprocess.run(skip, check=True, stdout=subprocess.DEVNULL)
+        subprocess.run(skip, check=True, stdout=subprocess.DEVNULL, env=env)
     lines = [f"wait {s.get('start', START)}"]
     # A hold is its press and its release, so shots can come between them.
     timeline = []
@@ -809,10 +810,11 @@ def play_orig(name, s, watch=None, peek=None):
     watcher = None
     if watch or peek:
         end = max([t for t, _ in s["shots"]] + [e[0] for e in s["events"]])
-        watcher = memwatch(d, watch, peek, START / 2 + end + 2)
+        watcher = memwatch(d, watch, peek, START / 2 + end + 2, env)
     try:
         subprocess.run(["pwsh", "-NoProfile", "-File", str(REFERENCE / "otvdm.ps1"), "play", exe,
-                        str(d / "script.txt"), str(d)], check=True)
+                        str(d / "script.txt"), str(d)], check=True, env=env, capture_output=env is not None,
+                   creationflags=no_window())
     finally:
         for f, data in kept.items():
             (run / f).write_bytes(data)
@@ -951,6 +953,8 @@ def main():
     ap.add_argument("--compare-only", action="store_true", help="compare the last runs' frames")
     ap.add_argument("--list", action="store_true")
     ap.add_argument("--window", type=float, default=1.5, help="seconds around each shot to search the port's frames")
+    ap.add_argument("--orig-jobs", type=int, default=1,
+                    help="runs of the original at once (workers.py: each its own game folder and tile)")
     ap.add_argument("--watch", nargs="+", metavar="EXPR", help="memwatch.py these in the original as it plays")
     ap.add_argument("--peek", nargs="+", metavar=("SECONDS", "EXPR"),
                     help="memwatch.py these once in the original, SECONDS after the level's click")
@@ -960,7 +964,19 @@ def main():
         for n, s in SCENARIOS.items():
             print(n, f"({len(s['shots'])} shots)")
         return
-    for name in a.names or list(SCENARIOS):
+    names = a.names or list(SCENARIOS)
+    if a.orig_jobs > 1 and not (a.compare_only or a.port_only):
+        # The ports one at a time, then the originals side by side.
+        import workers as W
+        for name in names:
+            play_port(name, SCENARIOS[name])
+        for name, k, _ in W.deal(names, a.orig_jobs,
+                                 lambda n, k, env: play_orig(n, SCENARIOS[n], a.watch, peek, env)):
+            print(f"{name}: the original (worker {k})", flush=True)
+        for name in names:
+            compare(name, SCENARIOS[name], a.window)
+        return
+    for name in names:
         s = SCENARIOS[name]
         if not a.compare_only:
             play_port(name, s)

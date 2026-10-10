@@ -26,7 +26,7 @@ from pathlib import Path
 
 from PIL import Image, ImageChops
 
-from testlib import REFERENCE, ROOT, SCRATCH, edison
+from testlib import REFERENCE, ROOT, SCRATCH, edison, no_window
 
 OUT = SCRATCH / "rbcompare"
 START = 5  # seconds from WINMSKIP.EXE's start to the activity's time 0
@@ -95,14 +95,15 @@ def run_folder():
     return Path(os.environ["EDISON_RUN"])
 
 
-def play_orig(name, s):
+def play_orig(name, s, env=None):
     """WINMSKIP.EXE written for the activity, then otvdm.ps1 runs it (the
-    activity is up in about 4 s) and the timeline."""
+    activity is up in about 4 s) and the timeline. ENV: a worker's
+    (workers.py: its own game folder), else this process's."""
     d = OUT / name / "orig"
     shutil.rmtree(d, ignore_errors=True)
     d.mkdir(parents=True)
     subprocess.run([sys.executable, str(REFERENCE / "winmain_skip.py"), str(s["level"])], check=True,
-                   stdout=subprocess.DEVNULL)
+                   stdout=subprocess.DEVNULL, env=env)
     lines = [f"wait {START}"]
     timeline = [(e[0], e) for e in s["events"]] + [(t, ("shot", n)) for t, n in s["shots"]]
     now = 0.0
@@ -119,7 +120,8 @@ def play_orig(name, s):
             now += e[4]
     (d / "script.txt").write_text("\n".join(lines) + "\n")
     subprocess.run(["pwsh", "-NoProfile", "-File", str(REFERENCE / "otvdm.ps1"), "play", "WINMSKIP.EXE",
-                    str(d / "script.txt"), str(d)], check=True)
+                    str(d / "script.txt"), str(d)], check=True, env=env, capture_output=env is not None,
+                   creationflags=no_window())
 
 
 def play_port(name, s, lead):
@@ -184,12 +186,25 @@ def main():
     ap.add_argument("--list", action="store_true")
     ap.add_argument("--lead", type=float, default=1.0, help="seconds the port's activity starts before its first click")
     ap.add_argument("--window", type=float, default=1.5, help="seconds around each shot to search the port's frames")
+    ap.add_argument("--orig-jobs", type=int, default=1,
+                    help="runs of the original at once (workers.py: each its own game folder and tile)")
     a = ap.parse_args()
     if a.list:
         for n, s in SCENARIOS.items():
             print(n, f"(activity {s['level']}, {len(s['shots'])} shots)")
         return
-    for name in a.names or list(SCENARIOS):
+    names = a.names or list(SCENARIOS)
+    if a.orig_jobs > 1 and not (a.compare_only or a.port_only):
+        # The ports one at a time, then the originals side by side.
+        import workers as W
+        for name in names:
+            play_port(name, SCENARIOS[name], a.lead)
+        for name, k, _ in W.deal(names, a.orig_jobs, lambda n, k, env: play_orig(n, SCENARIOS[n], env)):
+            print(f"{name}: the original (worker {k})", flush=True)
+        for name in names:
+            compare(name, SCENARIOS[name], a.lead, a.window)
+        return
+    for name in names:
         s = SCENARIOS[name]
         if not a.compare_only:
             play_port(name, s, a.lead)

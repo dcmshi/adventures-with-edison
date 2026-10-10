@@ -64,7 +64,7 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
   with `otvdm.ps1 run`; not in the repository): every frame exact, the
   two whole screens no worse than their known counts. `E=path` tests
   another build (also for `retrace.py`).
-- `scenario.py [NAME...] [--orig] [--accept] [--list] [--jobs N]`: the scenarios of
+- `scenario.py [NAME...] [--orig] [--accept] [--list] [--jobs N] [--orig-jobs N]`: the scenarios of
   `scenarios.py` (room 1's holes to the lab, the play room and Level 1;
   lessons 6-10 from room 61; the game over in room 32 and won from room
   65, and won again with Shift for the clicks; lesson 6 by its keys),
@@ -157,7 +157,7 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
   -readOnly -scriptPath tools/ghidra -postScript ExportRefs.java
   extracted/ghidra/NAME.refs.txt` for mall, winmain and wmain. In
   `check.py smoke` when the lists are there.
-- `coverage.py GAME [SCENARIO ...] [--iterate] [--also F ...]`: the
+- `coverage.py GAME [SCENARIO ...] [--iterate] [--also F ...] [--jobs N]`: the
   dynamic side of deadscan.py: the original plays the game's comparison
   scenarios (scenario.py's, mmcompare.py's, rbcompare.py's) with a
   tripwire (`lcall 0000:0000`, `tools/reference/tripwire.py`) at the
@@ -167,7 +167,21 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
   the comparisons' references. A hit on "table only" (a destructor, a
   method) says the class is live; on "unreferenced" or "dead chain", the
   scan missed a way in (its first run found Borland's start-up tables).
-  The test copies are written again unarmed at the end.
+  The test copies are written again unarmed at the end. `--jobs N`: N
+  copies of the original side by side (`workers.py`), a child
+  `coverage.py` a scenario: Mystery's 88 in 15 minutes with 5 (over an
+  hour alone), Rock and Bach's 7 in 1:24 with 3 (3:00), the same results.
+- `workers.py`: runs of the original side by side. Each worker has its
+  own copy of the game folder (`build/scratch/workers/K`, as `EDISON_RUN`)
+  and `OTVDM_WORKER=K`, so `otvdm.ps1` (and `memwatch.py`) take only its
+  game, by the process id `start` writes to `otvdm.pid`, and put its
+  window in tile K (five across, two down). For coverage, whose hits
+  don't depend on timing. Not for the references: `scenario.py --orig
+  --orig-jobs 4` (`mmcompare.py`, `rbcompare.py --orig-jobs N` too) had 8
+  of Wild Science's 15 fail against the counts that pass alone, the
+  originals running behind the script's clock with three others (the
+  game over's eighth ball never lost, a lesson's box caught at another
+  moment). Record the references one at a time.
 - `covstack.py GAME SCENARIO`: a coverage hit's stack, from winevdm's
   report, as the game's functions (the direct caller is missing: the
   tripwire runs before the function's prologue pushes bp).
