@@ -126,6 +126,10 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
   the port (`EDISON_RNGLOG`: milliseconds, seed), each placed in the
   sequence from seed 1; prints both sides' bursts of draws in order (the
   studio's sign draws 3 a second, so the counts follow the clock).
+- `wmscan.py [--segment N] [--unreached] [--all]`: Wild Science's
+  coverage scan: each function of WMAIN.EXE's own code that neither the
+  port's source nor docs/SCIENCE.md cites, with its size, its callers and
+  classes, and whether anything cited reaches it.
 - `mmmaze.py [--port-only | --compare-only]`: the bonus maze's wanderers
   pass by pass (its loop is unpaced in the original, so its shots can't
   be matched in time): `allfound` in the port at a pass a millisecond
