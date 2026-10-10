@@ -104,6 +104,23 @@ bool Science::loadTable(int room) {
     t.cos = 23152;  // seg86:07FE / 2
     t.root.bottom = t.root.top = {0, 0, word(0x1FEE), word(0x1FF0)};
 
+    // (The builders of rooms 3-50, f31_0786's switch, then their loaders,
+    // each f27_0ad8 with the room's number: 3 f41_0ce1 f41_0e80, 4 f41_0f3c
+    // f41_1076, 5 f41_1132, 6 f42_0000 f42_01a4, 7 f42_021c f42_03c6, 8
+    // f42_0463 f42_0558, 9 f42_0641 f42_07e3, 10 f42_09be, 11 f43_0000
+    // f43_00f5, 13 f43_06a1, 14 f43_0a75 f43_0ba9, 15 f43_0d25 f43_0e3e, 16
+    // f44_0000 f44_018d, 17 f44_060c f44_0733, 19 f44_1499 f44_157c, 20
+    // f44_15e8 f44_170c, 21 f45_0000 f45_017c, 22 f45_0722 f45_0884, 23
+    // f45_0955 f45_0b31, 24 f45_10e4 f45_11d9, 25 f45_1245 f45_133a, 26
+    // f46_0000 f46_0149, 27 f46_022a f46_031f, 28 f46_038b f46_04d1, 29
+    // f46_05ab f46_06e5, 30 f46_07a1 f46_091d, 31 f47_011c, 32 f47_01d8
+    // f47_0371, 33 f47_044a f47_058e, 34 f47_06db f47_095a, 35 f47_103c, 36
+    // f48_0000 f48_01c3, 37 f48_065c, 38 f48_09ad f48_0aea, 39 f48_0c22
+    // f48_0d56, 40 f48_0f14, 41 f49_0000 f49_01b2, 42 f49_02da, 43 f49_0620
+    // f49_073f, 44 f49_07d6 f49_08d7, 45 f49_0993, 46 f50_0000 f50_0146, 47
+    // f50_0202 f50_0482, 48 f50_0a0a f50_0b38, 49 f50_0e1a f50_0f63, 50
+    // f50_108b f50_11bb; rooms 1 and 2, f41_0101 and f41_0946. The rest of
+    // each builder: roomConfig, roomCycles, roomObjects, roomArrival.)
     // f27_0ad8, f27_0d4a: the tree. Each box is read relative to its
     // parent and made by the room's method 1 (f27_12b6 → f25_057b), which
     // puts the parent's corner and height back: so the file's numbers are
@@ -1070,7 +1087,8 @@ void Science::roomPictures(int room) {
         std::vector<Picture> pictures;
     };
     // (Taken from each room's method 4 by tools/testing/roompics.py --cpp:
-    // x, y, the picture.)
+    // x, y, the picture. Rooms 19, 24, 25 and 27's, f44_15c0, f45_121d,
+    // f45_137e and f46_0363, have none: f27_0e5b only.)
     static const Room kRooms[] = {
         {1, {{58, 168, 0x1399}, {104, 139, 0x139A}, {144, 98, 0x139B}, {236, 80, 0x139C}, {320, 76, 0x139D}, {408, 76, 0x139E}, {504, 29, 0x139F}, {54, 6, 0x13D0}, {478, 212, 0x13D2}}},  // f41_0123
         {2, {{190, 104, 0x10D3}, {497, 143, 0x1245}}},  // f41_0968

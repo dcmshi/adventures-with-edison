@@ -1079,7 +1079,10 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   6, 7 (`7033`), 9, 16, 41, 55, 59, 67 (two), 92, 96; by the room the
   player came from (its `+90`) in 3 (from 55), 13 (from 7), 47 (from 50:
   two, and `[8E50]`, `[8E52]` cleared), 54 (from 47); unless coming from
-  the same room in 10, 18, 32, 36, 70. Doors met on arrival: room 34 from
+  the same room in 10, 18, 32, 36, 70. Doors met on arrival: the door
+  back shut in 22 from 40, 40 from 22, 33 from 52; room 23 from 44
+  (`+FA6` set, the ball out of the hole to 44, mode 1; the doors to 44,
+  109 and 110 shut); room 34 from
   22 or 40 (the ball out of the hole to 117, mode 0; the doors to 22 and
   40 shut; else its greeting), room 35 from 43 (the ball out of that door,
   mode 2, 2 shots; else the hole to 1000 shut and two boxes, "Friction is
@@ -1855,3 +1858,16 @@ nothing writes it): `f31_0025` skips the story, `f32_0319` the title, and
 the player's first event 9 goes to room 1 instead of 501. Then
 `otvdm.ps1 start "WMAINSKP.EXE -A"`: room 1 at rest about 8 seconds later.
 The port's equivalent is `--game science --room 1`.
+
+### The scan: segments 41-50, 61
+
+- The room destructors that only reset their two tables and call the base
+  room's (`f26_0063`), then free the object (`f01_353a`) when asked:
+  `f41_00bf` (room 1), `f41_0e3e` (3), `f42_0143` (6), `f42_0365` (7),
+  `f42_0516` (8), `f43_00b3` (11), `f43_07f6` (13), `f44_153a` (19),
+  `f45_1197` (24), `f45_12f8` (25), `f46_02dd` (27), `f47_032f` (32),
+  `f47_0ffa` (35), `f48_0d14` (39), `f48_1019` (40), `f49_0170` (41),
+  `f49_03c6` (42), `f49_06fd` (43), `f49_0895` (44), `f49_0a70` (45),
+  `f50_0af6` (48). Not needed: the port keeps one room's state and
+  replaces it. (The others also stop the room's colour cycles,
+  `f32_0f77`: `roomCycles` clears them.)
