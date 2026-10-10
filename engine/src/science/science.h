@@ -112,7 +112,8 @@ private:
         std::vector<std::unique_ptr<Box>> children;  // +16
         int parentHeight() const { return parent ? parent->height : 0; }
     };
-    // An object of S<n>.SRF: OBJn x y type a b c d e f (f61_011d).
+    // An object of S<n>.SRF: OBJn x y type a b c d e f (f61_011d: its
+    // prologue at 61:011d, then f61_0120).
     struct Ball {
         int cx = 0, cy = 0, cz = 0, r = 10;     // the sphere (the motion part's +2)
         int16_t v[3] = {}, rem[3] = {}, disp[3] = {};  // +62, +68 (50ths), +40

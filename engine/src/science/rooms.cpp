@@ -139,7 +139,8 @@ void Science::roomHole(Object& o) {
         go();
         return;
     case 14:  // f43_0bce: the bonus door (C46h) to 10, a ball to win
-        if (to == 0xC46) bonusBalls_ = 1, bonus(1500), completionShare_[3] = 0, to = 10;
+        // (f27_0859 fills the shares from the one given to the last: 3-5 0.)
+        if (to == 0xC46) bonusBalls_ = 1, bonus(1500), std::fill(completionShare_ + 3, completionShare_ + 6, uint8_t{0}), to = 10;
         else bonus(0);
         go();
         return;
@@ -661,6 +662,13 @@ void Science::roomHole(Object& o) {
         go();
         return;
     default:
+        // The thunks to f27_2530, rooms 3-50: f41_0f20 (3), f41_1116 (4),
+        // f42_0188 (6), f42_03aa (7), f42_057d (8), f43_011a (11), f43_0421
+        // (12), f43_09de (13), f43_0e63 (15), f44_07af (17), f44_15a1 (19),
+        // f44_1731 (20), f45_11fe (24), f45_135f (25), f46_016e (26),
+        // f46_0344 (27), f46_070a (29), f47_0141 (31), f48_0916 (37),
+        // f48_0b66 (38), f49_05ae (42), f49_0764 (43), f49_08fc (44),
+        // f49_0f4e (45), f50_016b (46), f50_11e0 (50).
         go();
         return;
     }
@@ -870,7 +878,9 @@ void Science::roomFaceMet(Ball& b, const Face& f) {
         return;
     }
     // (f43_0136 and its copies: one point; rooms 37 and 74, f48_0879 and
-    // f55_0722, two; f41_1548, room 5: four.)
+    // f55_0722, two; f41_1548, room 5: four. Rooms 14-50's: f43_0c31 (14),
+    // f44_0758 (17), f47_05b3 (33), f48_058d (36), f48_0b0f (38), f49_01d7
+    // (41), f50_0f88 (49), f50_11ff (50).)
     // (Rooms 51, 66 and 92: f51_016b, f54_015c, f59_0788.)
     static const std::vector<std::pair<int, std::vector<std::pair<int, int>>>> kBreaking = {
         {5, {{730, 150}, {354, 0}, {424, 35}, {494, 0}}},
@@ -1035,6 +1045,14 @@ void Science::roomCycles(int room) {
     // 4D-4F every 10; then the room's constructor's own, after its
     // builder (segments 41-60; room 12's builder, f43_0386, stops its two
     // type 6 magnets' 4A).
+    // (The room destructors that stop their own with f32_0f77, rooms 2-50:
+    // f41_08f0 (2), f41_1029 (4), f41_122c (5), f42_078d (9), f42_0b59
+    // (10), f43_0b52 (14), f43_0df2 (15), f44_0141 (16), f44_06e7 (17),
+    // f44_0a41 (18), f44_16b5 (20), f45_012f (21), f45_0837 (22), f45_0ae4
+    // (23), f46_00fc (26), f46_0485 (28), f46_0698 (29), f46_08bb (30),
+    // f47_00cf (31), f47_0541 (33), f47_090d (34), f48_0176 (36), f48_0757
+    // (37), f48_0a9e (38), f50_00fa (46), f50_0436 (47), f50_0f16 (49),
+    // f50_116e (50): all gone here.)
     cycles_.clear();
     for (const Object& o : table_.objects) {
         if (o.type == 2 || o.type == 3 || o.type == 4 || o.type == 5 || o.type == 6 || o.type == 15)
@@ -1297,12 +1315,12 @@ void Science::roomArrival(int room) {
         if (Object* g = holeTo(1000)) closeHole(*g);
         if (Object* h = holeTo(1001)) closeHole(*h), h->holeHidden = true;
         break;
-    case 3: if (from == 55) boxes = {{1, 1, 0x36, 0x6135}}; break;
-    case 6: case 7: boxes = {{1, 1, 0x33, 0x6132}}; break;
-    case 9: roomVar_[3] = 0, boxes = {{2, 0, 0x28, 0x6127}}; break;
-    case 10: if (from != 10) boxes = {{2, 0, 0x2C, 0x612B}}; break;
-    case 13: if (from == 7) boxes = {{1, 1, 0x37, 0x6136}}; break;
-    case 16: boxes = {{2, 0, 0x2E, 0x612D}}; break;
+    case 3: if (from == 55) boxes = {{1, 1, 0x36, 0x6135}}; break;  // f41_0ce1
+    case 6: case 7: boxes = {{1, 1, 0x33, 0x6132}}; break;          // f42_0000, f42_021c
+    case 9: roomVar_[3] = 0, boxes = {{2, 0, 0x28, 0x6127}}; break;  // f42_0641
+    case 10: if (from != 10) boxes = {{2, 0, 0x2C, 0x612B}}; break;  // f42_09be
+    case 13: if (from == 7) boxes = {{1, 1, 0x37, 0x6136}}; break;  // f43_06a1
+    case 16: boxes = {{2, 0, 0x2E, 0x612D}}; break;                 // f44_0000
     case 18:
         // f44_0846: the hole to 60 shut and hidden (+18), the gate (+FBC)
         // shut; the greeting unless coming from room 18.
@@ -1310,8 +1328,28 @@ void Science::roomArrival(int room) {
         if (Object* g = holeTo(1000)) closeHole(*g);
         if (from != 18) boxes = {{2, 0, 0x31, 0x6130}};
         break;
-    case 32: if (from != 32) boxes = {{2, 0, 0x3F, 0x613D}}; break;
+    case 22:
+        // f45_0722: in through the door from 40, that door shut.
+        if (from == 40) shut(40);
+        break;
+    case 23:
+        // f45_0955: in through the door from 44: +FA6 set, the ball out of
+        // the hole to 44 (its +2C, mode 1), the doors to 44, 109 and 110
+        // shut. (Else f24_1ee3 alone: screen 2's play area in colour 2,
+        // all redrawn before it's seen.)
+        if (from == 44) {
+            roomVar_[kFA6] = 1;
+            if (Object* h = holeTo(44)) spitBall(*h, 1);
+            shut(44), shut(109), shut(110);
+        }
+        break;
+    case 32: if (from != 32) boxes = {{2, 0, 0x3F, 0x613D}}; break;  // f47_01d8
+    case 33:
+        // f47_044a: in through the door from 52, that door shut.
+        if (from == 52) shut(52);
+        break;
     case 34:
+        // f47_06db
         if (from == 22 || from == 40) {
             // In through a door: the ball out of the hole to 117, the doors
             // to 22 and 40 shut.
@@ -1337,10 +1375,19 @@ void Science::roomArrival(int room) {
             boxes = {{2, 0, 3, 0x6103}, {2, 0, 0x5E8, 0x6160}};
         }
         break;
-    case 36: if (from != 36) boxes = {{1, 1, 0xF, 0x610F}}; break;
-    case 41: boxes = {{2, 0, 0x41, 0x613F}}; break;
+    case 36: if (from != 36) boxes = {{1, 1, 0xF, 0x610F}}; break;  // f48_0000
+    case 40:
+        // f48_0f14: in through the door from 22, that door shut.
+        if (from == 22) shut(22);
+        break;
+    case 41: boxes = {{2, 0, 0x41, 0x613F}}; break;  // f49_0000
     case 47:
+        // f50_0202
         if (from == 50) gameFlag_[0] = gameFlag_[1] = 0, boxes = {{2, 0, 0x15, 0x6115}, {2, 0, 0x5F7, 0x616F}};
+        break;
+    case 50:
+        // f50_108b: f24_1ee3 alone (screen 2's play area in colour 2, all
+        // redrawn before it's seen), no box.
         break;
     case 54:
         // f51_09ce: its magnets put in place (once made: roomObjects).
