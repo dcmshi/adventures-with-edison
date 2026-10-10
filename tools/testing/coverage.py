@@ -1,0 +1,209 @@
+"""The coverage run: the original plays the comparison scenarios with a
+tripwire (lcall 0000:0000, tools/reference/tripwire.py) at the start of
+every function deadscan.py finds dead, so any of them that runs makes the
+original fault there, and winevdm's report (otvdm.ps1's OTVDM_LOG) says
+which. Static analysis finds the candidates; this confirms none of them
+runs in play.
+
+  python tools/testing/coverage.py GAME [SCENARIO-PREFIX ...] [--classes C ...] [--iterate] [--list] [--also F ...]
+
+GAME: mystery (mmcompare.py's scenarios), rockbach (rbcompare.py's),
+science (scenarios.py's). --classes: deadscan's classes to arm (default
+unreferenced, dead chain, table only). --iterate: after a hit, disarm that
+function and play the scenario again, till it runs clean. --list: write
+and print the tripwires only. --also F...: arm live functions too, the
+check that a hit is found (science rest-1 --also f27_16ae: HIT).
+
+A function's tripwire (5 bytes) is at its label: one entered through an
+entry prologue just before it (a callback's: mov ax, ss; nop) runs into
+it too. None on a relocation (the loader would write over it), none on
+data nedis took for code (a tripwire there broke Wild Science's type
+records). winevdm's report has the faulting call's frame,
+"cs:ip=SEL:OFF (call 0000:0000)", OFF 5 past the tripwire; segment n's
+selector is the module's handle + 60h + 8 (n - 1) (calibrated on WMAIN:
+27:16AE at 12CF, 32:0777 at 12F7, the handle 119F). Not ud2 or int 3:
+winevdm steps over those and runs on, so a function could run unseen.
+
+Out: build/scratch/coverage/GAME/: the tripwires (tripwires/EXE.txt), each
+scenario's winevdm report (NAME.log, NAME.log.err), hits.txt; a summary
+last. One at a time, as every run of the original. The test copies are
+written again unarmed at the end.
+"""
+import argparse
+import os
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import deadscan as D  # noqa: E402
+import progress as P  # noqa: E402,F401 (deadscan's path)
+from ne import NEFile  # noqa: E402
+from testlib import REFERENCE, SCRATCH, say  # noqa: E402
+
+OUT = SCRATCH / "coverage"
+TRAP = 5
+# A function's first bytes: Borland's prologues (push bp; mov bp, sp / mov
+# ax, ss or ds; nop / inc bp; push bp / push ds; pop ax; nop / enter). What
+# starts otherwise is data nedis took for code (Wild Science's RTTI records
+# and thunk tables, "0A 00 03 ...").
+CODE_STARTS = ("558bec", "8cd090", "8cd890", "45558b", "1e5890", "c8")
+GAMES = {"mystery": ("MALL.EXE", "mmcompare"), "rockbach": ("WINMAIN.EXE", "rbcompare"), "science": ("WMAIN.EXE", "scenario")}
+
+
+def run_folder():
+    return Path(os.environ.setdefault("EDISON_RUN", "D:/tools/edison-run"))
+
+
+def tripwires(game, classes, also=()):
+    """[(seg, off, name)] to arm, and [(name, why)] left out; also: live
+    functions armed too (a check that a hit is found)."""
+    exe = GAMES[game][0]
+    rows, _ = D.classify(game)
+    rows = list(rows) + [("also", n, 99, "", set()) for n in also]
+    classes = set(classes) | {"also"}
+    ne = NEFile(str(D.EXE_DIR / exe))
+    sites = {}
+    for s in ne.segments:
+        if not s["data"]:
+            covered = set()
+            for r in ne.relocations(s["index"]):
+                for site in r["sites"]:
+                    covered.update(range(site, site + 4))
+            sites[s["index"]] = covered
+    out, skipped = [], []
+    for cls, name, size, _, _ in rows:
+        if cls not in classes:
+            continue
+        seg, off = int(name[1:3]), int(name[4:], 16)
+        code = ne.segment_bytes(seg)
+        if not code[off:off + 3].hex().startswith(CODE_STARTS):
+            skipped.append((name, f"not code ({code[off:off + 3].hex()}: data)"))
+        elif size < TRAP or off + TRAP > len(code):
+            skipped.append((name, "too short for a tripwire"))
+        elif set(range(off, off + TRAP)) & sites.get(seg, set()):
+            skipped.append((name, f"{seg:02d}:{off:04X} is a relocation"))
+        else:
+            out.append((seg, off, name))
+    return out, skipped
+
+
+def write_list(folder, exe, armed):
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / f"{exe}.txt").write_text("".join(f"{s:02d}:{o:04X} {n}\n" for s, o, n in armed), encoding="utf-8")
+
+
+def hit(log, armed):
+    """The armed function the report names, or None (no fault), or "?" (a
+    fault at nothing armed)."""
+    # (winevdm writes its report to its standard error: OTVDM_LOG.err.)
+    text = "".join(p.read_text(encoding="utf-8", errors="replace")
+                   for p in (log, Path(f"{log}.err")) if p.exists())
+    if "cs:ip=" not in text:
+        return None
+    m = re.search(r"^\s*([0-9a-f]{4})\s+[0-9a-f]{4}\s+(WMAIN|MALL|WINMAIN)\b", text, re.M)
+    base = int(m.group(1), 16) + 0x60 if m else None
+    by_place = {(s, o): n for s, o, n in armed}
+    for sel, off in re.findall(r"cs:ip=([0-9a-f]{4}):([0-9a-f]{4})[^\n]*\(call 0000:0000\)", text):
+        sel, off = int(sel, 16), int(off, 16) - TRAP
+        if base is not None and (sel - base) % 8 == 0:
+            name = by_place.get(((sel - base) // 8 + 1, off))
+            if name:
+                return name
+        # The base not found: the offset alone, if only one has it.
+        names = {n for (s, o), n in by_place.items() if o == off}
+        if len(names) == 1:
+            return names.pop()
+    return "?"
+
+
+def play(game, name, s, log):
+    """Plays one scenario in the original with OTVDM_LOG set."""
+    os.environ["OTVDM_LOG"] = str(log)
+    try:
+        module = __import__(GAMES[game][1])
+        if game == "science":
+            # origrun.py starts WMAINSKP.EXE as it is: armed here.
+            subprocess.run([sys.executable, str(REFERENCE / "wmain_skip.py")], check=True, stdout=subprocess.DEVNULL)
+        module.play_orig(name, s)
+    finally:
+        os.environ.pop("OTVDM_LOG", None)
+        # A run that faulted can outlive otvdm.ps1's stop (winevdm still
+        # holding the copy open, which then can't be written again).
+        subprocess.run(["taskkill", "/F", "/IM", "otvdmw.exe"], capture_output=True)
+
+
+def scenarios(game):
+    if game == "science":
+        from scenarios import SCENARIOS
+        return SCENARIOS
+    return __import__(GAMES[game][1]).SCENARIOS
+
+
+def restore():
+    """The test copies written again without tripwires."""
+    os.environ.pop("EDISON_TRIPWIRES", None)
+    for script in ("wmain_skip.py", "free_mouse.py"):
+        subprocess.run([sys.executable, str(REFERENCE / script)], check=True, stdout=subprocess.DEVNULL)
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("game", choices=list(GAMES))
+    ap.add_argument("names", nargs="*", help="scenario name prefixes (default: all)")
+    ap.add_argument("--classes", nargs="+", default=["unreferenced", "dead chain", "table only"])
+    ap.add_argument("--iterate", action="store_true")
+    ap.add_argument("--list", action="store_true")
+    ap.add_argument("--also", nargs="+", default=[], metavar="FUNCTION",
+                    help="arm these live functions too: the check that a hit is found")
+    opts = ap.parse_args()
+    exe = GAMES[opts.game][0]
+    out = OUT / opts.game
+    folder = out / "tripwires"
+    armed, skipped = tripwires(opts.game, set(opts.classes), opts.also)
+    write_list(folder, exe, armed)
+    say(f"{opts.game}: {len(armed)} functions armed, {len(skipped)} left out"
+        + "".join(f"\n  left out {n}: {why}" for n, why in skipped))
+    if opts.list:
+        for s, o, n in armed:
+            say(f"  {s:02d}:{o:04X} {n}")
+        return 0
+    os.environ.setdefault("OTVDM", "D:/tools/otvdm/otvdm-v0.9.0/otvdmw.exe")
+    run_folder()
+    os.environ["EDISON_TRIPWIRES"] = str(folder)
+    every = scenarios(opts.game)
+    names = [n for n in every if not opts.names or any(n.startswith(p) for p in opts.names)]
+    hits, unknown = [], []
+    try:
+        for name in names:
+            while True:
+                log = out / f"{name}.log"
+                log.unlink(missing_ok=True)
+                Path(f"{log}.err").unlink(missing_ok=True)
+                play(opts.game, name, every[name], log)
+                h = hit(log, armed)
+                if h is None:
+                    say(f"{name}: clean")
+                    break
+                if h == "?":
+                    say(f"{name}: a fault at nothing armed (see {log}.err)")
+                    unknown.append(name)
+                    break
+                say(f"{name}: HIT {h}")
+                hits.append((name, h))
+                (out / "hits.txt").write_text("".join(f"{n} {f}\n" for n, f in hits), encoding="utf-8")
+                if not opts.iterate:
+                    break
+                armed = [a for a in armed if a[2] != h]
+                write_list(folder, exe, armed)
+    finally:
+        restore()
+    say(f"coverage {opts.game}: {len(names)} scenarios; {len(hits)} hits"
+        + (f" ({', '.join(sorted({f for _, f in hits}))})" if hits else "")
+        + (f"; faults at nothing armed in {', '.join(unknown)}" if unknown else ""))
+    return 1 if hits or unknown else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

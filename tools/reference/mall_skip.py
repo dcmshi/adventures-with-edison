@@ -61,6 +61,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from free_mouse import CLIP_AT, CLIP_NOW, CLIP_WAS  # noqa: E402
 from ne import NEFile  # noqa: E402
+import tripwire  # noqa: E402 (tools/testing/coverage.py's, when EDISON_TRIPWIRES is set)
 
 # (segment, offset, the bytes there, what they are)
 MODE = (2, 0xD8, bytes.fromhex("c646fa01"), "the first setup's mode (mov byte [bp-6], 1)")
@@ -148,6 +149,7 @@ def main():
         data[at(*FOUND[:2]) + 3] = 1
     data[at(*CLIP[:2]):at(*CLIP[:2]) + len(CLIP_NOW)] = CLIP_NOW
     out = run / "MALLSKIP.EXE"
+    tripwire.arm(data, exe, "MALL.EXE")
     out.write_bytes(data)
     forced = ", ".join(f"{k} {v}" for k, v in (("puzzle", a.puzzle), ("difficulty", a.difficulty)) if v is not None)
     print(f"wrote {out}: straight to the level pick" + (", then into the Museum" if a.floor else "")

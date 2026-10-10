@@ -24,6 +24,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from free_mouse import CLIP_AT, CLIP_NOW, CLIP_WAS  # noqa: E402
 from ne import NEFile  # noqa: E402
+import tripwire  # noqa: E402 (tools/testing/coverage.py's, when EDISON_TRIPWIRES is set)
 
 ACTIVITIES = {2: "the jukebox", 3: "the Drum Clinic", 4: "the Music Library", 6: "Harmony Hall",
               7: "the Instrument Room", 8: "Sound FX", 9: "the Studio"}
@@ -61,6 +62,7 @@ def main():
     data[hall + 8:hall + 14] = bytes([0xB8, n, 0x00, 0xE9, end & 0xFF, end >> 8])  # mov ax, n
     data[clip:clip + len(CLIP_NOW)] = CLIP_NOW
     out = run / "WINMSKIP.EXE"
+    tripwire.arm(data, exe, "WINMAIN.EXE")
     out.write_bytes(data)
     print(f"wrote {out}: straight into {ACTIVITIES[n]}")
 

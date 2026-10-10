@@ -19,6 +19,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from ne import NEFile  # noqa: E402
+import tripwire  # noqa: E402 (tools/testing/coverage.py's, when EDISON_TRIPWIRES is set)
 
 # At seg:0052 `lea ax, [bp-0Eh]; mov dx, ss; push dx; push ax` before the
 # `lcall USER.ClipCursor` at seg:0059; `jmp 005E` (EB 0A) in their place.
@@ -42,6 +43,7 @@ def main():
         if data[clip:clip + len(CLIP_WAS)] != CLIP_WAS:
             sys.exit(f"{name}: {seg}:{CLIP_AT:04X} isn't the ClipCursor call's pushes (another version?)")
         data[clip:clip + len(CLIP_NOW)] = CLIP_NOW
+        tripwire.arm(data, exe, name)
         (run / out).write_bytes(data)
         print(f"wrote {run / out}")
 

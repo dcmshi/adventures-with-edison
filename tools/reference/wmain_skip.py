@@ -18,6 +18,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from ne import NEFile  # noqa: E402
+import tripwire  # noqa: E402 (tools/testing/coverage.py's, when EDISON_TRIPWIRES is set)
 
 FLAG = 0x26CE
 # f74_0000: at 74:0059 `push ss; lea ax, [bp-0Ah]; push ax` before the
@@ -45,6 +46,7 @@ def main():
         sys.exit(f"WMAIN.EXE: 74:{CLIP_AT:04X} isn't the ClipCursor call's pushes (another version?)")
     data[clip:clip + 5] = CLIP_NOW
     out = run / "WMAINSKP.EXE"
+    tripwire.arm(data, exe, "WMAIN.EXE")
     out.write_bytes(data)
     print(f"wrote {out}")
 

@@ -255,7 +255,14 @@ function StartGame($exe) {
     # A run left over from an interrupted test (or a crash) first: two at
     # once confuse the shots, the input and memwatch.
     if (Game) { Write-Output "a run was left over: $(StopGame)" }
-    Start-Process -FilePath $otvdm -ArgumentList $exe -WorkingDirectory $runDir
+    if ($env:OTVDM_LOG) {
+        # winevdm's own output (its crash report: tools/testing/coverage.py's
+        # tripwires) kept in a file.
+        Start-Process -FilePath $otvdm -ArgumentList $exe -WorkingDirectory $runDir `
+            -RedirectStandardOutput $env:OTVDM_LOG -RedirectStandardError "$($env:OTVDM_LOG).err"
+    } else {
+        Start-Process -FilePath $otvdm -ArgumentList $exe -WorkingDirectory $runDir
+    }
     Write-Output "started $exe"
     # The guard: while the game runs, any window its dialogs disabled (the
     # terminal in front when a greeting box opened) is enabled again, so a
