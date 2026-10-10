@@ -232,6 +232,9 @@ private:
         };
         std::vector<HotSpot> hotSpots;
         bool hotGrowing = false;
+        // Its sphere (+2: x, y, z, r), which a drag moves (f08_07c6), its
+        // core's box then at coreBox.
+        int field[4] = {};
     };
     // The room as its camera (segment 25) and the root of its boxes.
     struct Table {
@@ -248,6 +251,7 @@ private:
     static bool inside(const Rect& r, int x, int y);
     bool loadTable(int room);                       // f27_0ad8: S<n>.SRF's shape
     std::pair<int, int> project(int x, int y, int h) const;  // f25_0813
+    std::pair<int, int> unproject(int x, int y, int h) const;  // f25_08fc: a screen point at a height
     void hiddenSides(Box& box) const;               // f12_093b
     int faceAt(const Box& box, int x, int y) const;  // f34_02fa: 0 none, 1 top, 2-5 sides
     int heightAt(const Box& box, int x, int y) const;  // f12_44f9 (f34_07ec)
@@ -391,7 +395,8 @@ private:
     void libNormalize(const int v[3], int out[3]) const;            // f84_0000: in 7FFEhs
 
     // --- playing a room (the player's methods, f31; the room's, f27) ---
-    enum class Control { None, Gravity, Friction, Power, BallType, Shoot };
+    // (Room: the room has it, [27AE] its +60, for the object at its +186.)
+    enum class Control { None, Gravity, Friction, Power, BallType, Shoot, Room };
     struct Column {
         bool ballOut = true;     // +132: its ball is on the table (f30_017c: 1)
         bool pushing = false;    // +134
@@ -424,6 +429,8 @@ private:
     void thingsBuilt();
     void thingTick(Object& o);
     bool thingClick(Object& o, const Mouse& m);
+    void thingDrag(Object& o, const Mouse& m);      // f08_07c6 with the mouse taken
+    int roomHolder_ = -1;                           // the room's +186: the object that has the mouse
     void retry(Object& o, int on);                  // RETRY's method 3 (f04_070e): the room again
     bool thingBox(const Object& o, int box[6]) const;
     uint16_t thingSprite(const Object& o) const;

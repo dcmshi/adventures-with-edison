@@ -247,7 +247,8 @@ void Science::dropBall(bool right) {
 }
 
 void Science::slideBall(int x, int y, int z) {
-    // f27_293b: the ball shown (f07_03fb), its shadow hidden, then moved
+    // f27_293b: the ball shown (f07_03fb), its shadow (its +16, f07_0442)
+    // hidden, then moved
     // from (x, y), its bottom at z, to where the room puts it (+F73, +F75,
     // on the ground): 2 a step on each axis (1 when nearer), stopped each
     // step (f08_056e), the room drawn again each step, nothing else

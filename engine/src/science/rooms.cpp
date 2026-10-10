@@ -1040,7 +1040,9 @@ void Science::cycleStep() {
 
 void Science::roomCycles(int room) {
     // The colour cycles as the room is built (the last room's objects and
-    // the room gone, their destructors having stopped theirs): each
+    // the room gone, their destructors having stopped theirs: a magnetic
+    // part's 90 and 98, f05_00e7; type 6's 4A, f05_285f; the hot field's
+    // 4D, f02_140c): each
     // magnetic part (f05_0003: types 2-6 and 15, the type 3 ball) 90-97
     // and 98-9F every 3 ticks; a type 6 magnet (f05_26f7) 4A-4C every 4;
     // a pulling hole (f28_15a1) A0-A6 every 3; a hot field (f02_1234)
@@ -1203,8 +1205,9 @@ void Science::roomTick() {
     }
     if (currentRoom_ == 12 && roomObj_[3] >= 0) {
         // f43_043d: on 5 game ticks in 6 ([27B4] not a multiple of 6), +FC0
-        // set while the switches 1-4 (f27_0a5a: the first type 7 whose +2,
-        // its last argument, is that) are all on (+4). All on and the
+        // set while the switches 1-4 (f27_0a5a: the first object whose +48
+        // says 11, a switch's, f04_0084, and whose +2, its last argument, is
+        // that) are all on (+4). All on and the
         // magnet (+FA8) off: on (its +0C: sound 6027), +FC2, colour cycle
         // 4A-4C every 6 ticks, the lights 10D9 on screen 3 at (371, 108)
         // and (470, 108), redrawn (f38_0494, 28 x 28). Else, the magnet on:

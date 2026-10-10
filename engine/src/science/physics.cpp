@@ -194,7 +194,9 @@ void Science::ballSetForce(Ball& b, const int16_t f[3]) {
 }
 
 void Science::ballMove(Ball& b, const int16_t d[3]) {
-    // f08_0aab → f07_04d5: the sphere's centre moved, its box after it.
+    // f08_0aab → f07_04d5: the sphere's centre moved, its box after it
+    // (type 2's through f05_14f8; type 3's own f06_0569, the same, then
+    // f06_0561, nothing, and its redraw).
     b.cx = w(b.cx + d[0]);
     b.cy = w(b.cy + d[1]);
     b.cz = w(b.cz + d[2]);
@@ -538,7 +540,8 @@ void Science::ballCollide(Ball& a, Contact& c) {
 void Science::ballTick(Ball& b) {
     // f07_077e: the step, then the rolling frames (a turn of frames every
     // r * r / 16 * [DFA] / [DFE] of squared move across), the kick's last
-    // tick. (The player's ball, or a type 0's.)
+    // tick. (The player's ball, f06_0312; type 3's through f06_065e; a type
+    // 0's; a type 2's through f05_1516.)
     if (b.hidden && &b != &ball_) return;
     ballStep(b);
     if (b.state != 0) {

@@ -2065,3 +2065,61 @@ What the port leaves out of these segments, and why (the rest is cited in
   into each 200 bytes of text read (`f22_0041`): only `760E` ("You got a
   high score, YYYYYYY points. That's great!") has one, and nothing shows
   it (nor `760F`, `7610`).
+
+### The scan: segments 2-9
+
+What the port leaves out of the table's objects (segments 2-9), and why.
+The rest is cited where the port does it (`things.cpp`, `table.cpp`,
+`physics.cpp`, `play.cpp`, `rooms.cpp`, `holes.cpp`).
+
+- **The hot field's drag** (ported: `thingDrag`). Type 14 doesn't
+  override the press, so its core (a 6 cube at (x, y) on the ground, its
+  rectangle about 9 x 9 pixels at the puddle's middle) takes the generic
+  `f08_07c6`: a press there takes the mouse for the room (`[27AC]`,
+  `[27AE]` the room's `+60`, the core its `+186`), so it doesn't aim; held,
+  each event puts the field's sphere (`+2`) under the pointer (`f25_08fc`
+  at the sphere's height; across a face's edge halved back onto it) through
+  `f08_056e`, which lifts it to the ground there plus its radius (`a`) and
+  sounds `6026` for a move over 15. After that the ball's foot is mostly
+  out of the field's reach, and new spots (`f02_0e4a`, at the field's
+  height) are drawn that much higher. From the second event the pointer is
+  read at the raised height, so the field slides to the back edge (y 0).
+  Not compared with the original.
+- **Destructors**, with nothing the port keeps to free (the room's objects
+  all go with it; the colour cycles some of them stop are cited at
+  `roomCycles`): `f02_1a1a` (fan), `f02_1b59` (electromagnet), `f02_1e40`
+  (point target), `f02_1e91` (shadow), `f02_1f2a` (a power part, inside
+  `f02_1ee2`), `f02_1199` (the hot field's spots' list), `f03_0dba`
+  (smiley), `f04_09bd`, `f04_0ab5`, `f04_0bb3`, `f04_0cad`, `f04_0da7`
+  (inside `f04_0d5d`) (the switches), `f05_1450`, `f05_1eb0`, `f05_3743`,
+  `f05_356d` (magnets), `f06_0c37` (target ring), `f06_0d3e`, `f06_0fa3`
+  (the ball), `f07_02c0` (sphere part), `f07_1159` (box part), `f07_19a3`
+  (block), `f08_034b` (body), `f09_0000` (`Obj3d`); and `f02_1fde`, a
+  destructor nothing names. `f08_0000` and `f08_0049` are `new` and
+  `delete` with counters (`[FF6]`, `[FF8]`) and "cannot allocate memory".
+- **Not code**: Borland's RTTI records and the classes' adjustor thunks
+  (`mov bx, sp / add ss:[bx+4], n / jmp far`, the method tables' entries
+  that move `this` to a part) that `nedis.py` lists as functions:
+  `f02_1c52`, `f02_1c94`, `f02_1cda`, `f02_1d1c`, `f02_1db8`, `f02_1e04`,
+  `f02_1ee2` (but its destructor), `f02_1f6e`, `f02_1fb0`, `f02_201a`,
+  `f04_0b65`, `f04_0c63`, `f04_0d5d` (but its destructor), `f05_351d`,
+  `f05_38b3`, `f05_3a0b`, `f05_3ba6`, `f05_3c28`, `f05_3c76`, `f06_0f53`.
+- **Never called**: the objects' key methods (their `+0C`; the room's
+  key method `f27_31fb` gives objects none): `f02_0e40`, `f03_085b`,
+  `f05_08fd`, `f05_1550`, `f05_1f9b`, `f05_26ed`, `f06_0769` (→
+  `f06_02fe`), `f07_15b0`. The hot field's `+2C` (`f02_161f`): its mass is
+  0, so no body meets it. `f05_014b` (5), the magnet pole's own kind, which
+  each class's replaces before anything asks.
+- **Unreached** (no caller, no table): `f02_17cf` (an allocation);
+  `f05_1572` with its prologue `05:156f`, `f05_1fa8` and `f05_1ce4`: box
+  magnets made from a strength (the size from `DS:728`'s levels: 17, 13,
+  10, 8, 6) instead of a size; `f05_056e`, `f05_0732` (strength 200 *
+  `[27B2]` / (`[27B0]` * 2) set through the pole's `+1C`); `f05_090a`
+  (a pole turned N or S); `f06_096e`, `f06_0984` (the target ring's `+10`
+  set, cleared); `f08_04dd` (a body put at its own sphere plus a point).
+- **No effect**: `f05_0189`, the pole's area (`+0E`, the world given
+  `DS:1146`), which the field never reads; `f05_0155`, the pole's change
+  told to the room (`f26_01db`, empty) and its area redrawn (the room's
+  first draw covers it). `f06_000f` gives `[BDE]` (the ball's rolling
+  frames, set by `f06_001a`) to `f13_05d4`, which only reads the six
+  frames' sizes (`f14_0cf8`) and keeps nothing.
