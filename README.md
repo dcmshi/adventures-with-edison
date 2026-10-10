@@ -25,6 +25,17 @@ Captured from the port (`edison --capture`); the artwork is the original games'.
 | ![Wild Science Arcade: room 5's lava](screenshots/science-lava.png) | ![Wild Science Arcade: room 96](screenshots/science-garden.png) | |
 | Wild Science Arcade: lava | Wild Science Arcade: the garden | |
 
+## Progress
+
+How much of each game's code the port covers: a box per function of the
+original, sized by its bytes (green ported, cited by the port's source;
+amber documented only; grey not yet), and the share ported commit by
+commit. Drawn by `tools/progress.py` (after `tools/nedis.py`).
+
+![The port's coverage of the original code](progress/PROGRESS.png)
+
+![The code ported, commit by commit](progress/PROGRESS_CHART.png)
+
 ## Games on the disc
 
 | Executable | Game |
@@ -134,6 +145,7 @@ ctest --test-dir build --output-on-failure
 ## Reverse-engineering tools
 
 - `tools/nedis.py FILE.EXE`: whole-program disassembly with Windows imports named, cross-segment calls resolved and string references shown. It writes `extracted/disasm/<exe>.asm`, plus `<exe>.funcs.txt`, a one-line-per-function summary to grep.
+- `tools/progress.py [--no-history]`: the README's progress pictures (`progress/`): each game's functions from `nedis.py`'s disassembly, sized by bytes, ported when the port's source cites them (by name, `f30_306a`, or an address inside, `30:3527`), documented when only the game's notes do; the chart re-reads the citations at every commit (`git grep`). Run it after a change worth showing, and commit the pictures with it.
 - `tools/wmclasses.py [--rooms]`: Wild Science's C++ classes (after `nedis.py` on `WMAIN.EXE`): their names from Borland's RTTI, bases (virtual ones too), vtables and slots, to `extracted/disasm/wmain.classes.txt` (see `docs/SCIENCE.md`).
 - `tools/ghidra/decompile.sh FILE.EXE ...`: headless Ghidra decompilation to `extracted/ghidra/<exe>.c`.
   - Imports from the CD's DLLs are named, and functions found by `nedis.py` are added.
