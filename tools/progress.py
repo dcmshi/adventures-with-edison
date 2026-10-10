@@ -10,7 +10,10 @@ A function is "ported" when the port's source for its game cites it (by
 name, f30_306a / g30_3527, or by an address inside it, 30:3527),
 "documented" when only the game's notes (docs/MYSTERY.md, ROCKBACH.md,
 SCIENCE.md) do (Windows and the CD, the platform layer, code nothing
-reaches), else "not yet". The shared code (engine/src/artech) counts for
+reaches), else "not yet". The share is of each game's own code, its library and run
+time (LIBRARY, replaced by the port's platform layer) shown apart; a
+name 3 bytes before a function is taken as its (Borland's prologue,
+which Ghidra's names skip). The shared code (engine/src/artech) counts for
 Mystery's MALL.EXE unless its line names WMAIN or WINMAIN / Rock and Bach.
 The functions and their sizes come from tools/nedis.py's disassembly
 (extracted/disasm/*.asm: run it first); the chart re-reads the citations
@@ -37,6 +40,13 @@ GAMES = [
     ("rockbach", "Rock and Bach Studio", "WINMAIN.EXE", "engine/src/rockbach", "docs/ROCKBACH.md", (120, 190, 240)),
     ("science", "Wild Science Arcade", "WMAIN.EXE", "engine/src/science", "docs/SCIENCE.md", (150, 220, 140)),
 ]
+# Each game's library and run time (the notes' maps): the Artech library
+# with Borland's C run time first (MALL 31-60, WINMAIN the same five
+# segments on), WMAIN's run time (1, 89-91) and its library build (63-88).
+# The port replaces these with its own platform layer, citing only what it
+# matches, so the share is the game's own code's; the library's is shown
+# apart.
+LIBRARY = {"mystery": set(range(31, 61)), "rockbach": set(range(36, 63)), "science": {1} | set(range(63, 92))}
 SHARED = "engine/src/artech"
 
 NAME = re.compile(r"\b[fg]([0-9]{2})_([0-9a-f]{4})\b")
@@ -104,7 +114,12 @@ def cited(lines, find):
     out = set()
     for line in lines:
         for m in NAME.finditer(line):
-            f = find(int(m.group(1)), int(m.group(2), 16))
+            # A name 3 bytes before a function is its Borland prologue's
+            # (mov ax, ss; nop): Ghidra's, and the notes', start after it.
+            seg, off = int(m.group(1)), int(m.group(2), 16)
+            f = find(seg, off + 3)
+            if f != f"f{seg:02d}_{off + 3:04x}":
+                f = find(seg, off)
             if f:
                 out.add(f)
         for m in ADDRESS.finditer(line):
@@ -218,13 +233,21 @@ def box(draw, r, fill, outline=FRAME):
     draw.rectangle([x0, y0, x1, y1], fill=fill, outline=outline)
 
 
-def share(funcs, status):
-    total = sum(size for fs in funcs.values() for _, size, _ in fs)
+def share(funcs, status, segs=None):
+    """The bytes, and by status, of the segments (all by default)."""
+    segs = funcs.keys() if segs is None else segs
+    total = sum(size for seg in segs for _, size, _ in funcs[seg])
     by = {"ported": 0, "documented": 0, "not yet": 0}
-    for fs in funcs.values():
-        for _, size, name in fs:
+    for seg in segs:
+        for _, size, name in funcs[seg]:
             by[status.get(name, "not yet")] += size
-    return total, by
+    return max(total, 1), by
+
+
+def parts(g):
+    """The game's own segments and its library's."""
+    lib = LIBRARY[g["key"]]
+    return [s for s in g["funcs"] if s not in lib], [s for s in g["funcs"] if s in lib]
 
 
 def treemap(games, path):
@@ -242,10 +265,14 @@ def treemap(games, path):
     colours = {"ported": PORTED, "documented": DOCUMENTED, "not yet": NOT_YET}
     for g, size in zip(games, sizes):
         gh = span * size / sum(sizes)
-        total, by = share(g["funcs"], g["status"])
+        own, lib = parts(g)
+        total, by = share(g["funcs"], g["status"], own)
+        ltotal, lby = share(g["funcs"], g["status"], lib)
         box(d, (16, y, W - 32, gh), HEAD)
-        label = (f"{g['title']} ({g['exe']}): {100 * by['ported'] / total:.1f}% ported, "
-                 f"{100 * by['documented'] / total:.1f}% documented, {total:,} bytes")
+        label = (f"{g['title']} ({g['exe']}): its code {100 * by['ported'] / total:.1f}% ported, "
+                 f"{100 * by['documented'] / total:.1f}% documented ({total:,} bytes); "
+                 f"library and run time {100 * lby['ported'] / ltotal:.1f}% ported, "
+                 f"{100 * lby['documented'] / ltotal:.1f}% documented")
         d.text((26, y + 6), label, font=small, fill=TEXT)
         inner = (20, y + 32, W - 40, gh - 36)
         segs = sorted(((sum(s for _, s, _ in fs), seg) for seg, fs in g["funcs"].items()), reverse=True)
@@ -257,7 +284,8 @@ def treemap(games, path):
             for (name, st), fr in squarify(fs, sx + 2, sy + head + 1, sw - 4, sh - head - 3):
                 box(d, fr, colours[st])
             if head:
-                d.text((sx + 4, sy + 1), f"segment {seg}", font=tiny, fill=TEXT)
+                tag = f"segment {seg}" + (" (library)" if seg in LIBRARY[g["key"]] else "")
+                d.text((sx + 4, sy + 1), tag, font=tiny, fill=DIM if seg in LIBRARY[g["key"]] else TEXT)
         y += gh + 12
     # The legend.
     x = 24
@@ -282,8 +310,9 @@ def history(games, finders):
         point = {}
         for g in games:
             ported = cited(lines[g["key"]], finders[g["key"]])
-            total = sum(s for fs in g["funcs"].values() for _, s, _ in fs)
-            done = sum(s for fs in g["funcs"].values() for _, s, n in fs if n in ported)
+            own, _ = parts(g)
+            total = sum(s for seg in own for _, s, _ in g["funcs"][seg])
+            done = sum(s for seg in own for _, s, n in g["funcs"][seg] if n in ported)
             point[g["key"]] = 100 * done / total
         out.append((datetime.datetime.fromtimestamp(int(t)), point))
     return out
@@ -294,7 +323,7 @@ def chart(games, points, path):
     img = Image.new("RGB", (W, H), BACK)
     d = ImageDraw.Draw(img)
     title, small = font(30), font(18)
-    d.text((24, 18), "Adventures with Edison: the code ported, commit by commit", font=title, fill=TEXT)
+    d.text((24, 18), "Adventures with Edison: each game's own code ported, commit by commit", font=title, fill=TEXT)
     left, right, top, bottom = 90, W - 150, 80, H - 110
     d.rectangle([left, top, right, bottom], fill=HEAD)
     for pct in range(0, 101, 25):
@@ -353,10 +382,13 @@ def main():
         status = {n: "ported" for n in ported}
         status.update({n: "documented" for n in documented})
         games.append(dict(key=key, title=title, exe=exe, funcs=funcs, status=status, colour=colour))
-        total, by = share(funcs, status)
+        own, lib = parts(games[-1])
+        total, by = share(funcs, status, own)
+        ltotal, lby = share(funcs, status, lib)
         count = sum(len(fs) for fs in funcs.values())
-        print(f"{title}: {count} functions, {total:,} bytes: {100 * by['ported'] / total:.1f}% ported, "
-              f"{100 * by['documented'] / total:.1f}% documented only")
+        print(f"{title}: {count} functions; its code {total:,} bytes, {100 * by['ported'] / total:.1f}% ported, "
+              f"{100 * by['documented'] / total:.1f}% documented only; library and run time {ltotal:,} bytes, "
+              f"{100 * lby['ported'] / ltotal:.1f}% ported, {100 * lby['documented'] / ltotal:.1f}% documented only")
     treemap(games, OUT / "PROGRESS.png")
     print(f"wrote {OUT / 'PROGRESS.png'}")
     if not opts.no_history:

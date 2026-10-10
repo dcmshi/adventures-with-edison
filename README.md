@@ -29,8 +29,11 @@ Captured from the port (`edison --capture`); the artwork is the original games'.
 
 How much of each game's code the port covers: a box per function of the
 original, sized by its bytes (green ported, cited by the port's source;
-amber documented only; grey not yet), and the share ported commit by
-commit. Drawn by `tools/progress.py` (after `tools/nedis.py`).
+amber documented only; grey not yet), and the share of each game's own
+code ported, commit by commit. The library and run time segments (the
+Artech library, Borland's C and C++ run time) are shown apart: the port
+replaces them with its own platform layer. Drawn by `tools/progress.py`
+(after `tools/nedis.py`).
 
 ![The port's coverage of the original code](progress/PROGRESS.png)
 
