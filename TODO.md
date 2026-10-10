@@ -103,6 +103,7 @@ scene objects and an event queue, floating point), so it goes in stages:
 - [x] The arcade's menu table, the levels, high scores (`WSCIENCE.HS`), the lab, the credits.
 - [x] A scenario tool (`tools/testing/scenario.py`, `scenarios.py`): a timeline of presses, drags, moves and typing from a table room, played in the port and the original, each of the original's shots against the port's nearest frame, the columns masked: room 1's holes, lessons 6-10, the game over and won. In `check.py` (against the original's shots of its last `--orig` run; local only, as `regress.py`).
 - [x] The scenarios' last difference, 5 pixels at the power knob after a drag: a slider's release marks the control's whole area (`f30_306a`), where the knob at the top overhangs its frame's rectangle; the game won now pixel for pixel. Room 1 at rest, panel and all, pixel for pixel (`scenario.py rest-1`).
+- [x] The lab's burner and bubbles and room 21's targets (`docs/SCIENCE.md`'s "What the scenarios still show"): the original's own timing from run to run, the port matching its usual lab and, with `[FFE]` at room 21 set as the run's (memwatch: the creation numbers the port's), each of three runs of room 21 pixel for pixel (`hole-level1`: dense frames, `SCI_ROOMTICKS`).
 - [ ] Compare with the original under winevdm as each part lands (`memwatch.py` reads the original's state; Mystery's and Rock and Bach's random numbers compared with it draw for draw: `mmrng.py`, `rbrng.py`).
 
 ## Formats and tooling

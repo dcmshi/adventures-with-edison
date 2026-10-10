@@ -1588,9 +1588,23 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   give the port the original's last pick); the lab's burner and bubbles,
   whose last frame comes from the count of their 7-step waits within each
   walking frame's countdown (`[1D40]`, 18 or 19 by memwatch: the two
-  timer slots' phases, set by the time each room took to build); and
-  room 21's targets rising and Edison walking (`[FFE]` from the program's
-  start).
+  timer slots' phases, set by the time each room took to build: in three
+  runs two showed the port's frames and one the other count's); and room
+  21's targets. Their step is `(creation number + [FFE]) % 11` (`f03_0207`)
+  and a target's frame the steps since it was made, so what shows depends
+  on `[FFE]` as the room is entered. Read with memwatch, the original's
+  creation numbers are the port's (the room's list `+18E`, 12 entries, each
+  `+1E` its index: the ball's three, then the targets, holes, the last
+  target and hole), and its `[FFE]` at room 21 was 874 in three traced runs
+  but 874, 876 and 878-881 (mod 11) in three scenario runs, as the clicks
+  in room 1 land a tick or two either way. With the port's set to each
+  run's (`SCI_ROOMTICKS`) and its frames every 10 ms (consecutive targets
+  step a tick apart, so a combination can last 20 ms), every shot of the
+  targets matches each of the three runs pixel for pixel; `hole-level1`
+  takes the first run's (874, Edison from the left). Both scenarios leave
+  out the shot that can catch the original still building the next room
+  on a black display (longer the busier the machine; the port's build
+  takes no time).
 - **The shadow under a ball put back**: `f13_01ce` draws it only while the
   shadow object is hidden and `[14E0]` clear. `f27_287d` (spit mode 2: a
   wrong warp code) shows the ball through its motion part's `+18`
