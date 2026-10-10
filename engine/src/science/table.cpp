@@ -92,6 +92,40 @@ bool Science::loadTable(int room) {
     // f41_0000 and the like: room(parent, [1FEE] = 809, [1FF0] = 789, the
     // play area), the gravity from [1FF2] first; f25_03bf the camera (45
     // degrees, f25_07cb: segment 86's table), f25_0779 the scroll.
+    // Rooms 51-100's builders and their loaders (each passes the room's
+    // number to f27_0ad8, below): 51 f51_0000 f51_0146, 52 f51_0259
+    // f51_0365, 53 f51_05a2 f51_06a3, 54 f51_07b8 f51_09ce, 55 f51_0f87
+    // f51_1152, 56 f52_0000 f52_0101, 57 f52_016d f52_02da, 58 f52_06c7
+    // f52_07ef, 59 f52_0c06 f52_0db8, 60 f52_0f23 f52_1024, 61 f53_0000
+    // f53_00f5, 62 f53_0166 f53_025b, 63 f53_02cc f53_03d9, 64 f53_04df
+    // f53_05e0, 65 f53_07e9 f53_0917, 66 f54_0000 f54_0137, 67 f54_023a
+    // f54_045b, 68 f54_0576 f54_066b, 69 f54_06d7 f54_07d8, 70 f54_09f3
+    // f54_0bc2, 71 f55_0000 f55_011f, 72 f55_0200 f55_0346, 73 f55_0417
+    // f55_0518, 74 f55_05d8 f55_0700, 75 f55_0821 f55_0940, 76 f56_0000
+    // f56_0110, 77 f56_01cc f56_0306, 78 f56_03d7 f56_04cc, 79 f56_0538
+    // f56_062d, 80 f56_0699 f56_078e, 81 f57_0000 f57_00f5, 82 f57_0161
+    // f57_0256, 83 f57_02c2 f57_03b7, 84 f57_0423 f57_0518, 85 f57_0584
+    // f57_0679, 86 f58_0000 f58_00f5, 87 f58_0161 f58_0256, 88 f58_02c2
+    // f58_03b7, 89 f58_0423 f58_0518, 90 f58_0584 f58_0679, 91 f59_0000
+    // f59_0128, 92 f59_0400 f59_05e2, 93 f59_08e0 f59_09f0, 94 f59_0ad5
+    // f59_0bf4, 95 f59_0ca0 f59_0dbf, 96 f60_0000 f60_01f4, 97 f60_0414
+    // f60_053f, 98 f60_0610 f60_073e, 99 f60_080f f60_095e, 100 f60_0a1a
+    // f60_0b0f. The rest of a builder is roomConfig's, roomCycles',
+    // roomObjects' and roomArrival's; rooms 61, 62, 68, 78-90 and 100's do
+    // nothing more. (Their +180: 2 when a word of their class's is set, 0
+    // in a dump of the original's; the room's tick sets it anyway.)
+    // The last room went first, its destructor (rooms 51-100: f51_00fa,
+    // f51_0318, f51_0661, f51_098c, f51_1106, f52_00bf, f52_028e,
+    // f52_07ad, f52_0d76, f52_0fe2, f53_00b3, f53_0219, f53_038d,
+    // f53_059e, f53_08d5, f54_00eb, f54_0419, f54_0629, f54_0796,
+    // f54_0b80, f55_00dd, f55_02fa, f55_04d6, f55_06b4, f55_08fe,
+    // f56_00ce, f56_02b9, f56_048a, f56_05eb, f56_074c, f57_00b3,
+    // f57_0214, f57_0375, f57_04d6, f57_0637, f58_00b3, f58_0214,
+    // f58_0375, f58_04d6, f58_0637, f59_00dc, f59_058c, f59_09ae,
+    // f59_0bb2, f59_0d7d, f60_01a8, f60_04f2, f60_06fc, f60_08fc,
+    // f60_0acd) taking its objects (the base's, f26_0063) and stopping
+    // the colour cycles its builder started (f32_0f77; roomCycles starts
+    // afresh): the table made anew here.
     auto word = [&](size_t at) { return static_cast<int16_t>(data_[at] | data_[at + 1] << 8); };
     Table& t = table_;
     t = Table{};
@@ -1061,6 +1095,13 @@ void Science::roomPictures(int room) {
     // room's class (segments 41-60) has its own list; room 1's are the
     // holes' labels (HIGH Score, Lab, Credits, play room, LEVEL 1, 4 and 5),
     // the logo and EXIT.
+    // Rooms with none (their method 4 only f27_0e5b and screen 3,
+    // f14_0af1): 53 f51_0790, 56 f52_0145, 61 f53_013e, 62 f53_02a4, 68
+    // f54_06af, 78 f56_0510, 79 f56_0671, 80 f56_07d2, 81 f57_0139, 82
+    // f57_029a, 83 f57_03fb, 84 f57_055c, 85 f57_06bd, 86 f58_0139, 87
+    // f58_029a, 88 f58_03fb, 89 f58_055c, 90 f58_06bd, 95 f59_0e18, 100
+    // f60_0b53 (80's, 85's, 90's, 95's and 100's each its segment's last
+    // function, with the classes' descriptors after it).
     struct Picture {
         int x, y;
         uint16_t id;
