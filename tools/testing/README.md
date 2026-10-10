@@ -136,6 +136,13 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
   coverage scan: each function of WMAIN.EXE's own code that neither the
   port's source nor docs/SCIENCE.md cites, with its size, its callers and
   classes, and whether anything cited reaches it.
+- `deadscan.py [mystery|rockbach|science ...] [--list CLASS ...]`: every
+  game's functions the port doesn't cite, by what refers to them (calls,
+  far and near pointers in code, the data segments' far pointers, the
+  exports): unreferenced, a dead chain (only dead code refers to it),
+  table only (a vtable or callback table), or reached from cited code.
+  The reached ones each need their reason in the notes; near pointers are
+  any matching immediate, so it errs towards "reached".
 - `mmmaze.py [--port-only | --compare-only]`: the bonus maze's wanderers
   pass by pass (its loop is unpaced in the original, so its shots can't
   be matched in time): `allfound` in the port at a pass a millisecond
