@@ -107,13 +107,19 @@ bool Science::loadTable(int room) {
     // f27_0ad8, f27_0d4a: the tree. Each box is read relative to its
     // parent and made by the room's method 1 (f27_12b6 → f25_057b), which
     // puts the parent's corner and height back: so the file's numbers are
-    // the world's. The root's own numbers are read and left (it's the room).
+    // the world's (the parent always one of the room's boxes here, as
+    // f25_0705 asks). The root's own numbers are read and left (it's the
+    // room).
     std::ifstream in(findPath(options_.cdDir + "/S" + std::to_string(room) + ".SRF"), std::ios::binary);
     if (!in) return false;
     ShapeReader r(std::vector<char>(std::istreambuf_iterator<char>(in), {}));
+    // A box refused is the stand-in (DS:116E, f12_0312(0, 0) at start-up):
+    // its top is empty, so what's read under it is refused too.
+    Box standIn;
+    standIn.top = {};
     std::function<void(Box*)> read = [&](Box* parent) {
         // The top first, then the bottom (f27_0d4a passes the second read
-        // as the bottom).
+        // as the bottom), each four numbers (f27_0310).
         Rect second, first;
         second.x = r.number(), second.y = r.number(), second.w = r.number(), second.h = r.number();
         first.x = r.number(), first.y = r.number(), first.w = r.number(), first.h = r.number();
@@ -121,11 +127,16 @@ bool Science::loadTable(int room) {
         Box* box = &t.root;
         if (parent) {
             // f12_3e0d: the bottom within the parent's top; none if that's
-            // empty. Then f12_04a1: the top within the bottom, but only if
-            // its corner is inside the bottom (else the top is the bottom).
+            // empty, or if it overlaps a child's bottom already there
+            // (f12_416c; no room's shape has either). Then f12_04a1: the
+            // top within the bottom, but only if its corner is inside the
+            // bottom (else the top is the bottom).
             const Rect bottom = intersect(first, parent->top);
-            if (bottom.w == 0 || bottom.h == 0) {
-                box = nullptr;
+            bool refused = bottom.w == 0 || bottom.h == 0;
+            for (const auto& child : parent->children)
+                if (const Rect o = intersect(intersect(bottom, parent->top), child->bottom); o.w && o.h) refused = true;
+            if (refused) {
+                box = &standIn;
             } else {
                 auto child = std::make_unique<Box>();
                 child->parent = parent;
@@ -149,7 +160,7 @@ bool Science::loadTable(int room) {
         }
         for (char m = r.marker(); m != '\2'; m = r.marker()) {
             if (m != '\1') break;
-            read(box ? box : parent);
+            read(box);
         }
     };
     read(nullptr);
@@ -433,8 +444,8 @@ void Science::listDrawables(std::vector<Drawable>& list, const Rect& redraw) {
             if (o.holeHidden) continue;
             const int z = o.liftZ != Object::kNoLift ? o.liftZ : o.args[3] != -1 ? o.args[3] : heightUnder(o.x, o.y);
             const int x = o.x - (wall == 0 ? r : 0);
-            // (A hole moved by f08_056e: its box 2r + 1 a side, as read in
-            // the original's memory.)
+            // (A hole moved by f08_056e: its box 2r + 1 a side round the
+            // point, f28_12a9, as read in the original's memory.)
             const int side = o.liftZ != Object::kNoLift ? 2 * r + 1 : 2 * r;
             // (A pulling hole's sprites: DS:212E small, DS:2146 big.)
             const size_t small = o.type == 9 ? 0x212Eu : 0x20FCu, large = o.type == 9 ? 0x2146u : 0x2114u;
@@ -530,7 +541,8 @@ void Science::listDrawables(std::vector<Drawable>& list, const Rect& redraw) {
             dr.id = &o;
             list.push_back(dr);
         } else if (o.type == 0 || o.type == 2) {
-            // Another ball (f13_01ce): its frames, no shadow; gone, not drawn.
+            // Another ball (f13_01ce; type 2's through f13_0706): its
+            // frames, no shadow; gone, not drawn.
             const Ball& b = o.body;
             if (b.hidden) continue;
             const int s = 2 * b.r + 1;
@@ -589,6 +601,7 @@ void Science::listDrawables(std::vector<Drawable>& list, const Rect& redraw) {
             const int tz = heightUnder(targetX_, targetY_) + (targetMoved_ ? 1 : 0);
             Drawable target{{targetX_ - 10, targetY_ - 10, tz, 20, 20, 10}, area(objectRect(targetX_ - 10, targetY_ - 10, tz, 20, 20, 10)), 0, 0, {}};
             target.draw = [this, tz] {
+                // f13_062f: 1042 at its centre a pixel right, and [1508].
                 if (ballMoving_) return;
                 const auto [tx, ty] = objectCentre(targetX_ - 10, targetY_ - 10, tz, 20, 20, 10);
                 objectSprite(tx + 1, ty, 0x1042);
@@ -824,6 +837,7 @@ void Science::gridX(const Box& box, int face, int x, int y, int end) {
         if (!gridOn(f)) return;
         const auto a = project(x, y, heightAt(box, x, y));
         const auto b = project(end, y, heightAt(box, end, y));
+        // Each through f12_0dc0 (f14_15f1).
         tableLine(a.first - 1, a.second, b.first - 1, b.second, 0x84);
         tableLine(a.first, a.second, b.first, b.second, 0x81);
         return;
@@ -1297,7 +1311,7 @@ void Science::enterRoom(int room) {
             // (Type 3, f61_09bd → f06_0348: the player's ball with a
             // segment 5 part as well, not ported: as type 1.)
             hasBall_ = true;
-            // f06_0043: radius 10 on the face under the point.
+            // f06_0043: radius 10 on the face under the point (f11_1582).
             ball_ = Ball{};
             ball_.cx = o.x, ball_.cy = o.y;
             ball_.cz = faceHeight(faceUnder(o.x, o.y), o.x, o.y) + ball_.r;

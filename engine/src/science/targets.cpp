@@ -203,6 +203,7 @@ void Science::pointTick(Object& o) {
                 if (o.kind == 3) {
                     lipsTurn(o);
                 } else {
+                    // (f27_08e0: +F8D by the shots, the fifth's from then on.)
                     if (shotBonus_) o.points = static_cast<int>(static_cast<long>(o.points) * targetBonus_[std::min(shots_, 5)] / 0x80);
                     addScore(o.points / 100 * 100);
                     o.scored = 1;
