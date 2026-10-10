@@ -10,7 +10,6 @@
 #include <filesystem>
 #include <fstream>
 #include <initializer_list>
-#include <random>
 
 #include "rockbach/rockbach.h"
 
@@ -198,12 +197,11 @@ void RockBach::studioWidgets() {
 void RockBach::studioSign(bool onDisplay) {
     // f04_0824: the flashing sign (218E, then one of 218A-218D at random)
     // on screen 2, and onto the display when asked.
-    static std::mt19937 rng{std::random_device{}()};
     if (onDisplay) select(2);
     restoreArea(signArea_, true);
     signArea_ = saveArea(0x22, 0xF4, 0x5C, 0x96);
     ctx_.screens.drawSprite(current(), ctx_.bitmap(0x218E), 0x22, 0xF4);
-    ctx_.screens.drawSprite(current(), ctx_.bitmap(static_cast<uint16_t>(0x218A + rng() % 4)), 0x22, 0xF4);
+    ctx_.screens.drawSprite(current(), ctx_.bitmap(static_cast<uint16_t>(0x218A + rbRand() % 4)), 0x22, 0xF4);
     if (onDisplay) {
         copyArea(2, 1, 0x22, 0xF4, 0x5C, 0x96);
         select(1);
@@ -1229,9 +1227,8 @@ int RockBach::videoMaker(int kind) {
             w[66 + i].toggle = true, w[66 + i].flags |= Widget::kPressed;
         showScene(i);
     }
-    static std::mt19937 rng{std::random_device{}()};
     if (!camera)
-        for (int i = 56; i < 80; ++i) w[i].faceDown = w[i].faceUp = static_cast<uint8_t>((rng() & 0x7FFF) % 15 + 0xF0);
+        for (int i = 56; i < 80; ++i) w[i].faceDown = w[i].faceUp = static_cast<uint8_t>(rbRand() % 15 + 0xF0);
     initWidgets(w, {0xC0, 0xD8, 0xDB, 0xDC});
     show(2);
     select(1);

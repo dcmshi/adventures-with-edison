@@ -5,15 +5,31 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cstdio>
+#include <cstdlib>
 #include <fstream>
 #include <iterator>
-#include <random>
 
 #include "audio/artech_fm_driver.h"
 #include "formats/ne_file.h"
 
 namespace edison {
+
+int rbRand() {
+    static uint32_t seed = 1;  // DS:3088
+    // EDISON_RNGLOG: the seed after each draw (for testing: rbrng.py).
+    static FILE* log = std::getenv("EDISON_RNGLOG") ? std::fopen(std::getenv("EDISON_RNGLOG"), "w") : nullptr;
+    seed = seed * 0x343FDu + 0x269EC3u;
+    if (log) {
+        // (milliseconds since the first draw, then the seed)
+        static const auto t0 = std::chrono::steady_clock::now();
+        const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0);
+        std::fprintf(log, "%lld %08x\n", static_cast<long long>(ms.count()), seed);
+        std::fflush(log);
+    }
+    return static_cast<int>((seed >> 16) & 0x7FFF);
+}
 
 bool RockBach::load(const Options& options, std::string* error) {
     options_ = options;
@@ -192,7 +208,6 @@ void RockBach::logo() {
     int slot = 0;
     bool waiting = true;
     ctx_.screens.copyAll(2, 3);
-    std::mt19937 rng{std::random_device{}()};
     for (bool done = false; !done;) {
         if (anyInput()) break;
         ctx_.pump();
@@ -220,7 +235,10 @@ void RockBach::logo() {
         }
         // Now and then (1 in 50000 a pass) the member plays anyway, to the
         // crowd.
-        const int roll = static_cast<int>(((rng() & 0x7FFF) * 2 + (rng() & 1)) % 50000);
+        // (05:07df: rand() << 1, and 1 more for an odd second one.)
+        int roll = rbRand() * 2;
+        if (rbRand() % 2 != 0) ++roll;
+        roll %= 50000;
         uint8_t event = 0;
         ctx_.platform.withFm([&event](ArtechFmDriver& d) {
             event = d.peek(d.getVar());

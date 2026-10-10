@@ -10,6 +10,11 @@
 
 namespace edison {
 
+// f36_0ec2: the run time's rand() (Microsoft C's: the seed x 343FDh +
+// 269EC3h, its high word's low 15 bits), never seeded (srand, g36_0eab,
+// isn't called): DS:3088 starts at 1. One sequence for the whole game.
+int rbRand();
+
 // Rock and Bach Studio (WINMAIN.EXE). See docs/ROCKBACH.md for the map of
 // the original; functions here name the one they port (fSS_OOOO).
 class RockBach : public ArtechGame {

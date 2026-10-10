@@ -117,7 +117,15 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
   (`DS:7638`) followed by `memwatch.py` in the original and logged by the
   port (`EDISON_RNGLOG`, with each stir's end), each state placed in the
   generator's one sequence; both sides' draws at rest must be the same
-  count (`play05d0`: 787 each).
+  count (`play05d0`: 787 each; all 43 but `allfound`, whose bonus maze
+  draws as fast as the original's unpaced loop goes).
+- `rbrng.py NAME... [--compare-only] [--delay S]`: Rock and Bach's
+  `rand()` against the original's in rbcompare.py's scenarios: the seed
+  (`DS:3088`) followed by `memwatch.py` in `WINMSKIP.EXE` from S seconds
+  into the activity (its data segment moves as it loads) and logged by
+  the port (`EDISON_RNGLOG`: milliseconds, seed), each placed in the
+  sequence from seed 1; prints both sides' bursts of draws in order (the
+  studio's sign draws 3 a second, so the counts follow the clock).
 - `mmmaze.py [--port-only | --compare-only]`: the bonus maze's wanderers
   pass by pass (its loop is unpaced in the original, so its shots can't
   be matched in time): `allfound` in the port at a pass a millisecond

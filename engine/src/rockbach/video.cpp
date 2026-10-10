@@ -6,7 +6,6 @@
 // (the effect), which turn while it plays.
 
 #include <algorithm>
-#include <random>
 
 #include "rockbach/rockbach.h"
 
@@ -18,11 +17,7 @@ namespace {
 constexpr int kW = 0x160, kH = 0xF8;       // the picture
 constexpr int kDrawSlot = 7, kTickSlot = 8;  // g18_2286 (15 a second), g18_2236 (10 a second)
 
-int rnd() {
-    // f36_0ec2: rand().
-    static std::mt19937 rng{std::random_device{}()};
-    return static_cast<int>(rng() & 0x7FFF);
-}
+int rnd() { return rbRand(); }  // f36_0ec2
 
 }  // namespace
 

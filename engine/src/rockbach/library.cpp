@@ -5,7 +5,6 @@
 #include <algorithm>
 #include "formats/paths.h"
 #include <fstream>
-#include <random>
 
 #include "rockbach/rockbach.h"
 
@@ -337,14 +336,13 @@ int RockBach::library() {
     select(1);
     clearInput();
     int ink = -1, hold = 0;  // [bp-2E], [bp-2C]: the inkwell's frames
-    std::mt19937 rng{std::random_device{}()};
     for (bool done = missing; !done;) {
         const int r = pollWidgets();
         if (ink >= 0 && ctx_.countdown[3] == 0) {
             // The quill writes (frames 23F0 + n, 5 a second), stopping a
             // while (14-23 frames) at the ninth.
             drawOpaque(0x12E, 0x142, static_cast<uint16_t>(0x23F0 + ink));
-            if (++ink == 9 && hold < static_cast<int>(rng() % 10) + 14) --ink, ++hold;
+            if (++ink == 9 && hold < rbRand() % 10 + 14) --ink, ++hold;
             if (ink >= 18) hold = 0, ink = -1;
             ctx_.countdown[3] = 2;
         }
