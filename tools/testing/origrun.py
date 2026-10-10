@@ -4,6 +4,8 @@ skipped) with an otvdm.ps1 script once the room is up, traces the ball and
 limited in time and says what it's doing.
 
 Usage: origrun.py OUTDIR ROOM [--watch S] [--delay S] [--extra EXPR...] [SCRIPT LINE...]
+  ROOM 0: from the title (WMAINLAB.EXE, wmain_skip.py --intro: the
+  story and the lab too), the script from the start.
   SCRIPT LINEs: otvdm.ps1 run lines after the room is up ("down 540 340",
   "wait 0.1", "shot name.png", ...).
   --watch S   trace for S seconds (default 10; 0: no trace)
@@ -55,10 +57,16 @@ def main():
     os.environ.setdefault("OTVDM", "D:/tools/otvdm/otvdm-v0.9.0/otvdmw.exe")
     out = Path(opts.out)
     out.mkdir(parents=True, exist_ok=True)
-    exe = Path(os.environ["EDISON_RUN"]) / "WMAINSKP.EXE"
     script = out / "run.txt"
-    # (The S key takes two digits.)
-    script.write_text("wait 10\ntype S%02d\nwait 5\n%s\n" % (int(opts.room), "\n".join(opts.script)))
+    if int(opts.room) == 0:
+        subprocess.run([sys.executable, str(REFERENCE / "wmain_skip.py"), "--intro"], check=True,
+                       stdout=subprocess.DEVNULL)
+        exe = Path(os.environ["EDISON_RUN"]) / "WMAINLAB.EXE"
+        script.write_text("\n".join(opts.script) + "\n")
+    else:
+        exe = Path(os.environ["EDISON_RUN"]) / "WMAINSKP.EXE"
+        # (The S key takes two digits.)
+        script.write_text("wait 10\ntype S%02d\nwait 5\n%s\n" % (int(opts.room), "\n".join(opts.script)))
     # The script's own length: its waits, to limit the run.
     length = sum(float(l.split()[1]) for l in script.read_text().splitlines() if l.startswith("wait "))
     start = time.monotonic()

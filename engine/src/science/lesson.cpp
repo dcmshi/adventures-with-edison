@@ -13,9 +13,6 @@ namespace {
 // bottom 2, right 3, left 4) and the tails (5, 7, 6 for tail types 0-2).
 constexpr uint16_t kTop = 1, kBottom = 2, kRight = 3, kLeft = 4;
 
-// The MORE button (f15_0fee: the lesson's rectangle).
-constexpr int kMoreX = 0x210, kMoreY = 0x172, kMoreW = 0x58, kMoreH = 0x18;
-
 // The lessons' scripts (each class's +44 runner: g15_1260, g15_1796,
 // g15_1c46, g15_202d, g15_2433, g15_2858): a bubble each step, at an
 // anchor with its tail, the width, the text and the narration the next
@@ -184,16 +181,6 @@ std::string Science::textResource(uint16_t id) {
     return s;
 }
 
-bool Science::waitMore() {
-    // A click on MORE (the lesson's rectangle); false if the window closes.
-    int x, y;
-    for (;;) {
-        ctx_.pump();
-        if (ctx_.platform.takeClick(&x, &y) && x >= kMoreX && y >= kMoreY && x < kMoreX + kMoreW && y < kMoreY + kMoreH)
-            return true;
-    }
-}
-
 void Science::lessonStart(uint16_t picture) {
     // f15_076a: the lesson's picture with the look on screen 2 (a clean
     // copy kept on 3 to take bubbles away), FM sound 25; the builder's end
@@ -345,10 +332,13 @@ int Science::lesson(int n) {
                 grabbed = true, swap({0x13BE, 3, 25, 0, 0});
                 continue;
             }
-            // A press in the lesson's rectangle (its +08: f15_1235, f15_176b,
-            // f15_1c1b, f15_2002, f15_2408, f15_282d; while +13E, f15_0ae4,
-            // entered at 15:0ae1: its children first) is MORE.
-            if (x >= kMoreX && y >= kMoreY && x < kMoreX + kMoreW && y < kMoreY + kMoreH) break;
+            // Any other press is MORE (the lesson's +08: f15_1235, f15_176b,
+            // f15_1c1b, f15_2002, f15_2408, f15_282d; while +13E, g15_0ae4,
+            // entered at 15:0ae1: its children first, f29_068c, then +44 for
+            // a press, with no test of where: the MORE button is only drawn.
+            // Checked against the original: presses left of it and above it
+            // go on, scenario.py more-outside).
+            break;
         }
     }
     ctx_.platform.stopWav();

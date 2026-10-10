@@ -84,7 +84,11 @@ def play_port(exe, name, s):
         src = run_folder() / f
         if src.exists():
             shutil.copy2(src, save / f.lower())
-    args = ["--game", "science", "--room", str(s["room"]), "--save", str(save), "--capture", str(d), "100",
+    for f, text in s.get("files", {}).items():  # (the scenario's own)
+        (save / f.lower()).write_text(text, encoding="latin-1", newline="")
+    # (Room 0: from the title, as the game starts.)
+    room = ["--room", str(s["room"])] if s["room"] else []
+    args = ["--game", "science", *room, "--save", str(save), "--capture", str(d), "100",
             *port_args(s), "--quit-after", str(int((s["length"] + 1) * 1000))]
     # Its time: a frame saved every 100 ms (every 10 ms around the dense
     # shots) makes a run slower than its virtual clock when others share the
@@ -101,9 +105,10 @@ def play_port(exe, name, s):
 # --- the original ----------------------------------------------------------------
 
 def orig_script(s):
-    """otvdm.ps1 lines: the events and shots in time order."""
+    """otvdm.ps1 lines: the events and shots in time order (later by the
+    scenario's "lead": the original's slower start, from the title)."""
     timeline = [(e[0], e) for e in s["events"]] + [(t, ("shot", n)) for t, n in s["shots"]]
-    lines, now = [], 0.0
+    lines, now = ([f"wait {s['lead']:.2f}"] if s.get("lead") else []), 0.0
     for at, e in sorted(timeline, key=lambda x: x[0]):
         if at > now:
             lines.append(f"wait {at - now:.2f}")
@@ -139,10 +144,12 @@ def play_orig(name, s, env=None):
         if (run / f).exists():
             shutil.copy2(run / f, backup / f)
             kept.append(f)
+    for f, text in s.get("files", {}).items():  # (put back after with the rest)
+        (run / f).write_text(text, encoding="latin-1", newline="")
     try:
         subprocess.run([sys.executable, str(Path(__file__).parent / "origrun.py"), str(d), str(s["room"]),
                         "--watch", "0", "--", *orig_script(s)],
-                       cwd=Path(__file__).parent, timeout=s["length"] + 120, env=env,
+                       cwd=Path(__file__).parent, timeout=s["length"] + s.get("lead", 0) + 120, env=env,
                        capture_output=env is not None)
     except subprocess.TimeoutExpired:
         say(f"{name}: the original HUNG")
@@ -182,7 +189,7 @@ def compare(name, s, window):
         b = masked(Image.open(o), s["masks"])
         best = None
         for f in frames:
-            if abs(int(f.name[:5]) - int(t * 1000)) > window:
+            if abs(int(f.stem) - int(t * 1000)) > window:  # (the ms: 6 digits past 100 s)
                 continue
             n, box = differing(masked(Image.open(f), s["masks"]), b)
             if best is None or n < best[0]:
@@ -224,14 +231,16 @@ def main():
 
     if opts.orig:
         os.environ.setdefault("OTVDM", "D:/tools/otvdm/otvdm-v0.9.0/otvdmw.exe")
-        if opts.orig_jobs > 1:
-            # Side by side (workers.py), each in its own copy of the game folder.
-            for n, k, _ in W.deal(names, opts.orig_jobs, lambda n, k, env: play_orig(n, SCENARIOS[n], env)):
+        # Side by side (workers.py), each in its own copy of the game folder;
+        # the scenarios marked "alone" after, one at a time.
+        alone = [n for n in names if opts.orig_jobs <= 1 or SCENARIOS[n].get("alone")]
+        together = [n for n in names if n not in alone]
+        if together:
+            for n, k, _ in W.deal(together, opts.orig_jobs, lambda n, k, env: play_orig(n, SCENARIOS[n], env)):
                 say(f"{n}: the original (worker {k})")
-        else:
-            for n in names:
-                say(f"{n}: the original")
-                play_orig(n, SCENARIOS[n])
+        for n in alone:
+            say(f"{n}: the original")
+            play_orig(n, SCENARIOS[n])
     exe = edison(OUT)
     fail = False
     verdicts = {}

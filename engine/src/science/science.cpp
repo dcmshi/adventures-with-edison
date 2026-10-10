@@ -324,15 +324,16 @@ void Science::story() {
         std::vector<uint16_t> lines;
         std::vector<int> sounds;
         int waits, wait;  // waits x f32_07aa(wait)
+        int x;            // the captions' left: 88h + -18h (38:07ad), + -20h on pages 2 and 3 (38:0a30, 38:0c8f)
     };
     static const Page kPages[3] = {
-        {0x2007, {0x29F6, 0x2A2B, 0x2A5F}, {0, 1}, 60, 10},
-        {0x2008, {0x2A73, 0x2AA9, 0x2AE0}, {2, 3, 4}, 60, 10},
-        {0x2008, {0x2B05, 0x2B38}, {5, 6, 7}, 600, 1},
+        {0x2007, {0x29F6, 0x2A2B, 0x2A5F}, {0, 1}, 60, 10, 112},
+        {0x2008, {0x2A73, 0x2AA9, 0x2AE0}, {2, 3, 4}, 60, 10, 104},
+        {0x2008, {0x2B05, 0x2B38}, {5, 6, 7}, 600, 1, 104},
     };
-    // Captions from (112, 284), a line every height + 4 (measured on the
+    // Captions from (x, 284), a line every height + 4 (measured on the
     // original: f38_0718 places them by bitmaps 1318 and 1319's sizes).
-    constexpr int kTextX = 112, kTextY = 284;
+    constexpr int kTextY = 284;
     narration(8, true);  // SILENT
     waitNarration();
     bool skip = false;
@@ -354,7 +355,7 @@ void Science::story() {
         else showScreen(page.picture, 2);
         int y = kTextY;
         for (uint16_t line : page.lines) {
-            font_->draw(ctx_.screens[2], kTextX, y, dataString(line), 0x10);
+            font_->draw(ctx_.screens[2], page.x, y, dataString(line), 0x10);
             y += font_->height() + 4;
         }
         toDisplay(2);

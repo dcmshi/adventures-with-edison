@@ -57,8 +57,15 @@ void Science::dialogOpen(Dialog& d) {
     // 1393 for style 1 (DS:1EA4); centred on the point.
     const int pick = static_cast<int>(static_cast<long>(borlandRand()) * 10 / 0x8000);
     uint16_t picture = d.style == 0 ? static_cast<uint16_t>(0x1359 + pick % 5) : 0x1393;
-    // (Testing: SCI_DIALOGPIC=k picks 1359 + k, as the original's rand may have.)
-    if (const char* k = std::getenv("SCI_DIALOGPIC"); k && d.style == 0) picture = static_cast<uint16_t>(0x1359 + std::atoi(k) % 5);
+    // (Testing: SCI_DIALOGPIC=k picks 1359 + k, as the original's rand may
+    // have; "k,l,...": each framed box the next, the last kept.)
+    if (const char* ks = std::getenv("SCI_DIALOGPIC"); ks && d.style == 0) {
+        static int used = 0;
+        const char* k = ks;
+        for (int i = 0; i < used && std::strchr(k, ','); ++i) k = std::strchr(k, ',') + 1;
+        ++used;
+        picture = static_cast<uint16_t>(0x1359 + std::atoi(k) % 5);
+    }
     if (!d.strings.empty() && !d.strings[0].empty()) picture = 0x135E;
     const Bitmap& pic = ctx_.bitmap(picture);
     d.rect = {d.centreX - pic.width / 2, d.centreY - pic.height / 2, pic.width, pic.height};

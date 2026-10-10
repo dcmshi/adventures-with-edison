@@ -84,7 +84,6 @@ private:
     void drawStretched(int x, int y, int w, int h, uint16_t id);                  // f14_148a
     Bubble bubble(int ax, int ay, int width, int tail, const std::string& text);  // g15_0467
     std::string textResource(uint16_t id);
-    bool waitMore();
     void lessonStart(uint16_t picture);             // f15_076a
     int lesson(int n);                              // f38_0fb5 (5-10): the next room
 

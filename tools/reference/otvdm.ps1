@@ -303,6 +303,19 @@ function Refocus {
 function StartGame($exe) {
     if (-not $otvdm) { throw "set OTVDM to winevdm's otvdmw.exe (or put it on the PATH)" }
     if (-not $runDir) { throw "set EDISON_RUN to the folder with the game files" }
+    # Workers start one at a time: two copies of winevdm started together
+    # (a second or two apart) left one of them idle for good, no CPU, its
+    # window black (Wild Science, 2026-10-10); 8 s apart both ran. So a
+    # worker's start holds this lock till its game is running.
+    $lock = $null
+    if ($worker -ge 0) {
+        $lock = [System.Threading.Mutex]::new($false, "Local\EdisonOtvdmStart")
+        try { $lock.WaitOne(180000) | Out-Null } catch [System.Threading.AbandonedMutexException] {}
+    }
+    try { StartLocked $exe } finally { if ($lock) { $lock.ReleaseMutex(); $lock.Dispose() } }
+}
+
+function StartLocked($exe) {
     # A run left over from an interrupted test (or a crash) first: two at
     # once confuse the shots, the input and memwatch.
     if (Game) { Write-Output "a run was left over: $(StopGame)" }
@@ -341,6 +354,14 @@ function StartGame($exe) {
     # run waiting on a dialog never locks the user out.
     Start-Process -FilePath "pwsh" -ArgumentList @("-NoProfile", "-File", $PSCommandPath, "guard") -WindowStyle Hidden
     if ($env:OTVDM_FULLSCREEN -ne "1") { Windowed }
+    if ($worker -ge 0) {
+        # Running: its first two seconds of CPU (Wild Science's ran at a
+        # core from the start, there in about 3 s), or 4 s (Rock and Bach
+        # waits idle: 10 s made its coverage run slower than one at a time).
+        $clock = [Diagnostics.Stopwatch]::StartNew()
+        while ($clock.Elapsed.TotalSeconds -lt 4 -and ((Game).CPU -lt 2)) { Start-Sleep -Milliseconds 200 }
+        Write-Output "worker $($worker): running after $([int]$clock.Elapsed.TotalSeconds) s"
+    }
 }
 
 function RunScript($script, $dir) {

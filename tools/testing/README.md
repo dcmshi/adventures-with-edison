@@ -76,7 +76,10 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
   against the port's nearest frame within 1.5 s, the columns masked, no
   worse than its known count (`build/scratch/scenario/known.json`,
   `--accept` writes it). Both sides start from the original's
-  `WSCIENCE.HS` and `wscience.edi`. Without `--orig` it uses the
+  `WSCIENCE.HS` and `wscience.edi` (a scenario's `files` replace them on
+  both sides). Room 0 starts from the title (the original's
+  `WMAINLAB.EXE`, `wmain_skip.py --intro`; its `lead` delays the
+  original's timeline). Without `--orig` it uses the
   original's shots of the last run (none: it only reports), so it runs in
   `check.py`.
 - `rbcompare.py [NAME...] [--port-only | --compare-only] [--list]`: Rock
@@ -175,13 +178,15 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
   own copy of the game folder (`build/scratch/workers/K`, as `EDISON_RUN`)
   and `OTVDM_WORKER=K`, so `otvdm.ps1` (and `memwatch.py`) take only its
   game, by the process id `start` writes to `otvdm.pid`, and put its
-  window in tile K (five across, two down). For coverage, whose hits
-  don't depend on timing. Not for the references: `scenario.py --orig
-  --orig-jobs 4` (`mmcompare.py`, `rbcompare.py --orig-jobs N` too) had 8
-  of Wild Science's 15 fail against the counts that pass alone, the
-  originals running behind the script's clock with three others (the
-  game over's eighth ball never lost, a lesson's box caught at another
-  moment). Record the references one at a time.
+  window in tile K (five across, two down). Workers start one at a time
+  (`otvdm.ps1`'s lock, held till the game has run 2 s of CPU or 4 s):
+  two copies of winevdm started together left one idle with a black
+  window. `scenario.py --orig --orig-jobs 4` (`mmcompare.py`,
+  `rbcompare.py --orig-jobs N` too): 11 of the first 15 scenarios as
+  alone, and the 10 arcade ones of the scan's checks; the ones marked
+  `alone` (timing: room 21's targets, two lessons' ends, the hot field's
+  puddle; the story and the lab, whose narration another copy took) are
+  recorded one at a time after the rest.
 - `covstack.py GAME SCENARIO`: a coverage hit's stack, from winevdm's
   report, as the game's functions (the direct caller is missing: the
   tripwire runs before the function's prologue pushes bp).
@@ -254,7 +259,8 @@ lab, high scores, credits), for what follows without a measured shot; `SCI_GAMET
 ticks, which the original counts from its start: the targets' and other
 animations' phases) at n, as read from the original (`memwatch.py`
 `t=d:ffe`); `SCI_DIALOGPIC=k` gives the
-framed boxes picture `1359` + k (the original picks one at random); `SCI_RUNNERSIDE=left|right` the side
+framed boxes picture `1359` + k (the original picks one at random; `k,l,...`
+each box in turn, the last kept); `SCI_RUNNERSIDE=left|right` the side
 Edison comes in from to put up a sign (a random pick too); `SCI_AIMSEARCH=to,power,x0,x1,y0,y1,step`
 plays every aim of the grid (screen points, power -1 the room's own) from
 the room as built, without drawing, and logs those whose ball a hole

@@ -8,8 +8,10 @@ game's window with USER.ClipCursor; here it jumps over the call (the
 call's own bytes are patched by the loader, so they're left alone). It's
 for comparisons only: the CD's file is left as it is.
 
-Usage: python tools/reference/wmain_skip.py [RUN DIR]   (default $EDISON_RUN)
+Usage: python tools/reference/wmain_skip.py [--intro] [RUN DIR]   (default $EDISON_RUN)
 then:  tools/reference/otvdm.ps1 start "WMAINSKP.EXE -A"
+--intro: WMAINLAB.EXE instead, the mouse freed but nothing skipped (the
+title, the story, the lab: scenario.py's room 0).
 """
 import os
 import struct
@@ -27,8 +29,11 @@ CLIP_SEG, CLIP_AT, CLIP_WAS, CLIP_NOW = 74, 0x59, bytes.fromhex("168d46f650"), b
 
 
 def main():
-    if len(sys.argv) > 1:
-        run = Path(sys.argv[1])
+    args = sys.argv[1:]
+    intro = "--intro" in args
+    args = [a for a in args if a != "--intro"]
+    if args:
+        run = Path(args[0])
     elif os.environ.get("EDISON_RUN"):
         run = Path(os.environ["EDISON_RUN"])
     else:
@@ -40,12 +45,13 @@ def main():
     (value,) = struct.unpack_from("<H", data, at)
     if value != 1:
         sys.exit(f"WMAIN.EXE: [26CE] is {value}, expected 1 (another version?)")
-    struct.pack_into("<H", data, at, 0)
+    if not intro:
+        struct.pack_into("<H", data, at, 0)
     clip = exe.segments[CLIP_SEG - 1]["offset"] + CLIP_AT
     if data[clip:clip + 5] != CLIP_WAS:
         sys.exit(f"WMAIN.EXE: 74:{CLIP_AT:04X} isn't the ClipCursor call's pushes (another version?)")
     data[clip:clip + 5] = CLIP_NOW
-    out = run / "WMAINSKP.EXE"
+    out = run / ("WMAINLAB.EXE" if intro else "WMAINSKP.EXE")
     tripwire.arm(data, exe, "WMAIN.EXE")
     out.write_bytes(data)
     print(f"wrote {out}")

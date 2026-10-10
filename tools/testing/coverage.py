@@ -191,7 +191,8 @@ def restore():
     os.environ.pop("EDISON_TRIPWIRES", None)
     # (Rock and Bach's and Mystery's runners write their copy for each
     # scenario: written here once more, for whoever starts one by hand.)
-    for script in (["wmain_skip.py"], ["free_mouse.py"], ["winmain_skip.py", "2"], ["mall_skip.py"]):
+    for script in (["wmain_skip.py"], ["wmain_skip.py", "--intro"], ["free_mouse.py"], ["winmain_skip.py", "2"],
+                   ["mall_skip.py"]):
         subprocess.run([sys.executable, str(REFERENCE / script[0]), *script[1:]], check=True, stdout=subprocess.DEVNULL)
 
 

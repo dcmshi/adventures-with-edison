@@ -63,8 +63,10 @@ that's left isn't played, so the pages only wait.
    colour 10 set to `3F3F3F` (then the picture's own palette, green, is
    shown); three caption lines (`f14_191d`, colour 10, from (112, 284), a
    line every font height + 4; font resource `103`). Then WAVs 0 and 1, and a wait of 60 x `f32_07aa(10)`.
-2. Picture `2008` and three lines; WAVs 2, 3 and 4; a wait of 60.
-3. Picture `2008` and two lines, copied to the display; WAVs 5, 6 and 7;
+2. Picture `2008` and three lines, from (104, 284) (88h - 20h, `38:0a30`:
+   page 1's are 88h - 18h); WAVs 2, 3 and 4; a wait of 60.
+3. Picture `2008` and two lines, from (104, 284) (`38:0c8f`), copied to
+   the display; WAVs 5, 6 and 7;
    a wait of 600 x `f32_07aa(1)`.
 4. Screen 1, fill the clip box with colour 2, screen 3's palette to the
    display (`f14_0000(3)` out to a buffer, `f14_003a(1)` in from it: no
@@ -105,8 +107,12 @@ on screen 1, up to 130 countdown ticks or a key or click, then `f20_0094`.
   6 `f15_1524`; 7 `f15_19d4`; 8 `f15_1dbb`; 9 `f15_21a2`; 10 `f15_2591`) on
   the base `f15_076a(this, picture, sound, view)`: FM sound (default 25),
   the look, the display cleared, the picture with the look on screen 2.
-  Pictures: 2003 (lessons 5, 7, 8), 2004 (6), 2006 (9), 2005 (10). MORE is
-  the lesson's rectangle (528, 370, 88, 24). At the end, event 9 to the
+  Pictures: 2003 (lessons 5, 7, 8), 2004 (6), 2006 (9), 2005 (10). MORE (528,
+  370) is only drawn: the lesson's click (`+08`: `f15_1235`, `f15_176b`,
+  `f15_1c1b`, `f15_2002`, `f15_2408`, `f15_282d`, through `g15_0ae4`)
+  offers a press to its children (`f29_068c`: lessons 5-8's professor)
+  and takes any other press as MORE (`+44`), wherever it is (checked
+  against the original: `scenario.py more-outside`). At the end, event 9 to the
   room at `+138` (lesson 5: room 1; 6: 50).
 - The script (lesson 5: `g15_1260`) is a step counter (`+13A`) and a jump
   table (`15:14EE`): each step says a line (`g15_0a1d`: the last bubble

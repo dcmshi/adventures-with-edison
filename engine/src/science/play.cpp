@@ -146,14 +146,20 @@ void Science::aimSearch(const char* spec) {
             if (power >= 0) setSlider(Control::Power, power);
             // (SCI_AIMSEARCH_SWITCHES=i,j,...: those objects of the room's
             // list (switches) turned over first, as clicks would.)
-            if (const char* sw = std::getenv("SCI_AIMSEARCH_SWITCHES"))
+            static bool switchesNamed = false;
+            if (const char* sw = std::getenv("SCI_AIMSEARCH_SWITCHES")) {
                 for (const char* p = sw; *p;) {
                     const size_t i = std::strtoul(p, const_cast<char**>(&p), 10);
-                    if (i < table_.objects.size() && table_.objects[i].type == 7)
+                    if (i < table_.objects.size() && table_.objects[i].type == 7) {
+                        // (Named once, so a search can find the room's switches.)
+                        if (!switchesNamed) logLine("SCI_AIMSEARCH: switch " + std::to_string(i) + " turned");
                         switchTurn(table_.objects[i], table_.objects[i].state ? 0 : 1);
+                    }
                     if (*p == ',') ++p;
                     else break;
                 }
+                switchesNamed = true;
+            }
             for (int k = 0; k < wait; ++k) tickRoom();
             Mouse m;
             m.x = x, m.y = y, m.held = true, m.click = true;
