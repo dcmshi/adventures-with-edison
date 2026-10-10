@@ -205,7 +205,7 @@ bool Mystery::circuitAnalyzer(int level) {
             gizmo = false;
         }
         idleHint(2);
-        if (helpPressed_) help(0x3F09);
+        if (helpPressed_) help(0x3F09);  // f05_02f0
     }
     ctx_.timer.setPeriodic(kSecondSlot, 0, nullptr);
     clearInput();
@@ -307,7 +307,7 @@ bool Mystery::codes(int level) {
     Panels::Panel helpButton;  // f06_2436
     helpButton.x = 0x28, helpButton.y = 0x156, helpButton.w = 0x50, helpButton.h = 0x2A;
     helpButton.buttons = {{0, 0, 0x50, 0x2A}};
-    helpButton.onPress = [&](int k) {
+    helpButton.onPress = [&](int k) {  // g06_0024 ([B75A])
         if (k >= 0) helpWanted = true;
     };
     panels_.add(helpButton);
@@ -742,7 +742,7 @@ bool Mystery::concentration(int level) {
         clock();
         score();
         idleHint(1);
-        if (helpPressed_) {
+        if (helpPressed_) {  // f05_02f0
             music(0x17);
             drawOpaque(0x234, 0xEE, 0x203D);
             help(0x3F00);
@@ -900,7 +900,7 @@ bool Mystery::binaryLights(int level) {
     Panels::Panel lesson;  // f06_2436
     lesson.x = 0x20, lesson.y = 0x9E, lesson.w = 0x44, lesson.h = 0x13;
     lesson.buttons = {{0, 0, 0x44, 0x13}};
-    lesson.onPress = [&](int k) {
+    lesson.onPress = [&](int k) {  // g06_0024 ([B75A])
         if (k >= 0) helpWanted = true;
     };
     panels_.add(lesson);

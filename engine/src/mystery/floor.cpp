@@ -188,7 +188,7 @@ int Mystery::floor() {
         int cx = -1, cy = -1;
         const bool clicked = panels_.poll(ctx_.platform, &cx, &cy);
         ctx_.pump();
-        if (helpPressed_) {
+        if (helpPressed_) {  // f05_02f0
             drawOpaque(0x90, 0x15E, 0x21CB);
             help(0x3F07);
             drawOpaque(0x90, 0x15E, 0x21CA);

@@ -198,7 +198,7 @@ bool Mystery::planetarium(int level) {
     Panels::Panel helpButton;  // f06_2436
     helpButton.x = 0xE, helpButton.y = 0x78, helpButton.w = 100, helpButton.h = 100;
     helpButton.buttons = {{0, 0, 100, 100}};
-    helpButton.onPress = [&](int k) {
+    helpButton.onPress = [&](int k) {  // g06_0024 ([B75A])
         if (k >= 0) helpWanted = true;
     };
     panels_.add(helpButton);

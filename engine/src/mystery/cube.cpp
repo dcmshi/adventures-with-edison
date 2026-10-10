@@ -296,7 +296,7 @@ bool Mystery::foldedCube(int level) {
                 cubeGadget();
             }
             idleHint(3);
-            if (helpPressed_) {
+            if (helpPressed_) {  // f05_02f0
                 select(1);
                 drawOpaque(0xC, 0x22, 0x207F);
                 help(0x3F05);
@@ -307,7 +307,7 @@ bool Mystery::foldedCube(int level) {
         --cubesLeft;
         select(1);
         fill(0x132, 0x168, 0x10, 0x10, 0xB2);
-        text(0x132, 0x168, std::to_string(cubesLeft), 0x9D);
+        text(0x132, 0x168, std::to_string(cubesLeft), 0x9D);  // f05_0000, one digit wide
     }
     allRight = cubesLeft == 0;
     int used = 0;  // [B794]

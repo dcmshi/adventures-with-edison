@@ -307,7 +307,7 @@ bool Mystery::ballSculpture(int level) {
                 cubeGadget();
             }
             idleHint(3);
-            if (helpPressed_) {
+            if (helpPressed_) {  // f05_02f0
                 select(1);
                 drawCentred(0x31, 0x37, 0x207F);
                 help(0x3F04);
@@ -318,7 +318,7 @@ bool Mystery::ballSculpture(int level) {
         --left;
         select(1);
         fill(0x132, 0x168, 0x10, 0x10, 0xB2);
-        text(0x132, 0x168, std::to_string(left), 0x9D);
+        text(0x132, 0x168, std::to_string(left), 0x9D);  // f05_0000, one digit wide
     }
     const bool won = left == 0;
     int used = 0;

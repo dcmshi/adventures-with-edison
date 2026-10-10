@@ -419,7 +419,7 @@ bool Mystery::askQuit() {
     const int answer = yesNo(x + fh, y + fh + fh / 2, 0xA0, 0x1E);
     restoreArea(bubble);
     modal_ = false;
-    helpPressed_ = false;
+    helpPressed_ = false;  // g05_0308
     return answer == 0;
 }
 
@@ -442,7 +442,7 @@ void Mystery::quitPressed() {
     const int answer = yesNo(x + fh, y + fh + fh / 2, 0xA0, 0x1E);
     restoreArea(bubble);
     modal_ = false;
-    helpPressed_ = false;
+    helpPressed_ = false;  // g05_0308
     clearInput();
     if (answer == 0) {
         menu_ = 2;
@@ -778,7 +778,7 @@ int Mystery::play() {
                 idleMap();
             }
             if (wantShow_) smittyShow();
-            if (helpPressed_) {
+            if (helpPressed_) {  // f05_02f0
                 drawOpaque(0x98, 0x8C, 0x22BA);
                 help(0x3F06);
                 drawOpaque(0x98, 0x8C, 0x22B9);

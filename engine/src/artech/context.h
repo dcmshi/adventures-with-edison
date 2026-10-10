@@ -39,7 +39,8 @@ struct GameContext {
     void startTimer();
 
     // One pass of the main loop, where the original pumped Windows
-    // messages: handles input, runs the timer, shows screen 1.
+    // messages (MALL f06_2c70: PeekMessage till the queue is empty,
+    // WM_QUIT exits): handles input, runs the timer, shows screen 1.
     void pump();
     // A pass of a wait that only watches a countdown and takes no messages
     // (MALL f09_0dc4's, f09_10fe's): the timer runs and screen 1 is shown,

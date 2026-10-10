@@ -515,7 +515,7 @@ bool Mystery::pictureLoop(uint16_t helpText) {
         if (pic_.state != 0) {
             drawOpaque(0x25C, 0xBB, 0x205A);
             waitCountdown(4);
-            if (pic_.state == 2) {
+            if (pic_.state == 2) {  // f12_1416
                 puzzleClock();
                 countBonus();
             } else {
@@ -525,7 +525,7 @@ bool Mystery::pictureLoop(uint16_t helpText) {
         }
         if (pic_.gizmo) pictureShow();
         idleHint(0);
-        if (helpPressed_) {
+        if (helpPressed_) {  // f05_02f0
             drawOpaque(0x6C, 0x12, 0x205B);
             help(helpText);
             drawOpaque(0x6C, 0x12, 0x205C);
