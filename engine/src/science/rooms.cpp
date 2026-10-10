@@ -81,6 +81,12 @@ void Science::roomHole(Object& o) {
     // not listed only go on (their method 8 is a thunk to it). Each box is
     // in the middle of the room's window; "say(face, style, text, sound)"
     // is a box with OK.
+    // (The thunks of rooms 51-100: 51 f51_01c2, 52 f51_050b, 53 f51_0771,
+    // 56 f52_0126, 61 f53_011a, 62 f53_0280, 63 f53_03fe, 68 f54_0690, 71
+    // f55_0144, 74 f55_07af, 76 f56_0135, 78 f56_04f1, 79 f56_0652, 80
+    // f56_07b3, 81 f57_011a, 82 f57_027b, 83 f57_03dc, 84 f57_053d, 85
+    // f57_069e, 86 f58_011a, 87 f58_027b, 88 f58_03dc, 89 f58_053d, 90
+    // f58_069e, 99 f60_0983, 100 f60_0b34.)
     int& to = o.args[0];
     auto go = [&] { holeGo(o); };
     auto bonus = [&](long v) { completionBonus_ = v; };
@@ -601,7 +607,9 @@ void Science::roomHole(Object& o) {
         return;
     case 91:  // f59_0251
         if (to == 0xC46) {
-            bonusBalls_ = 1, bonus(2000), completionShare_[2] = 0x20, completionShare_[3] = 0, to = 14;
+            // (f27_0859: the completion's shares from the given shot on.)
+            bonusBalls_ = 1, bonus(2000), completionShare_[2] = 0x20, to = 14;
+            std::fill(completionShare_ + 3, completionShare_ + 6, uint8_t{0});
             go();
             return;
         }
@@ -614,8 +622,11 @@ void Science::roomHole(Object& o) {
         bonus(0);
         go();
         return;
-    case 92:  // f59_07df
-        if (to == 0xC46) bonusBalls_ = 1, bonus(1500), completionShare_[2] = 0x2A, completionShare_[3] = 0, to = 93;
+    case 92:  // f59_07df: shares 2 on 2Ah, 3 on 0 (f27_0859)
+        if (to == 0xC46) {
+            bonusBalls_ = 1, bonus(1500), completionShare_[2] = 0x2A, to = 93;
+            std::fill(completionShare_ + 3, completionShare_ + 6, uint8_t{0});
+        }
         go();
         return;
     case 93:  // f59_0a15
@@ -851,14 +862,16 @@ void Science::roomFaceMet(Ball& b, const Face& f) {
     if (&b != &ball_ || !hasBall_) return;
     if (currentRoom_ == 91 && on(524, 208)) {
         // f59_014a: the goal (as its hole's method 8): a bonus ball, 2000,
-        // the completion's shares (f27_0859: 2 at 20h, 3 at 0) and event 9
-        // to room 14.
-        bonusBalls_ = 1, completionBonus_ = 2000, completionShare_[2] = 0x20, completionShare_[3] = 0;
+        // the completion's shares (f27_0859: 2 at 20h, 3 on at 0) and event
+        // 9 to room 14.
+        bonusBalls_ = 1, completionBonus_ = 2000, completionShare_[2] = 0x20;
+        std::fill(completionShare_ + 3, completionShare_ + 6, uint8_t{0});
         exitNextTick_ = 14;
         return;
     }
     // (f43_0136 and its copies: one point; rooms 37 and 74, f48_0879 and
     // f55_0722, two; f41_1548, room 5: four.)
+    // (Rooms 51, 66 and 92: f51_016b, f54_015c, f59_0788.)
     static const std::vector<std::pair<int, std::vector<std::pair<int, int>>>> kBreaking = {
         {5, {{730, 150}, {354, 0}, {424, 35}, {494, 0}}},
         {11, {{430, 0}}}, {14, {{306, 160}}}, {17, {{715, 625}}}, {33, {{405, 278}}},
