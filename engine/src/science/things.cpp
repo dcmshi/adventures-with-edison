@@ -177,6 +177,7 @@ void Science::thingsBuilt() {
         o.state = 0, o.ticks = 0, o.hiddenSwitch = false;
         o.sprites = o.args[3] == 3 ? 0x15B2 : o.args[3] == 1 || o.args[3] == 2 ? 0x15BA : 0x15AA;
         o.power = o.args[3] == 3 ? -1 : power;
+        // Kind 2 (f04_0835): kind 1's with e its bits (+16), +18 -1.
         o.blinkBits = o.args[3] == 2 ? o.args[4] : 0, o.blinkAt = -1;
         if (o.args[3] == 3) {
             // f04_05b8: the game's score (f06_0000: [BD8]) and the player's
@@ -189,7 +190,8 @@ void Science::thingsBuilt() {
 }
 
 bool Science::thingBox(const Object& o, int box[6]) const {
-    // An object's box (its core's +6E: x, y, z, w, d, h).
+    // An object's box (its core's +6E: x, y, z, w, d, h, set by the
+    // core's constructor f08_0066, which adds its drawable, f27_1518).
     if (o.type == 15 || o.type == 6) {
         for (int k = 0; k < 6; ++k) box[k] = o.coreBox[k];
         return true;
@@ -419,7 +421,7 @@ void Science::thingTick(Object& o) {
         // ([FFE]) its spots grow (f02_1481). Then the player's ball on the
         // ground (+5E) and not breaking (+7C): its foot (its centre less its
         // radius in z) within the field (its sphere, +2; radius 1 each,
-        // f11_1732) and
+        // made by f11_1523, a point and a radius; f11_1732) and
         // within a spot's radius so far, it's heated with 2000 (f07_030e):
         // broken, whatever its type (sound 6028; Ice melting).
         if (o.hotGrowing && roomTicks_ % 6 == 0) hotGrow(o);
@@ -792,7 +794,8 @@ void Science::contactMet(Object& o, Ball& by) {
 
 void Science::fieldAt(const int p[3], const Ball* self, int16_t out[3]) {
     // f26_02e2: each source of the field but `self` (the room's list,
-    // +F98, in the order made), its +20 at the point, summed.
+    // +F98, made with the magnets' room, f26_0000; each part added as it
+    // is made, f26_00c0), its +20 at the point, summed.
     out[0] = out[1] = out[2] = 0;
     auto round = [&](const Ball& s) {
         // f05_0a1b: none unless the source's type is magnetic (its record's

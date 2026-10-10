@@ -1,7 +1,8 @@
 // WMAIN.EXE: the arcade's controls (segment 30): the panel under the table
-// (its sliders, value boxes, the ball type and the shoot button; made from
-// a room's PANEL line by f61_0f76) and the two columns of balls at the
-// sides. See docs/SCIENCE.md.
+// (f30_1268; its sliders, value boxes (f30_2aa7), the ball type and the
+// shoot button (buttons, f30_283c); made from a room's PANEL line by
+// f61_0f76) and the two columns of balls at the sides (f30_0000 left,
+// f30_0860 right). See docs/SCIENCE.md.
 
 #include <algorithm>
 #include <cstdio>
@@ -26,9 +27,9 @@ struct SliderKind {
     uint16_t frame0;    // its frames' first (their size is the rectangle's)
     uint16_t knob;
 };
-constexpr SliderKind kGravity{0x50, 299, -16, 4, 0x1188, 0x117C};
-constexpr SliderKind kFriction{0xC0, 299, 0, 16, 0x1191, 0x117D};
-constexpr SliderKind kPower{0x1A8, 299, 0, 16, 0x119A, 0x117E};
+constexpr SliderKind kGravity{0x50, 299, -16, 4, 0x1188, 0x117C};   // f30_37f1
+constexpr SliderKind kFriction{0xC0, 299, 0, 16, 0x1191, 0x117D};   // f30_3a88
+constexpr SliderKind kPower{0x1A8, 299, 0, 16, 0x119A, 0x117E};     // f30_360f
 
 }  // namespace
 

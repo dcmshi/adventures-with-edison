@@ -33,7 +33,7 @@ bool Science::load(const Options& options, std::string* error) {
         if (error) *error = "WMAIN.EXE: unexpected data segment";
         return false;
     }
-    font_ = &ctx_.font(0x0103);  // f32_0319: resource 103, f32_073e
+    font_ = &ctx_.font(0x0103);  // f32_0319: resource 103, f32_073e (f14_170d)
     return true;
 }
 
@@ -371,6 +371,10 @@ void Science::story() {
         keys();
     }
     ctx_.platform.stopWav();
+    // The display filled with colour 2 (f14_0cc1), and screen 3's palette
+    // put on it (f14_0000(3): out to a buffer, f70_0791; f14_003a(1): the
+    // display's colours from it, f70_0557). Nothing is shown in that
+    // palette: the lab clears the display and shows its picture first.
     select(1);
     clearDisplay();
 }

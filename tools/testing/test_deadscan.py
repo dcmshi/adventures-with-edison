@@ -35,8 +35,12 @@ KNOWN = [
     ("rockbach", "f06_0000", "unreferenced", None),
     # A near call nedis leaves as a number (29:0208 push cs; call 0).
     ("science", "f29_0000", "reached", "f29_01d2"),
-    # Wild Science's vtables: far-pointer relocations in segment 103.
-    ("science", "f39_1135", "table only", None),
+    # Wild Science's vtables: far-pointer relocations in segment 103 (the
+    # blow torch's destructor, DS:01AC).
+    ("science", "f02_1a1a", "table only", None),
+    # ...to the prologue nedis left at the end of the function before:
+    # DS:1272 is 39:1183, g39_1186's, not f39_1135's.
+    ("science", "f39_1135", "unreferenced", None),
     # Borland's new, called from the constructors.
     ("science", "f08_0000", "reached", "f02_00c2"),
 ]

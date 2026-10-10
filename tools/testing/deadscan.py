@@ -105,7 +105,10 @@ def references(key, funcs):
             how = "far call" if "lcall" in code else "jump" if re.search(r"\bj[a-z]+\b", code) else "call" if "call" in code else "named"
             add(find(int(m.group(1)), int(m.group(2), 16)), current, how)
         for m in FAR.finditer(line):
-            add(find(int(m.group(1)), int(m.group(2), 16)), current, "far pointer")
+            # (To a prologue nedis left to the function before, as
+            # 22:0249 for g22_024c: the next function's.)
+            seg, off = int(m.group(1)), int(m.group(2), 16)
+            add(begin.get((seg, off)) or find(seg, off), current, "far pointer")
         # A near call nedis leaves as a number (push cs; call 0: a far call
         # made by hand, Wild Science's 29:0209 to f29_0000).
         m = re.search(r"\b(call|jmp) (0x[0-9a-f]+|[0-9]+)\s*$", code)
@@ -146,7 +149,9 @@ def references(key, funcs):
             if r["kind"] != "internal":
                 continue
             if r["addr_type"] == 3:
-                add(find(*r["target"]), None, f"data s{s['index']}")
+                # (A far pointer to a prologue nedis left at the end of the
+                # function before, as 05:0A18 for g05_0a1b: the next one's.)
+                add(begin.get(tuple(r["target"])) or find(*r["target"]), None, f"data s{s['index']}")
             elif r["addr_type"] == 2 and r["target"][0] in code_segs:
                 # A far pointer as the segment's relocation, its offset the
                 # plain word before it (Mystery's panels' callbacks: 64 in

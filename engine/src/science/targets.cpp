@@ -22,8 +22,8 @@ struct RoomConfig {
     uint8_t targetBonus[6], completionShare[6];
 };
 
-// From each room's builder (segments 41-60): [30C], +F7B, +F8D (FUN_10d0_088b,
-// a value from a shot count on), +F87 (FUN_10d0_0859); the others keep the
+// From each room's builder (segments 41-60): [30C], +F7B, +F8D (f27_088b,
+// a value from a shot count on), +F87 (f27_0859); the others keep the
 // base's (f27_03da: off, 1500, all 128). (tools/testing/roompics.py --config)
 const RoomConfig kRoomConfigs[] = {
     {1, false, 0, {128, 128, 128, 128, 128, 128}, {128, 128, 128, 128, 128, 128}},

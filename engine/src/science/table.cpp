@@ -142,12 +142,12 @@ bool Science::loadTable(int room) {
     // each f27_0ad8 with the room's number: 3 f41_0ce1 f41_0e80, 4 f41_0f3c
     // f41_1076, 5 f41_1132, 6 f42_0000 f42_01a4, 7 f42_021c f42_03c6, 8
     // f42_0463 f42_0558, 9 f42_0641 f42_07e3, 10 f42_09be, 11 f43_0000
-    // f43_00f5, 13 f43_06a1, 14 f43_0a75 f43_0ba9, 15 f43_0d25 f43_0e3e, 16
+    // f43_00f5, 12 f43_022d f43_0386, 13 f43_06a1, 14 f43_0a75 f43_0ba9, 15 f43_0d25 f43_0e3e, 16
     // f44_0000 f44_018d, 17 f44_060c f44_0733, 19 f44_1499 f44_157c, 20
     // f44_15e8 f44_170c, 21 f45_0000 f45_017c, 22 f45_0722 f45_0884, 23
     // f45_0955 f45_0b31, 24 f45_10e4 f45_11d9, 25 f45_1245 f45_133a, 26
     // f46_0000 f46_0149, 27 f46_022a f46_031f, 28 f46_038b f46_04d1, 29
-    // f46_05ab f46_06e5, 30 f46_07a1 f46_091d, 31 f47_011c, 32 f47_01d8
+    // f46_05ab f46_06e5, 30 f46_07a1 f46_091d, 31 f47_0000 f47_011c, 32 f47_01d8
     // f47_0371, 33 f47_044a f47_058e, 34 f47_06db f47_095a, 35 f47_103c, 36
     // f48_0000 f48_01c3, 37 f48_065c, 38 f48_09ad f48_0aea, 39 f48_0c22
     // f48_0d56, 40 f48_0f14, 41 f49_0000 f49_01b2, 42 f49_02da, 43 f49_0620
@@ -216,7 +216,8 @@ bool Science::loadTable(int room) {
     };
     read(nullptr);
 
-    // The objects (f61_011d): OBJn x y type a b c d e f, then PANEL. A
+    // The objects (f61_0000 reads the lines, f61_011d makes each): OBJn x
+    // y type a b c d e f, then PANEL. A
     // switch on the power (type 7, d 0-2) isn't made before there's a power
     // (+F94: types 6, 12 and 13 set it).
     t.objects.clear();
@@ -640,7 +641,8 @@ void Science::listDrawables(std::vector<Drawable>& list, const Rect& redraw) {
             };
             ball.id = &ball_, ball.shown = !b.hidden;
             list.push_back(ball);
-            // The shadow object (f07_12d6; drawn by f13_04ab): 1040 at its
+            // The shadow object (f07_12d6, made by f07_0456 as the ball is;
+            // drawn by f13_04ab): 1040 at its
             // box's centre projected, (x, y, ground + 1).
             const int sx = shadowX_ - b.r, sy = shadowY_ - b.r;
             Drawable shadow{{sx, sy, shadowZ_, s, s, 2}, area(objectRect(sx, sy, shadowZ_, s, s, 2)), 0, 0, {}};
@@ -675,7 +677,9 @@ void Science::drawObjects(const Rect& redraw) {
     // pair compared (f27_1af3 → f27_19d9 → f35_0744) into "drawn after"
     // (+5FD, 48 x 48); then, in the list's order, each with nothing in
     // front of it is drawn after (f27_1d2f) all those behind it, then any
-    // left. Each drawn (f35_04ca) only where it meets the area: an object
+    // left. Each drawn (f35_04ca) only where it meets the area (set by
+    // f35_0046: [297A], [2982] cleared; the room's [2972], f35_0015, is
+    // never read): an object
     // not hidden whose rectangle overlaps it (f11_0a26); a box of the
     // table, cutting what's behind it (f12_220d) so the table shows over
     // it, once an object has been drawn ([2982]) and its rectangle meets
@@ -684,7 +688,8 @@ void Science::drawObjects(const Rect& redraw) {
     listDrawables(list, redraw);
     const size_t n = list.size();
     // The table is made again (f27_1af3) when the drawables aren't the ones
-    // it was made for (+F1D: a core made or gone, f27_1518, f27_160c; a new
+    // it was made for (+F1D: a core made or gone, f27_1518, its drawable
+    // added by f27_18b7, kind 0; f27_160c; a new
     // room); else (f27_1bd9) only a pair with one marked changed since the
     // last draw (its +1AF, f27_16ae: it moved) is compared again: so two
     // that don't mark themselves keep their order till then (room 54's
@@ -755,6 +760,8 @@ std::pair<int, int> Science::unproject(int x, int y, int h) const {
     // (the view's bottom less y, the scroll taken off, less h) * [1F58] *
     // 7FFFh / (the sine * [1F56]); across x less the scroll and the view's
     // left, less depth * the cosine * [1F56] / ([1F58] * 7FFFh), in words.
+    // (Its third word, the ground's height there, f12_453b, the drag
+    // doesn't read.)
     const Table& t = table_;
     const int16_t sx = static_cast<int16_t>(static_cast<int16_t>(x - t.scrollX) - t.view.x);
     const int16_t sy = static_cast<int16_t>(static_cast<int16_t>(t.bottom - static_cast<int16_t>(y - t.scrollY)) - h);
@@ -814,7 +821,8 @@ int Science::faceAt(const Box& box, int x, int y) const {
 
 int Science::heightAt(const Box& box, int x, int y) const {
     // f12_44f9: the face under the point (f12_443b), its height there
-    // (f34_07ec, set up by f34_016a): the top's, or across a slope from the
+    // (f34_07ec; each face made by f34_00f9, set up by f34_016a): the
+    // top's, or across a slope from the
     // top's edge (its own height) to the bottom's (the parent's).
     const int face = faceAt(box, x, y);
     if (face == 0) return 0;
@@ -1118,7 +1126,9 @@ void Science::drawPits(const Box& box) {
 }
 
 void Science::drawTable() {
-    // f27_0ec5, the room's method 0: on screen 3 the view's border in
+    // f27_0ec5, the room's method 0: the room the current camera
+    // (f12_0d2f: [11B4], its view [11B6] and far corner [11BE], the
+    // port's table_.view); on screen 3 the view's border in
     // colour 0 and what stands up, on screen 2 the pits, then 3 over 2
     // (colour 0 showing 2).
     const Rect& v = table_.view;
@@ -1296,7 +1306,9 @@ void Science::queueArea(const Rect& area) {
 void Science::redrawAreas() {
     // f29_0380 (every +120 ticks: every tick, [27E6]): the last area taken
     // off; merged into the nearest before it that it meets, else redrawn
-    // (f29_0494 → the room's method 3); till none are left.
+    // (f29_0494 → the room's method 3; through the game's method 5,
+    // f32_141c, an event 5 with the rectangle for the player's method 4,
+    // f31_27de: here at once); till none are left.
     while (!areas_.empty()) {
         const Rect top = areas_.back();
         areas_.pop_back();

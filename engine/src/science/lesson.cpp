@@ -69,8 +69,9 @@ std::vector<std::string> Science::wrapText(const std::string& text, int width, i
     // the next line) while too wide, or on to the next space (f23_0218,
     // the space kept) while it fits. Each line laid out in turn (f23_05d0,
     // its record f23_0769), measured in the text's font (f23_0000,
-    // f23_001c: f32_073e's), the characters read through the resource's
-    // window (f22_012f, f22_00e7).
+    // f23_001c: f32_073e's; a bubble's, its table DS:17D5, by f23_0035 →
+    // f22_0295: each character's size added up by f22_020a, f14_1742), the
+    // characters read through the resource's window (f22_012f, f22_00e7).
     const int len = static_cast<int>(text.size());
     auto w = [&](int start, int n) { return font_->width(text.substr(static_cast<size_t>(start), static_cast<size_t>(n))); };
     auto back = [&](int start, int n) {
@@ -133,9 +134,11 @@ void Science::drawStretched(int x, int y, int w, int h, uint16_t id) {
 Science::Bubble Science::bubble(int ax, int ay, int width, int tail, const std::string& text) {
     // g15_0467 (entered at 15:0464) / f15_31fa / f15_2a35: the box is `width`
     // wide and as tall as the lines (f15_2ea4: its text, wrapped and laid
-    // out, f23_0068), placed by the tail (0: right of it, 1: centred over
+    // out, f23_0068; the size of DS:17CB's text kept at its +22,
+    // f15_3409 → f14_1742), placed by the tail (0: right of it, 1: centred over
     // it, 2: left of it); filled with colour F, edged with the stretched
-    // pieces (their rectangles f15_2c75), the lines in colour 0 (each by
+    // pieces (their rectangles f15_2c75, by the bitmaps' sizes, f14_0cf8),
+    // the lines in colour 0 (each by
     // the text's f17_0003: f22_0325 → f22_0156 → f22_024c), then the
     // tail; drawn with the lesson (f15_058a). ([8CE4] = 100 is the width
     // used when a step gives none.)
@@ -171,7 +174,9 @@ Science::Bubble Science::bubble(int ax, int ay, int width, int tail, const std::
 
 std::string Science::textResource(uint16_t id) {
     // f22_0000: the resource and its size; f22_0041 reads it 200 bytes at a
-    // time into DS:8D44 (here all of it at once).
+    // time into DS:8D44 (here all of it at once), each 200 with the
+    // player's name for ZZZZZZZZ and the score for YYYYYYY (f15_05af): only
+    // 760E has them, and nothing shows it.
     std::vector<uint8_t> bytes;
     if (!ctx_.read(id, bytes)) return {};
     std::string s(bytes.begin(), bytes.end());
@@ -221,11 +226,14 @@ int Science::lesson(int n) {
     const Step* current = nullptr;
     std::string currentText;
     // A redraw (the lesson's f15_0b77: screen 2 saved and clipped,
-    // f15_071c, entered at 15:0719; then f15_0ba7: the area to the display,
-    // screen 2 restored, f15_0746, entered at 15:0743).
+    // f15_071c, entered at 15:0719, f14_1953; then f15_0ba7: the area to
+    // the display, f14_0c15, screen 2 restored, f15_0746, entered at
+    // 15:0743, f14_19b4).
     auto compose = [&] {
         select(2);
         copyArea(3, 2, 0, 0, Screen::kWidth, Screen::kHeight);
+        // Each animation's draw (f15_0394: the frame's sprite at its x, y,
+        // f14_1179; all lie within the screen).
         for (int i = 0; i < 2; ++i) drawLogo(anims[i].x, anims[i].y, static_cast<uint16_t>(anims[i].sprite + shown[i]));
         if (current) bubble(current->x, current->y, current->width, current->tail, currentText);
         copyArea(2, 1, 0, 0, Screen::kWidth, Screen::kHeight);
@@ -235,7 +243,7 @@ int Science::lesson(int n) {
         // The game's ticks, 50 a second (f32_0777(50)); the lesson's
         // (f15_0acb → f29_05fe: each object's tick, then what changed
         // redrawn: the area's draw, f29_04ca, the objects over it). Each a
-        // step of the generators (the places' f16_007e: only their count).
+        // step of the generators (an animation's tick, f15_01fa) (the places' f16_007e: only their count).
         // A frame changed, its rectangle (f15_015b: the place, the frame's
         // size) is redrawn (f15_0124).
         const uint64_t ticks = (ctx_.platform.milliseconds() - start) / 20;

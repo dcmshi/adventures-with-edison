@@ -66,8 +66,9 @@ that's left isn't played, so the pages only wait.
 2. Picture `2008` and three lines; WAVs 2, 3 and 4; a wait of 60.
 3. Picture `2008` and two lines, copied to the display; WAVs 5, 6 and 7;
    a wait of 600 x `f32_07aa(1)`.
-4. Screen 1, fill the clip box with colour 2, fade (`f14_0000(3)`), palette
-   (`f14_003a(1)`).
+4. Screen 1, fill the clip box with colour 2, screen 3's palette to the
+   display (`f14_0000(3)` out to a buffer, `f14_003a(1)` in from it: no
+   fade).
 
 The title before it (`f32_0319`): FM sound `0D` (`SADLIB`, a song that plays on through the story), picture `2000`
 on screen 1, up to 130 countdown ticks or a key or click, then `f20_0094`.
@@ -1419,7 +1420,8 @@ scanning the code bytes): `seg8:3A98` sets `[1010]` / `[1014]` = 10 / 100
   10, 12, 13, 18, 37, 40, 42, 45, 52-55, 92).
 - **`+24`, a body onto a face** (`f27_2657`, nothing, in the base room):
   the body step (`f08_1a42`) calls it with the body and the face when it
-  lands or rolls onto another face (and the core's `+38`, `f08_1236`).
+  lands or rolls onto another face (the core's `+38`, `f08_1236`, would
+  do the same, but nothing calls it).
   The rooms' (ported: `rooms.cpp`, `roomFaceMet`), "on (x, y)" meaning the
   face's box is the deepest box under that point (`f12_4284`):
   - the player's ball breaks (`+7C`) on (430, 0) in room 11 (`f43_0136`),
@@ -1774,8 +1776,9 @@ through the run time's streams in segment 90). Text, in three parts:
 
    Types 2-6 and 15 are made by `f61_09bd` (which hands the rest to
    `f61_011d`), the magnets' rooms (segment 26's class, `f26_0000`: a
-   list of the field's sources at `+F98`-`+F9E`; `f26_01e6` the field at
-   a point, each source's `+20` summed).
+   list of the field's sources at `+F98`-`+F9E`; `f26_02e2` the field at
+   a point, each source's `+20` but the asker's summed; `f26_01e6`, the
+   same without the exception, is unreached).
 
 3. **`PANEL a b c d e f g h END`** (`f61_0000`): eight numbers for the
    controls under the table (85 different ones over 108 rooms;
@@ -1917,7 +1920,8 @@ in `engine/src/science`):
   shows nowhere. The port keeps the boxes in their tree.
 - **Dragging** (`f08_07c6`, an object's generic press) is the only user
   of `f25_08fc` (a screen point to the table at a height) and `f12_453b`
-  (the height under a point): no room has a draggable object (type 16's
+  (the height under a point, which the drag doesn't read): only the hot
+  field's core is dragged (ported, see "The scan: segments 2-9"; type 16's
   `c` is 0 in rooms 95 and 96; type 0 drags only in room 0, which the
   game never enters).
 - **Never called** (no reference, nor in any class's table): `f12_0e76`,
@@ -1930,7 +1934,7 @@ in `engine/src/science`):
   `f27_08c0` (`+F87` by the shots: `f38_0003` reads it itself),
   `f27_1074` (the angle's sine and cosine again, `f25_07cb`), `f27_2662`
   (the panel's power stepped), `f27_2791` (`+F0F`), `f27_2c89`,
-  `f30_1baf`, `f30_1d4c` (a number drawn in a box), `f27_3322`;
+  `f30_1baf`, `f30_1d4c` (a number drawn in a box);
   `f28_063c` (a hole's `+8` set); `f30_2f80` (a lever's `+48` / `+4A`).
 - **Methods no object of the game uses**: the box part's draw `f13_04a3`
   (nothing) and the hot field's `f13_1868` (`f13_0000`, the outline drawn
@@ -1988,9 +1992,10 @@ What the port leaves out of these segments, and why (the rest is cited in
 - **What the pools number**: the game objects (`f10_0000`: a number from
   `DS:1104`, "MAX_GAME_OBJECTS exceeded" when none is left; `f10_003c`,
   `gameObj`'s destructor, gives it back), the events (`f32_0000`, `DS:2798`)
-  and the room's drawables (`f35_0084` and `f35_0133`, the records' two
-  constructors, `DS:298C`; `f35_0221` the destructor; the first entered at
-  35:0081). The port keeps none: its objects are values and its
+  and the room's drawables (`DS:298C`; the records, 48 of 23 bytes at the
+  room's `+1AD`, made by Borland's vector new with `f35_0133`, entered at
+  35:0130; `f35_0084`, another constructor (entered at 35:0081), is unreached; `f35_0221` the
+  destructor). The port keeps none: its objects are values and its
   events calls. `f32_0000` also shows three numbers (`f32_060e`) when 60
   events are out or one is over 16 bytes: a debugging aid never seen.
   `f35_01f1` gives an object its drawable's index (kind 1, a box's `+0`;
@@ -2033,22 +2038,22 @@ What the port leaves out of these segments, and why (the rest is cited in
   them.
 - **Unreached** (nothing calls them): `f14_05bb`, `f14_063d`, `f14_06bf`,
   `f14_0731` (a polygon's points halved or doubled), `f14_1659` (a text in
-  a box 7 pixels a letter), `f15_0394` (a sprite drawn, `f14_1179`),
+  a box 7 pixels a letter),
   `f15_0409` (an animation from its first frames again), `f15_09e3` (a
   child taken out of an area), `f15_0acb` (an area's tick), `f15_33d3`
   (a text's point, `+22`), `f18_0003` (a rectangle's middle), `f18_0086` (a
   panel's current button, past the disabled ones), `f18_02a8` (a panel replaced in the list),
-  `f19_014a`, `f19_01b3` (records in segment 94), `f22_0295`, `f23_0035`
-  (a text's size, through `f22_020a`), `f23_00e9`, `f23_0143` (two small
+  `f19_014a`, `f19_01b3` (records in segment 94), `f23_00e9`, `f23_0143`
+  (two small
   records, {n, 1} and {1, 1}), `f31_1ad9` (the play area set again), `f32_06a0`,
   `f32_06cc`, `f32_06f8` (a game object added and taken out), `f32_08b3`,
   `f32_0942` (the point at `DS:6EC0` as a box and as a point), `f32_1096` (the
   cycles' first colours), `f33_0142`, `f33_01bc`, `f33_020d`, `f33_0282`
-  (a ball kind's other fractions; a fraction 0/1; `DS:2828`), `f34_0ef4`,
+  (a ball kind's other fractions; a fraction 0/1; `DS:2828`),
   `f36_02bd` (a scan code in 26h-2Dh).
 - **Fixed in the port**: the player's play area and the panel's height kept
-  within the window (`f31_0405`, from `f31_0025`, and again by `f31_1b26`:
-  the port's layout is the original's at 640 x 400), the front panel's pointer (`f31_04ec`), the
+  within the window (`f31_0405`, from `f31_0025`; `f31_1b26`, again,
+  is never called: the port's layout is the original's at 640 x 400), the front panel's pointer (`f31_04ec`), the
   game object's (`f32_0265`, `DS:27B6`), and `f33_00f6` (`[9224]` = 0,
   which nothing reads).
 - **Nothing to do**: `f14_0140` and `f14_0924` (empty: the first stands in
@@ -2123,3 +2128,55 @@ The rest is cited where the port does it (`things.cpp`, `table.cpp`,
   first draw covers it). `f06_000f` gives `[BDE]` (the ball's rolling
   frames, set by `f06_001a`) to `f13_05d4`, which only reads the six
   frames' sizes (`f14_0cf8`) and keeps nothing.
+
+### The audit
+
+The scan's documented functions checked again (`tools/testing/deadscan.py`,
+which now also takes a far pointer to the prologue nedis left at the end
+of the function before, in code or in DGROUP, as the next function's).
+What changed:
+
+- **Cited where the port does the work**: `f03_0014` (all targets hit,
+  rooms 21 and 70's holes), `f04_0835` (switch kind 2), `f07_0456` (the
+  ball's shadow made), `f08_0066` (an object's core), `f11_1523` (a
+  sphere), `f12_0d2f` (the camera), `f12_453b` (the height the drag
+  doesn't read), `f14_0000` / `f14_003a` (a screen's palette out and in:
+  no fade), `f14_0c15`, `f14_0cc1`, `f14_0cf8`, `f14_170d`, `f14_1742`,
+  `f14_1953`, `f14_19b4`, `f15_3409`, `f15_05af`, `f26_0000`, `f26_00c0`
+  (the field's sources), `f27_088b`, `f27_18b7`, `f30_0000`, `f30_0860`,
+  `f30_1268`, `f30_283c`, `f30_2aa7`, `f30_360f`, `f30_37f1`, `f30_3a88`
+  (the panel and columns), `f31_001a` (the player), `f34_00f9`,
+  `f35_0015` / `f35_0046` (the drawables' clip, never read, and area),
+  `f61_0000` (the objects' lines), `f43_022d` and `f47_0000` (rooms 12
+  and 31's builders, missing from the list).
+- **Reached through a table after all** (the notes had them unreached):
+  `f15_01fa` and `f15_0394`, the lesson animations' tick and draw;
+  `f23_0035` → `f22_0295` → `f22_020a`, a bubble's text measured (its
+  table `DS:17D5`, slot 0, from the layout `f23_02a4`); `f32_141c`, the
+  game's method 5 (an event 5 with an area to redraw, from `f29_0494`):
+  all cited. `f27_3322` is an empty constructor for Borland's vector new
+  (the room's `+F3D`, 5 of 8 bytes; an area's `+14`, 32 of 8): nothing
+  to do.
+- **Start-up and exit code** (DGROUP `8750`-`8816`, Borland's tables of
+  static constructors and destructors): `f33_02ab` (the ball kinds,
+  cited), `f34_0ef4` (the stand-in face `DS:2950`, cited), `f11_17e8`;
+  and code nedis left inside other functions: 02:17AC, 05:29FC, 07:1941,
+  08:3A98, 10:017C (the game objects' pool), 12:45EE (the stand-in box
+  `DS:116E`, the view's rectangle 0), 14:19CD (the clip `[1706]`: 0, 0,
+  640, 400), 15:2A2D, 16:0302, 22:036A, 32:149E (the events' pool),
+  35:10E1, 39:1C77, and their exits. The port's statics are made as
+  they're declared.
+- **False references** deadscan counts: `f05_090a` (`0x908`, a vtable's
+  offset, `DS:0908`), `f27_01a5` (`add ax, 0x1a3`), `f41_00bf` (a local
+  `0xBE`): none calls them. `f08_1236` (the core's slot 14, `+38`), the
+  game's methods 3 and 4 (`f32_1242`, `f32_1295`: the player has its own),
+  `gameObj`'s 6-9 (`f10_00d9`, `f10_0100`, `f10_0127`, `f10_0140`: only
+  called on cores, which have their own) and `Obj3d`'s moves (`f09_003d`,
+  `f09_0070`): no call reaches them. `f19_014a`'s pointer is in segment
+  94's own record (`94:0021`).
+- **Prologues the scan took for the function before**: `f16_015e`,
+  `f16_023e`, `f27_13ba`, `f30_1858`, `f30_230e`, `f31_1b26`, `f33_0282`,
+  `f39_1135` have no reference of their own (`f31_1b26` never runs: the
+  play area is kept within the window by `f31_0405` alone); `f02_17cf` is
+  an empty `new` followed by the puddle's, the trail's and the torch's
+  RTTI records and adjustor thunks.
