@@ -3,6 +3,14 @@
 Open items, roughly in the order we plan to do them. See `docs/MYSTERY.md` for
 what is already ported and the original function names.
 
+**The project is complete** (2026-10-10): each game's own code is 100%
+covered, ported or documented (`tools/progress.py`), the coverage run of
+the original found nothing the notes call dead running unexplained
+(`tools/testing/coverage.py`), and the last playthrough of the port
+passed (`check.py`; `mmcompare.py` and `rbcompare.py`: only the
+differences the notes list). What's still open below is further
+checking against the original and tooling, not missing parts.
+
 ## Mystery at the Museums
 
 Everything in the original is ported (setup, the map, all 16 puzzles, the end
@@ -111,3 +119,4 @@ scene objects and an event queue, floating point), so it goes in stages:
 ## Formats and tooling
 
 - [x] Document the formats in `FORMATS.md`: SHELL's scripts (group 03) and animations (group 50), Mystery's unused group 60, `.SRF`, `.HS`, `.VID`.
+- [ ] Run the original's scenarios in parallel (for later scenario runs: Mystery's 88 take an hour and more one at a time). `otvdm.ps1` already posts its input to the game's window (`PostMessage`), so two copies don't share a mouse; what's shared is ours: `Game` / `StopGame` take any `otvdmw.exe` (each run its own process id, memwatch.py's too), every run uses one `EDISON_RUN` folder (the test copies, the tripwires, the save and high-score files: a copy of it per worker), and `Shot` copies the screen under the window, the game kept on top (tile the windows, three 640 x 480 a screen, or `PrintWindow`). First for `coverage.py`, whose hits don't depend on timing; the references (`--orig`) one at a time until runs side by side are shown to match a lone one.

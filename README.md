@@ -4,6 +4,20 @@ A clean-room, native reimplementation of the engine behind *Corel's Adventures w
 
 **This repository contains no original game data.** You need your own copy of the CD: put the ISO in `original/` and its files in `original/cd/` (both ignored by git; see [Getting the game's files](#getting-the-games-files)).
 
+## Status
+
+**Complete** (2026-10-10): all three games, *Mystery at the Museums*,
+*Rock and Bach Studio* and *Wild Science Arcade*, play in the port.
+Every function of each game's own code is ported or documented (the
+notes, `docs/MYSTERY.md`, `ROCKBACH.md`, `SCIENCE.md`, give the reason
+for each the port doesn't need): see [Progress](#progress). Checked
+against the original under winevdm screen for screen
+(`tools/testing/scenario.py`, `mmcompare.py`, `rbcompare.py`: the
+differences left are the original's own timing and stale pixels, listed
+in the notes), and by a coverage run of the original's code
+(`tools/testing/coverage.py`: what the scans call dead doesn't run). What
+could still be compared is in `TODO.md`.
+
 ## Screenshots
 
 Captured from the port (`edison --capture`); the artwork is the original games'.
@@ -29,15 +43,16 @@ Captured from the port (`edison --capture`); the artwork is the original games'.
 
 How much of each game's code the port covers: a box per function of the
 original, sized by its bytes (green ported, cited by the port's source;
-amber documented only; grey not yet), and the share of each game's own
-code ported, commit by commit. The library and run time segments (the
+amber documented only: the notes give the reason the port doesn't need
+it; grey not yet), and the share of each game's own code covered (ported
+or documented) and ported, commit by commit. The library and run time segments (the
 Artech library, Borland's C and C++ run time) are shown apart: the port
 replaces them with its own platform layer. Drawn by `tools/progress.py`
 (after `tools/nedis.py`).
 
 ![The port's coverage of the original code](progress/PROGRESS.png)
 
-![The code ported, commit by commit](progress/PROGRESS_CHART.png)
+![The code covered, commit by commit](progress/PROGRESS_CHART.png)
 
 ## Games on the disc
 

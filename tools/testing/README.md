@@ -140,7 +140,8 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
 - `deadscan.py [mystery|rockbach|science ...] [--list CLASS ...]`: every
   game's functions the port doesn't cite, by what refers to them (calls,
   far and near pointers in code, the data segments' far pointers, the
-  exports): unreferenced, a dead chain (only dead code refers to it),
+  exports, Borland's start-up and exit tables): unreferenced, a dead
+  chain (only dead code refers to it),
   table only (a vtable or callback table), or reached from cited code.
   The reached ones each need their reason in the notes; near pointers are
   any matching immediate, so it errs towards "reached". A far pointer's
@@ -156,6 +157,20 @@ outputs go to `build/scratch/` (ignored). They read the game's files from
   -readOnly -scriptPath tools/ghidra -postScript ExportRefs.java
   extracted/ghidra/NAME.refs.txt` for mall, winmain and wmain. In
   `check.py smoke` when the lists are there.
+- `coverage.py GAME [SCENARIO ...] [--iterate] [--also F ...]`: the
+  dynamic side of deadscan.py: the original plays the game's comparison
+  scenarios (scenario.py's, mmcompare.py's, rbcompare.py's) with a
+  tripwire (`lcall 0000:0000`, `tools/reference/tripwire.py`) at the
+  start of each function deadscan finds dead, and winevdm's report
+  (`OTVDM_LOG`) names any that ran; `--iterate` disarms it and plays the
+  scenario again. Its shots go to `build/scratch/coverage/GAME/runs`, never
+  the comparisons' references. A hit on "table only" (a destructor, a
+  method) says the class is live; on "unreferenced" or "dead chain", the
+  scan missed a way in (its first run found Borland's start-up tables).
+  The test copies are written again unarmed at the end.
+- `covstack.py GAME SCENARIO`: a coverage hit's stack, from winevdm's
+  report, as the game's functions (the direct caller is missing: the
+  tripwire runs before the function's prologue pushes bp).
 - `mmmaze.py [--port-only | --compare-only]`: the bonus maze's wanderers
   pass by pass (its loop is unpaced in the original, so its shots can't
   be matched in time): `allfound` in the port at a pass a millisecond

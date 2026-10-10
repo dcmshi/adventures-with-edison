@@ -43,6 +43,13 @@ KNOWN = [
     ("science", "f39_1135", "unreferenced", None),
     # Borland's new, called from the constructors.
     ("science", "f08_0000", "reached", "f02_00c2"),
+    # Borland's start-up table (DS:874E-87C0): its routines are roots, and
+    # what they make runs (the coverage run caught f39_0b43, the pools,
+    # while nedis had left 10:017C as bytes and this had it unreferenced).
+    ("science", "f10_017c", "reached", None),
+    ("science", "f39_0b43", "reached", "f10_017c"),
+    # ...an entry at a far function's prologue (11:17E5) is the function's.
+    ("science", "f11_17e8", "reached", None),
 ]
 
 

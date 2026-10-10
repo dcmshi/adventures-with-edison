@@ -241,3 +241,8 @@ text, `f28_05f8` saveArea, `f28_06d0` restoreArea: MALL's segment 6).
     (`f36_104a`) wrappers; `f31_00de`, `f31_0102` (`_llseek`), `f31_018a`
     (`tell`, `f36_0b7c`).
   - `f02_04b2`, `f02_05e6`: the `DIRECTDRUMOUT` and `PLAYINS` wrappers.
+
+**The coverage run** (`tools/testing/coverage.py rockbach`, 2026-10-10):
+the original played rbcompare.py's 7 scenarios with a tripwire at each
+of the 47 functions above deadscan finds dead; none ran (a live one
+armed, `f01_0000`, was caught: the check that a hit is seen).

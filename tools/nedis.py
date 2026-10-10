@@ -26,7 +26,7 @@ from pathlib import Path
 
 from capstone import CS_ARCH_X86, CS_MODE_16, Cs
 
-from ne import NEFile
+from ne import NEFile, startup_entries
 
 ROOT = Path(__file__).resolve().parent.parent
 CACHE = ROOT / "extracted" / "cache"
@@ -124,7 +124,25 @@ class Program:
         self.labels = {i: {} for i in self.code}
         self.funcs = set()
         self._walk([self.entry, *self.exports, *self.far_targets])
-        while True:  # then functions found by prologue in the gaps, until none are left
+        self._gaps()
+        # Then Borland's start-up and exit tables' routines, whose first
+        # bytes (mov ax, ss; nop; push ds; mov ds, ax) no prologue matches:
+        # they were left as bytes, and what they call looked unreached. Last,
+        # so that the functions they call at their prologue (32:01CA,
+        # f32_01cd's) keep the names the scan gave them: an entry or a call
+        # 1-3 bytes before a function is that function's.
+        inits = [(seg, off) for seg, off in startup_entries(self.ne, self.dgroup)
+                 if seg in self.code and self._owner(seg, off) is None]
+        if inits:
+            self._walk(inits, late=True)
+            self._gaps()
+
+    def _owner(self, seg, off):
+        """The function off is the start or the prologue of, or None."""
+        return next(((seg, off + k) for k in range(4) if (seg, off + k) in self.funcs), None)
+
+    def _gaps(self):
+        while True:  # functions found by prologue in the gaps, until none are left
             found = []
             for seg, code in self.code.items():
                 covered = set()
@@ -138,7 +156,7 @@ class Program:
                 break
             self._walk(found, guessed=True)
 
-    def _walk(self, todo, guessed=False):
+    def _walk(self, todo, guessed=False, late=False):
         md = Cs(CS_ARCH_X86, CS_MODE_16)
         for seg, off in todo:
             if seg in self.code:
@@ -161,7 +179,9 @@ class Program:
                 is_branch = i.mnemonic.startswith("j") or i.mnemonic in ("call", "loop", "loope", "loopne")
                 if is_branch and re.fullmatch(r"0x[0-9a-f]+", ops):
                     t = int(ops, 16)
-                    if i.mnemonic == "call":
+                    if i.mnemonic == "call" and late and self._owner(seg, t):
+                        pass  # (its function's prologue: no label of its own)
+                    elif i.mnemonic == "call":
                         self.funcs.add((seg, t))
                         labels.setdefault(t, f"f{seg:02d}_{t:04x}")
                     else:
@@ -172,7 +192,11 @@ class Program:
                     # segment filled in by a selector fixup
                     tseg = self.seg_fixups[seg][pc + 3]
                     (toff,) = struct.unpack_from("<H", i.bytes, 1)
-                    if tseg in self.code:
+                    owner = late and tseg in self.code and self._owner(tseg, toff)
+                    if owner:
+                        self.fixups[seg][pc + 3] = self.labels[tseg][owner[1]]
+                        todo.append((tseg, toff))
+                    elif tseg in self.code:
                         self.funcs.add((tseg, toff))
                         self.labels[tseg].setdefault(toff, f"f{tseg:02d}_{toff:04x}")
                         self.fixups[seg][pc + 3] = self.labels[tseg][toff]

@@ -139,6 +139,25 @@ class NEFile:
         raise KeyError(name)
 
 
+def startup_entries(ne, dgroup):
+    """Borland's start-up and exit tables (static constructors and
+    destructors, #pragma startup / exit) in the auto data segment: runs of
+    6-byte records, a type (01: far), a priority and a far pointer, which
+    c0w's start-up and exit walk. [(segment, offset)]; Wild Science's at
+    DS:874E-87C0 and DS:87C6-880E, Mystery and Rock and Bach have none."""
+    if not dgroup:
+        return []
+    data = ne.segment_bytes(dgroup)
+    sites = {}
+    for r in ne.relocations(dgroup):
+        if r["kind"] == "internal" and r["addr_type"] == 3:
+            for site in r["sites"]:
+                if site >= 2 and data[site - 2] == 0x01:
+                    sites[site] = tuple(r["target"])
+    # (A run of two at least: a far pointer alone after a 01 is a vtable's.)
+    return [t for s, t in sorted(sites.items()) if s - 6 in sites or s + 6 in sites]
+
+
 def main():
     for path in sys.argv[1:]:
         ne = NEFile(path)

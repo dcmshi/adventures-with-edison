@@ -4,7 +4,8 @@ pictures (after PascalPixel/alchemy's):
   progress/PROGRESS.png        each game's code as a treemap: a box per
                                segment, one per function, sized by its
                                bytes, coloured by what the port has of it
-  progress/PROGRESS_CHART.png  the share ported, commit by commit
+  progress/PROGRESS_CHART.png  the share covered (ported or documented)
+                               and ported, commit by commit
 
 A function is "ported" when the port's source for its game cites it (by
 name, f30_306a / g30_3527, or by an address inside it, 30:3527),
@@ -181,9 +182,10 @@ def worktree_lines():
     return pairs
 
 
-def git_lines(rev):
-    """(path, line) for the cited lines of the port's source at a commit."""
-    paths = [SHARED] + [g[3] for g in GAMES]
+def git_lines(rev, paths=None):
+    """(path, line) for the cited lines of the port's source (or of the
+    paths given) at a commit."""
+    paths = paths or [SHARED] + [g[3] for g in GAMES]
     r = subprocess.run(["git", "grep", "-E", r"[fg][0-9]{2}_[0-9a-f]{4}|[0-9]{2}:[0-9a-f]{4}", rev, "--", *paths],
                        cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace")
     pairs = []
@@ -288,8 +290,8 @@ def treemap(games, path):
         total, by = share(g["funcs"], g["status"], own)
         ltotal, lby = share(g["funcs"], g["status"], lib)
         box(d, (16, y, W - 32, gh), HEAD)
-        label = (f"{g['title']} ({g['exe']}): its code {100 * by['ported'] / total:.1f}% ported, "
-                 f"{100 * by['documented'] / total:.1f}% documented ({total:,} bytes); "
+        label = (f"{g['title']} ({g['exe']}): its code {100 * (by['ported'] + by['documented']) / total:.1f}% "
+                 f"covered, {100 * by['ported'] / total:.1f}% ported ({total:,} bytes); "
                  f"library and run time {100 * lby['ported'] / ltotal:.1f}% ported, "
                  f"{100 * lby['documented'] / ltotal:.1f}% documented")
         d.text((26, y + 6), label, font=small, fill=TEXT)
@@ -319,20 +321,24 @@ def treemap(games, path):
 # --- the chart ------------------------------------------------------------------------
 
 def history(games, finders):
-    """[(date, {game: ported share})] for each commit, oldest first."""
+    """[(date, {game: (covered share, ported share)})] for each commit,
+    oldest first; covered is ported or documented."""
     revs = subprocess.run(["git", "log", "--reverse", "--format=%H %ct", "HEAD"], cwd=ROOT,
                           capture_output=True, text=True).stdout.split("\n")
+    notes = {g[0]: g[4] for g in GAMES}
     out = []
     for row in filter(None, revs):
         rev, t = row.split()
         lines = source_lines(git_lines(rev))
         point = {}
         for g in games:
-            ported = cited(lines[g["key"]], finders[g["key"]])
+            find = finders[g["key"]]
+            ported = cited(lines[g["key"]], find)
+            covered = ported | cited([l for _, l in git_lines(rev, [notes[g["key"]]])], find)
             own, _ = parts(g)
             total = sum(s for seg in own for _, s, _ in g["funcs"][seg])
-            done = sum(s for seg in own for _, s, n in g["funcs"][seg] if n in ported)
-            point[g["key"]] = 100 * done / total
+            point[g["key"]] = tuple(100 * sum(s for seg in own for _, s, n in g["funcs"][seg] if n in which) / total
+                                    for which in (covered, ported))
         out.append((datetime.datetime.fromtimestamp(int(t)), point))
     return out
 
@@ -342,7 +348,7 @@ def chart(games, points, path):
     img = Image.new("RGB", (W, H), BACK)
     d = ImageDraw.Draw(img)
     title, small = font(30), font(18)
-    d.text((24, 18), "Adventures with Edison: each game's own code ported, commit by commit", font=title, fill=TEXT)
+    d.text((24, 18), "Adventures with Edison: each game's own code covered, commit by commit", font=title, fill=TEXT)
     left, right, top, bottom = 90, W - 150, 80, H - 110
     d.rectangle([left, top, right, bottom], fill=HEAD)
     for pct in range(0, 101, 25):
@@ -362,26 +368,29 @@ def chart(games, points, path):
         day += datetime.timedelta(days=1)
     ends = []
     for g in games:
-        xy, last = [], None
-        for t, p in points:
-            y = bottom - (bottom - top) * p[g["key"]] / 100
-            if last is not None:
-                xy.append((px(t), last))  # steps: level till the next commit
-            xy.append((px(t), y))
-            last = y
-        d.line(xy, fill=g["colour"], width=3)
+        # Covered (ported or documented) thick, ported thin.
+        for k, width in ((1, 1), (0, 3)):
+            xy, last = [], None
+            for t, p in points:
+                y = bottom - (bottom - top) * p[g["key"]][k] / 100
+                if last is not None:
+                    xy.append((px(t), last))  # steps: level till the next commit
+                xy.append((px(t), y))
+                last = y
+            d.line(xy, fill=g["colour"], width=width)
         ends.append([last, g])
     # The last values beside the lines' ends, kept 22 pixels apart.
     ends.sort(key=lambda e: e[0])
     for i in range(1, len(ends)):
         ends[i][0] = max(ends[i][0], ends[i - 1][0] + 22)
     for y, g in ends:
-        d.text((right + 10, y), f"{points[-1][1][g['key']]:.1f}%", font=small, fill=g["colour"], anchor="lm")
+        d.text((right + 10, y), f"{points[-1][1][g['key']][0]:.1f}%", font=small, fill=g["colour"], anchor="lm")
     x = left
     for g in games:
         d.rectangle([x, H - 50, x + 18, H - 32], fill=g["colour"])
         d.text((x + 26, H - 52), g["title"], font=small, fill=TEXT)
         x += 70 + d.textlength(g["title"], font=small)
+    d.text((right, H - 52), "thick: ported or documented; thin: ported", font=small, fill=DIM, anchor="ra")
     img.save(path, optimize=True)
 
 
@@ -405,7 +414,8 @@ def main():
         total, by = share(funcs, status, own)
         ltotal, lby = share(funcs, status, lib)
         count = sum(len(fs) for fs in funcs.values())
-        print(f"{title}: {count} functions; its code {total:,} bytes, {100 * by['ported'] / total:.1f}% ported, "
+        print(f"{title}: {count} functions; its code {total:,} bytes, "
+              f"{100 * (by['ported'] + by['documented']) / total:.1f}% covered, {100 * by['ported'] / total:.1f}% ported, "
               f"{100 * by['documented'] / total:.1f}% documented only; library and run time {ltotal:,} bytes, "
               f"{100 * lby['ported'] / ltotal:.1f}% ported, {100 * lby['documented'] / ltotal:.1f}% documented only")
     treemap(games, OUT / "PROGRESS.png")

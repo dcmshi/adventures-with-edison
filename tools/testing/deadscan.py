@@ -15,7 +15,9 @@ executable's relocations:
     data segments have none);
   - an immediate equal to its offset in the same segment (a near pointer:
     taken whether or not it is one, so this side errs towards "referenced");
-  - an export of the executable (the entry table).
+  - an export of the executable (the entry table);
+  - an entry of Borland's start-up and exit tables (static constructors
+    and destructors: Wild Science's only).
 
 The classes (a function in the first that applies):
   unreferenced  nothing refers to it: dead (data nedis took for code,
@@ -27,7 +29,8 @@ The classes (a function in the first that applies):
   reached       called or pointed to from cited code or a root: each needs
                 its reason in the notes (replaced by the platform layer,
                 no effect, ...)
-Roots: the cited functions, the exports. A function the notes document is
+Roots: the cited functions, the exports, the start-up and exit tables'
+routines. A function the notes document is
 marked "documented" in the list; one neither cited nor documented,
 "UNCITED".
 
@@ -43,7 +46,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import progress as P  # noqa: E402
-from ne import NEFile  # noqa: E402
+from ne import NEFile, startup_entries  # noqa: E402
 
 EXE_DIR = P.ROOT / "original" / "cd" / "DSK3"
 LABEL = re.compile(r"([fg])([0-9]{2})_([0-9a-f]{4}):$")
@@ -163,6 +166,12 @@ def references(key, funcs):
                         add(begin.get((seg, off)) or find(seg, off), None, f"data s{s['index']}")
     for seg, off in ne.entries.values():
         add(find(seg, off), None, "export")
+    # Borland's start-up and exit tables: their routines run (the coverage
+    # run caught f39_0b43 and f02_17cf, called from them, running while
+    # this had them unreferenced).
+    dgroup = int.from_bytes(ne.data[ne.ne + 0x0E:ne.ne + 0x10], "little")
+    for seg, off in startup_entries(ne, dgroup):
+        add(begin.get((seg, off)) or find(seg, off), None, "start-up")
     return refs
 
 
@@ -180,7 +189,7 @@ def classify(key):
             if r:
                 calls[r].add(t)
     # Reached: from the cited functions and the exports, through code.
-    roots = set(ported) | {t for t, rs in refs.items() if any(h == "export" for _, h in rs)}
+    roots = set(ported) | {t for t, rs in refs.items() if any(h in ("export", "start-up") for _, h in rs)}
     reached, stack = set(), list(roots)
     while stack:
         f = stack.pop()

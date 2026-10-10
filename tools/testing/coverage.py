@@ -94,7 +94,21 @@ def write_list(folder, exe, armed):
     (folder / f"{exe}.txt").write_text("".join(f"{s:02d}:{o:04X} {n}\n" for s, o, n in armed), encoding="utf-8")
 
 
-def hit(log, armed):
+def module(exe):
+    """The executable's module name, as winevdm's report lists it (the
+    resident names' first: Rock and Bach's WINMAIN.EXE is MAIN)."""
+    ne = NEFile(str(D.EXE_DIR / exe))
+    pos = ne.ne + int.from_bytes(ne.data[ne.ne + 0x26:ne.ne + 0x28], "little")
+    return ne.data[pos + 1:pos + 1 + ne.data[pos]].decode("latin-1")
+
+
+def base(text, exe):
+    """Segment 1's selector in the report: the module's handle + 60h."""
+    m = re.search(rf"^\s*([0-9a-f]{{4}})\s+[0-9a-f]{{4}}\s+{re.escape(module(exe))}\s", text, re.M)
+    return int(m.group(1), 16) + 0x60 if m else None
+
+
+def hit(log, armed, exe):
     """The armed function the report names, or None (no fault), or "?" (a
     fault at nothing armed)."""
     # (winevdm writes its report to its standard error: OTVDM_LOG.err.)
@@ -102,13 +116,12 @@ def hit(log, armed):
                    for p in (log, Path(f"{log}.err")) if p.exists())
     if "cs:ip=" not in text:
         return None
-    m = re.search(r"^\s*([0-9a-f]{4})\s+[0-9a-f]{4}\s+(WMAIN|MALL|WINMAIN)\b", text, re.M)
-    base = int(m.group(1), 16) + 0x60 if m else None
+    first = base(text, exe)
     by_place = {(s, o): n for s, o, n in armed}
     for sel, off in re.findall(r"cs:ip=([0-9a-f]{4}):([0-9a-f]{4})[^\n]*\(call 0000:0000\)", text):
         sel, off = int(sel, 16), int(off, 16) - TRAP
-        if base is not None and (sel - base) % 8 == 0:
-            name = by_place.get(((sel - base) // 8 + 1, off))
+        if first is not None and (sel - first) % 8 == 0:
+            name = by_place.get(((sel - first) // 8 + 1, off))
             if name:
                 return name
         # The base not found: the offset alone, if only one has it.
@@ -119,15 +132,21 @@ def hit(log, armed):
 
 
 def play(game, name, s, log):
-    """Plays one scenario in the original with OTVDM_LOG set."""
+    """Plays one scenario in the original with OTVDM_LOG set, its shots in
+    coverage's own folder: the runner's play_orig empties NAME/orig under
+    its OUT first, and there they are the comparisons' references (the
+    first coverage run lost six of Wild Science's)."""
     os.environ["OTVDM_LOG"] = str(log)
+    module = __import__(GAMES[game][1])
+    kept = module.OUT
+    module.OUT = OUT / game / "runs"
     try:
-        module = __import__(GAMES[game][1])
         if game == "science":
             # origrun.py starts WMAINSKP.EXE as it is: armed here.
             subprocess.run([sys.executable, str(REFERENCE / "wmain_skip.py")], check=True, stdout=subprocess.DEVNULL)
         module.play_orig(name, s)
     finally:
+        module.OUT = kept
         os.environ.pop("OTVDM_LOG", None)
         # A run that faulted can outlive otvdm.ps1's stop (winevdm still
         # holding the copy open, which then can't be written again).
@@ -144,8 +163,10 @@ def scenarios(game):
 def restore():
     """The test copies written again without tripwires."""
     os.environ.pop("EDISON_TRIPWIRES", None)
-    for script in ("wmain_skip.py", "free_mouse.py"):
-        subprocess.run([sys.executable, str(REFERENCE / script)], check=True, stdout=subprocess.DEVNULL)
+    # (Rock and Bach's and Mystery's runners write their copy for each
+    # scenario: written here once more, for whoever starts one by hand.)
+    for script in (["wmain_skip.py"], ["free_mouse.py"], ["winmain_skip.py", "2"], ["mall_skip.py"]):
+        subprocess.run([sys.executable, str(REFERENCE / script[0]), *script[1:]], check=True, stdout=subprocess.DEVNULL)
 
 
 def main():
@@ -182,7 +203,7 @@ def main():
                 log.unlink(missing_ok=True)
                 Path(f"{log}.err").unlink(missing_ok=True)
                 play(opts.game, name, every[name], log)
-                h = hit(log, armed)
+                h = hit(log, armed, exe)
                 if h is None:
                     say(f"{name}: clean")
                     break

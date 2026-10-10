@@ -83,6 +83,12 @@ def lesson(n):
     # (The end is the next table: its columns masked, as everywhere.)
     s = {"room": 61, "events": events, "shots": shots, "length": t + 3,
          "dense": [n for _, n in shots if n in ("egg", "end")]}
+    if n <= 8:
+        # The professor's mouth in the classroom: after each closed mouth
+        # the next is one of two by rand() (dialog.cpp, f24's), and the
+        # original's rand calls change from run to run (lesson 7's s3 a
+        # laugh in two runs, the grin in the reference before).
+        s["masks"] = COLUMNS + [(522, 158, 562, 188)]
     if n == 9:
         # Room 50's greeting box: its picture is one of five by rand()
         # (f24_193e), whose calls in the original change from run to run
@@ -147,7 +153,10 @@ SCENARIOS = {
     # original may still show the black display it builds the lab on: left
     # out.)
     "hole-lab": {**hole((280, 156)), "shots": [x for x in every(2.5, 12, 0.5) if x[1] != "t045"]},
-    "hole-play": hole((260, 148)),
+    # (At 3.5 s the original may still be building the next room on a black
+    # display, as in hole-level1: left out.)
+    "hole-play": {**hole((260, 148)), "shots": [x for x in every(2.5, 12, 0.5) if x[1] != "t035"],
+                  "dense": ["t025", "t030"]},
     # Room 21's targets step by [FFE] (room ticks from the program's start)
     # and their creation numbers: the original's [FFE] at room 21 changes
     # by a few ticks from run to run (874, 876, 878-881 in three), so the

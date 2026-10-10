@@ -1937,8 +1937,9 @@ in `engine/src/science`):
   `f30_1baf`, `f30_1d4c` (a number drawn in a box);
   `f28_063c` (a hole's `+8` set); `f30_2f80` (a lever's `+48` / `+4A`).
 - **Methods no object of the game uses**: the box part's draw `f13_04a3`
-  (nothing) and the hot field's `f13_1868` (`f13_0000`, the outline drawn
-  only with `[12E6]`, for debugging); a hole's velocity set `f28_0ccd`
+  (nothing); the hot field's draw `f13_1868` runs (the painter's order,
+  `f27_1d2f`: room 32 in the coverage run) but draws its outline
+  (`f13_0000`) only with `[12E6]` set, for debugging: nothing; a hole's velocity set `f28_0ccd`
   (nothing: it doesn't move); the base area's before-draw `f29_05d4`
   (screen 2, the clip: every area of the game has its own draw or its
   own) and key `f29_0809`; the base lever's draw `f30_3406` (each kind
@@ -1952,7 +1953,10 @@ in `engine/src/science`):
   the arrows (scan codes 48h up, 50h down) or sends it to its ends (49h
   PgUp, 51h PgDn). But the player (`f31_1d70`) gives keys to the room
   whenever there is one (`+AE`), and only without one to the panel
-  (`+A4`): in play, never.
+  (`+A4`): in play, never. `f30_32a9` does run on a press, as `f30_1879`
+  gives it the mouse event (the coverage run: lesson 6's drag of POWER):
+  its byte 2 is the high byte of the pointer's first word (0-2), no
+  arrow, so it sets the value the slider has (`f30_3339`): nothing.
 - **The scorer** (`f30_21e8`, `f30_22c4`, `f30_230e`, `f30_23a9`): a
   control showing the score on the panel, kept at `[0BDC]`; nothing makes
   one (the score is the room's box at `+F35`).
@@ -1972,13 +1976,13 @@ What the port leaves out of these segments, and why (the rest is cited in
 - **Segment 39** is a small library of the game's own: a fraction
   (`f39_0003`, from "a.b" text, unreached; `f39_010d` halves both parts
   while either is past 7FFFh: cited in `play.cpp`), the error object
-  (`f39_01e8`, unreached; `f39_01b1` the library's "Artech graphics
+  (`f39_01e8`, made at start-up by `f39_1c77`; `f39_01b1` the library's "Artech graphics
   library error occurred" and `f39_023f` `error_obj::Err_Message`, a
   `MessageBox`), a bit set (`f39_02fb` built, `f39_0383` copied,
   `f39_0427` freed, `f39_045a` grown to hold a bit, `f39_0629` filled,
   `f39_067b` compared), a bit matrix of them (`f39_07a5`, `f39_0878`,
   `f39_094b`, `f39_0a17`, `f39_0ae5`, `f39_0261` its destructor: all
-  unreached), a pool of numbers on a bit set (`f39_0b43` built, unreached;
+  unreached), a pool of numbers on a bit set (`f39_0b43` built, at start-up;
   `f39_0b9d` the first free number, `f39_0d0f` given back), the quicksort's
   sorter (`f39_0e3c` its destructor, `f39_0ec3` the count, `f39_0f42` and
   `f39_1135` unreached), a list of pointers (`f39_13e1` built, `f39_1466`
@@ -2043,9 +2047,10 @@ What the port leaves out of these segments, and why (the rest is cited in
   child taken out of an area), `f15_0acb` (an area's tick), `f15_33d3`
   (a text's point, `+22`), `f18_0003` (a rectangle's middle), `f18_0086` (a
   panel's current button, past the disabled ones), `f18_02a8` (a panel replaced in the list),
-  `f19_014a`, `f19_01b3` (records in segment 94), `f23_00e9`, `f23_0143`
-  (two small
-  records, {n, 1} and {1, 1}), `f31_1ad9` (the play area set again), `f32_06a0`,
+  `f19_014a`, `f19_01b3` (records in segment 94), `f23_0143` (a small record,
+  {1, 1}; `f23_00e9`, its {n, 1}, does run: a table's, under the bubble's
+  text, `f15_31fa`, the coverage run's lesson 6; the port's text needs no
+  record), `f31_1ad9` (the play area set again), `f32_06a0`,
   `f32_06cc`, `f32_06f8` (a game object added and taken out), `f32_08b3`,
   `f32_0942` (the point at `DS:6EC0` as a box and as a point), `f32_1096` (the
   cycles' first colours), `f33_0142`, `f33_01bc`, `f33_020d`, `f33_0282`
@@ -2113,10 +2118,13 @@ The rest is cited where the port does it (`things.cpp`, `table.cpp`,
   key method `f27_31fb` gives objects none): `f02_0e40`, `f03_085b`,
   `f05_08fd`, `f05_1550`, `f05_1f9b`, `f05_26ed`, `f06_0769` (→
   `f06_02fe`), `f07_15b0`. The hot field's `+2C` (`f02_161f`): its mass is
-  0, so no body meets it. `f05_014b` (5), the magnet pole's own kind, which
-  each class's replaces before anything asks.
-- **Unreached** (no caller, no table): `f02_17cf` (an allocation);
-  `f05_1572` with its prologue `05:156f`, `f05_1fa8` and `f05_1ce4`: box
+  0, so no body meets it. `f05_014b` (5), the magnet pole's own kind,
+  asked once, while the pole's constructor (`f05_0003`) tells the room of
+  its change (`f05_0155` → `f08_07aa` → `f27_16ae`: the coverage run,
+  hole-play's room 31 building its magnetic ball): `f27_16ae` takes kinds
+  6 and 8 apart, and 5 marks the rectangle changed as any other, in a
+  room being built and drawn whole: nothing.
+- **Unreached** (no caller, no table): `f05_1572` with its prologue `05:156f`, `f05_1fa8` and `f05_1ce4`: box
   magnets made from a strength (the size from `DS:728`'s levels: 17, 13,
   10, 8, 6) instead of a size; `f05_056e`, `f05_0732` (strength 200 *
   `[27B2]` / (`[27B0]` * 2) set through the pole's `+1C`); `f05_090a`
@@ -2157,15 +2165,25 @@ What changed:
   all cited. `f27_3322` is an empty constructor for Borland's vector new
   (the room's `+F3D`, 5 of 8 bytes; an area's `+14`, 32 of 8): nothing
   to do.
-- **Start-up and exit code** (DGROUP `8750`-`8816`, Borland's tables of
-  static constructors and destructors): `f33_02ab` (the ball kinds,
-  cited), `f34_0ef4` (the stand-in face `DS:2950`, cited), `f11_17e8`;
-  and code nedis left inside other functions: 02:17AC, 05:29FC, 07:1941,
-  08:3A98, 10:017C (the game objects' pool), 12:45EE (the stand-in box
-  `DS:116E`, the view's rectangle 0), 14:19CD (the clip `[1706]`: 0, 0,
-  640, 400), 15:2A2D, 16:0302, 22:036A, 32:149E (the events' pool),
-  35:10E1, 39:1C77, and their exits. The port's statics are made as
-  they're declared.
+- **Start-up and exit code** (DGROUP `874E`-`87C0` and `87C6`-`880E`,
+  Borland's tables of static constructors and destructors, which
+  `nedis.py` now walks and `deadscan.py` takes as roots): `f33_02ab` (the
+  ball kinds, cited), `f34_0ef4` (the stand-in face `DS:2950`, cited),
+  `f11_17e8` (the empty rectangle, above), `f05_29ff`, `f07_1941`,
+  `f16_0302`; `f02_17ac` (the track's 300 points at `DS:881A`, Borland's
+  vector new with `f02_17cf`, an empty constructor), `f08_3a98` (`[1010]`
+  / `[1014]` = 10 / 100), `f10_017c` (the game objects' pool, `f39_0b43`
+  at `DS:1104`), `f12_45ee` (the stand-in box `DS:116E`, the view's
+  rectangle 0), `f14_19cd` (the clip `[1706]`: 0, 0, 640, 400),
+  `f32_149e` (the events' pool `DS:2798` and the list `DS:9218`),
+  `f35_10e1` (the drawables' bit set `DS:2984` and pool `DS:298C`),
+  `f39_1c77` (the library's error object `DS:927C`, `f39_01e8`);
+  `f15_2a2d` and `f22_036a` are empty. Their exits free the same:
+  `f10_0192`, `f12_4646`, `f32_14c7`, `f35_1131`, `f62_06a2` (the player
+  `DS:5FFC`, if made: `f31_01c6`). The port's statics are made as they're
+  declared. The coverage run (`tools/testing/coverage.py`) caught
+  `f02_17cf`, `f39_0b43`, `f39_01e8` and `f11_17e8` running at start-up
+  while the scan had them unreferenced: nedis had left this code as bytes.
 - **False references** deadscan counts: `f05_090a` (`0x908`, a vtable's
   offset, `DS:0908`), `f27_01a5` (`add ax, 0x1a3`), `f41_00bf` (a local
   `0xBE`): none calls them. `f08_1236` (the core's slot 14, `+38`), the
@@ -2177,6 +2195,20 @@ What changed:
 - **Prologues the scan took for the function before**: `f16_015e`,
   `f16_023e`, `f27_13ba`, `f30_1858`, `f30_230e`, `f31_1b26`, `f33_0282`,
   `f39_1135` have no reference of their own (`f31_1b26` never runs: the
-  play area is kept within the window by `f31_0405` alone); `f02_17cf` is
-  an empty `new` followed by the puddle's, the trail's and the torch's
-  RTTI records and adjustor thunks.
+  play area is kept within the window by `f31_0405` alone). `f02_17cf`,
+  an empty constructor followed by the puddle's, the trail's and the
+  torch's RTTI records and adjustor thunks, runs: start-up's `f02_17ac`
+  (above).
+
+**The coverage run** (`tools/testing/coverage.py science`, 2026-10-10):
+the original played scenario.py's 15 scenarios with a tripwire at each
+function deadscan finds dead (219; 59 left out as data nedis took for
+code, or too short). 47 ran. Four the scan had unreferenced, from
+Borland's start-up tables, which nedis hadn't disassembled (`f02_17cf`,
+`f39_0b43`, `f39_01e8`, `f11_17e8`: now roots, above); the rest are
+"table only", reached through their class's table: the destructors
+above (rooms, objects, controls, lessons, the player and the game's
+lists at a room's change and the game's end), `f39_192c` (the list's
+count), and four whose notes had them never run, corrected above
+(`f05_014b`, `f13_1868`, `f23_00e9`, `f30_32a9`): none does anything the
+port lacks. Each hit's stack read by `tools/testing/covstack.py`.

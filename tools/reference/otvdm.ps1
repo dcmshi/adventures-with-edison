@@ -257,9 +257,13 @@ function StartGame($exe) {
     if (Game) { Write-Output "a run was left over: $(StopGame)" }
     if ($env:OTVDM_LOG) {
         # winevdm's own output (its crash report: tools/testing/coverage.py's
-        # tripwires) kept in a file.
-        Start-Process -FilePath $otvdm -ArgumentList $exe -WorkingDirectory $runDir `
-            -RedirectStandardOutput $env:OTVDM_LOG -RedirectStandardError "$($env:OTVDM_LOG).err"
+        # tripwires) kept in a file, by a hidden cmd started through the
+        # shell. Not Start-Process's -RedirectStandardOutput: that hands
+        # winevdm this script's handles, the caller's pipe among them
+        # (origrun.py's), which then stayed open as long as the game ran,
+        # and "start" never returned.
+        $line = '/c ""{0}" "{1}" > "{2}" 2> "{3}""' -f $otvdm, $exe, $env:OTVDM_LOG, "$($env:OTVDM_LOG).err"
+        Start-Process -FilePath "cmd.exe" -ArgumentList $line -WorkingDirectory $runDir -WindowStyle Hidden
     } else {
         Start-Process -FilePath $otvdm -ArgumentList $exe -WorkingDirectory $runDir
     }
