@@ -17,7 +17,7 @@ constexpr uint16_t kTop = 1, kBottom = 2, kRight = 3, kLeft = 4;
 constexpr int kMoreX = 0x210, kMoreY = 0x172, kMoreW = 0x58, kMoreH = 0x18;
 
 // The lessons' scripts (each class's +44 runner: g15_1260, g15_1796,
-// g15_1c46, g15_202d, g15_23b9, g15_27ca): a bubble each step, at an
+// g15_1c46, g15_202d, g15_2433, g15_2858): a bubble each step, at an
 // anchor with its tail, the width, the text and the narration the next
 // bubble plays. The anchors: A (1E0, AE) and B (21C, 7C) by the
 // professor, C (A6, 11A) by Edison, the others lessons 9 and 10's own.
@@ -26,9 +26,11 @@ struct Step {
     uint16_t text, nextSound;
 };
 // The lessons' two animated objects (the professor: f15_0bde, f15_0f19,
-// f15_0e43; Edison: the builders' second child), each a sprite cycling
-// through `count` frames over `period` ticks (f16_010e: frame = (tick mod
-// period) x count / period) at a fixed place (f16_0000).
+// f15_0e43; Edison: the builders' second child; each an animation,
+// f15_0003, its x, y and frame generators given by f15_00dc, f15_00f3
+// and f15_010a, added to the lesson by f15_09a6), each a sprite cycling
+// through `count` frames over `period` ticks (f16_010e on f16_008f: frame
+// = (tick mod period) x count / period) at a fixed place (f16_0000).
 struct Anim {
     uint16_t sprite;
     int count, period, x, y;
@@ -65,7 +67,10 @@ std::vector<std::string> Science::wrapText(const std::string& text, int width, i
     // Segment 23 (f23_02a4): from an estimate of the characters a line
     // holds, back to the space before (f23_0193, which leaves the space for
     // the next line) while too wide, or on to the next space (f23_0218,
-    // the space kept) while it fits.
+    // the space kept) while it fits. Each line laid out in turn (f23_05d0,
+    // its record f23_0769), measured in the text's font (f23_0000,
+    // f23_001c: f32_073e's), the characters read through the resource's
+    // window (f22_012f, f22_00e7).
     const int len = static_cast<int>(text.size());
     auto w = [&](int start, int n) { return font_->width(text.substr(static_cast<size_t>(start), static_cast<size_t>(n))); };
     auto back = [&](int start, int n) {
@@ -126,11 +131,14 @@ void Science::drawStretched(int x, int y, int w, int h, uint16_t id) {
 }
 
 Science::Bubble Science::bubble(int ax, int ay, int width, int tail, const std::string& text) {
-    // g15_0467 / f15_31fa / f15_2a35: the box is `width` wide and as tall as
-    // the lines, placed by the tail (0: right of it, 1: centred over it,
-    // 2: left of it); filled with colour F, edged with the stretched
-    // pieces, the lines in colour 0, then the tail. ([8CE4] = 100 is the
-    // width used when a step gives none.)
+    // g15_0467 (entered at 15:0464) / f15_31fa / f15_2a35: the box is `width`
+    // wide and as tall as the lines (f15_2ea4: its text, wrapped and laid
+    // out, f23_0068), placed by the tail (0: right of it, 1: centred over
+    // it, 2: left of it); filled with colour F, edged with the stretched
+    // pieces (their rectangles f15_2c75), the lines in colour 0 (each by
+    // the text's f17_0003: f22_0325 → f22_0156 → f22_024c), then the
+    // tail; drawn with the lesson (f15_058a). ([8CE4] = 100 is the width
+    // used when a step gives none.)
     Bubble b;
     const std::vector<std::string> lines = wrapText(text, width);
     const int h = static_cast<int>(lines.size()) * font_->height();
@@ -152,7 +160,8 @@ Science::Bubble Science::bubble(int ax, int ay, int width, int tail, const std::
     if (tail == 1) tx -= t.width / 2;
     else if (tail == 2) tx -= t.width;
     drawLogo(tx, ty, static_cast<uint16_t>(tail == 0 ? 5 : tail == 2 ? 6 : 7));
-    // What it covers, to take it away again.
+    // What it covers, to take it away again (f15_2fee: the box, the tail
+    // and the edges).
     b.x = std::min(x - lw, tx);
     b.y = std::min(y - th, ty);
     b.w = std::max(x + width + rw, tx + t.width) - b.x;
@@ -161,6 +170,8 @@ Science::Bubble Science::bubble(int ax, int ay, int width, int tail, const std::
 }
 
 std::string Science::textResource(uint16_t id) {
+    // f22_0000: the resource and its size; f22_0041 reads it 200 bytes at a
+    // time into DS:8D44 (here all of it at once).
     std::vector<uint8_t> bytes;
     if (!ctx_.read(id, bytes)) return {};
     std::string s(bytes.begin(), bytes.end());
@@ -180,7 +191,8 @@ bool Science::waitMore() {
 
 void Science::lessonStart(uint16_t picture) {
     // f15_076a: the lesson's picture with the look on screen 2 (a clean
-    // copy kept on 3 to take bubbles away), FM sound 25.
+    // copy kept on 3 to take bubbles away), FM sound 25; the builder's end
+    // puts screen 2's palette into the others and the display (f20_0000).
     fmSound(0x25);
     select(1);
     applyLook();
@@ -208,6 +220,9 @@ int Science::lesson(int n) {
     int shown[2] = {-1, -1};
     const Step* current = nullptr;
     std::string currentText;
+    // A redraw (the lesson's f15_0b77: screen 2 saved and clipped,
+    // f15_071c, entered at 15:0719; then f15_0ba7: the area to the display,
+    // screen 2 restored, f15_0746, entered at 15:0743).
     auto compose = [&] {
         select(2);
         copyArea(3, 2, 0, 0, Screen::kWidth, Screen::kHeight);
@@ -219,7 +234,10 @@ int Science::lesson(int n) {
     auto tick = [&] {
         // The game's ticks, 50 a second (f32_0777(50)); the lesson's
         // (f15_0acb → f29_05fe: each object's tick, then what changed
-        // redrawn: the area's draw, f29_04ca, the objects over it).
+        // redrawn: the area's draw, f29_04ca, the objects over it). Each a
+        // step of the generators (the places' f16_007e: only their count).
+        // A frame changed, its rectangle (f15_015b: the place, the frame's
+        // size) is redrawn (f15_0124).
         const uint64_t ticks = (ctx_.platform.milliseconds() - start) / 20;
         bool changed = false;
         for (int i = 0; i < 2; ++i) {
@@ -319,6 +337,9 @@ int Science::lesson(int n) {
                 grabbed = true, swap({0x13BE, 3, 25, 0, 0});
                 continue;
             }
+            // A press in the lesson's rectangle (its +08: f15_1235, f15_176b,
+            // f15_1c1b, f15_2002, f15_2408, f15_282d; while +13E, f15_0ae4,
+            // entered at 15:0ae1: its children first) is MORE.
             if (x >= kMoreX && y >= kMoreY && x < kMoreX + kMoreW && y < kMoreY + kMoreH) break;
         }
     }

@@ -153,7 +153,7 @@ void Science::pullTick(Object& o) {
 }
 
 void Science::holeGo(Object& o) {
-    // f27_2530: back out if it leads to this room (mode 0); a door within
+    // f27_2530: back out if it leads to this room (f31_0373, mode 0); a door within
     // the room (0, 100-500) passes the ball to its other half (its +0E:
     // that hole's +2C, mode 0; none, nothing); else event 9: that room,
     // from this hole.

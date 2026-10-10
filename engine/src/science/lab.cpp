@@ -201,9 +201,11 @@ void Science::askName() {
 }
 
 void Science::characterEnhancer() {
-    // f19_0976 (the buttons, segment 18): a click on a part takes its next
-    // choice (f19_07fa, the colours at once: f20_0126); DONE (its picture
-    // 142A pressed) or Enter ends it.
+    // f19_0976 (the buttons, segment 18: the panel listed, f18_0277; each
+    // poll, f18_0319, a press finds the panel under it, f18_012f, and its
+    // button, f18_01c0): a click on a part takes its next choice (f19_07fa,
+    // the colours at once: f20_0126, f20_0000); DONE (its picture 142A
+    // pressed) or Enter ends it.
     for (;;) {
         ctx_.pump();
         if (ctx_.platform.takeKey() == Platform::kEnter) break;
@@ -330,6 +332,9 @@ void Science::recordGame() {
     // (A game started in a room, --room, has had no lab: "Player", as the
     // lab's default, DS:1D6F; the original would write an empty name,
     // which shifts every field after it when the file's read again.)
+    // The player's name (DS:26D8, its spaces made dots by f31_02ff, again
+    // by f39_1c22), the room's score (f31_03d6), its level and screen
+    // (f31_0717, f31_074d: DS:26F6 by the room, 65 once the game's won).
     p.name = playerName_.empty() ? dataString(0x1D6F) : playerName_;
     for (char& c : p.name)
         if (c == ' ') c = '.';
@@ -362,6 +367,9 @@ void Science::highScores() {
     int y = 0x67;
     for (size_t i = 0; i < players_.size() && i < 10; ++i) {
         const PlayerEntry& p = players_[i];
+        // (Each a string, as the entries hold them, f21_0041: the name,
+        // f39_1996, with its dots as spaces, f39_1c22; the score, f39_1adc;
+        // the level and screen, f39_1a67.)
         std::string name = p.eof ? std::string() : p.name;
         for (char& c : name)
             if (c == '.') c = ' ';
@@ -430,14 +438,21 @@ void Science::lab() {
         walk(2);
         askName();
         copyArea(2, 1, 0x12, 0x80, 300, 0x8E);
-        // A returning player (the first 8 letters, any case) gets their look.
+        // A returning player (the first 8 letters, any case) gets their look:
+        // each name copied (f39_1a06) with its dots as spaces (f39_1c22),
+        // as it was typed.
         auto lower8 = [](const std::string& s) {
             std::string r = s.substr(0, 8);
             for (char& c : r) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
             return r;
         };
+        auto typed = [](std::string s) {
+            for (char& c : s)
+                if (c == '.') c = ' ';
+            return s;
+        };
         for (size_t i = 0; i < players_.size(); ++i)
-            if (!players_[i].eof && lower8(players_[i].name) == lower8(playerName_)) {
+            if (!players_[i].eof && lower8(typed(players_[i].name)) == lower8(playerName_)) {
                 for (int t = 0; t < 4; ++t) look_[t] = static_cast<uint8_t>(players_[i].look[t] & 7);
                 applyLook();
                 found = static_cast<int>(i);
@@ -461,6 +476,10 @@ void Science::lab() {
     }
     saveLook();
     waitCountdown(10);
+    // f19_0f1a: the name's spaces as '_' (DS:8D22), then it's the player's
+    // (f31_02ff, which turns spaces into dots: none are left).
+    for (char& c : playerName_)
+        if (c == ' ') c = '_';
     if (playerName_.empty()) playerName_ = dataString(0x1D6F);
     clearDisplay();
     fill(0, 0, Screen::kWidth, Screen::kHeight, 2);

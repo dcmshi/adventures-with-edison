@@ -461,7 +461,8 @@ Science::Rect Science::objectRect(int x, int y, int z, int w, int d, int h) cons
 void Science::listDrawables(std::vector<Drawable>& list, const Rect& redraw) {
     // The room's drawables (+1AD): the table's boxes first (the room's
     // method 1, f27_12b6 → f27_1864, as the shape's read: 24 at most, not
-    // the root), then the objects'.
+    // the root), then the objects'. Each record given its object and kind
+    // (f35_01c2).
     auto area = [](const Rect& r) { return Drawable::Area{r.x, r.y, r.w, r.h}; };
     std::function<void(const Box&, std::vector<const void*>)> boxes = [&](const Box& box, std::vector<const void*> lineage) {
         for (const auto& child : box.children) {
@@ -1110,7 +1111,7 @@ void Science::drawTable() {
     drawStanding(table_.root);
     select(2);
     drawPits(table_.root);
-    copyKeyed(3, 2, v.x, v.y, v.w, v.h);
+    copyKeyed(3, 2, v.x, v.y, v.w, v.h);  // f14_0c4f → f14_0b11
     clearPolygonClip();
     // f27_0e5b (from the room's method 4, its last argument 0): the
     // machine (2002, with the look) on screen 3 and the table into its
@@ -1232,7 +1233,7 @@ void Science::redrawTable(const Rect& area) {
     // f27_1e36, the room's method 3: within the view, screen 2 cleared to
     // colour 0, the room's objects painted back to front (not yet), the
     // score and shots boxes, then screen 3 where screen 2 is still colour 0
-    // (f14_0c88 → f65_0294), and the area to the display.
+    // (f14_0c88 → f14_0b93 → f65_0294), and the area to the display.
     // (A new table's first: what each drawable is seen as from here.)
     if (seenTable_ != tableSerial_) noteChanges();
     const Rect a = intersect(area, table_.view);
